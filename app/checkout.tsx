@@ -158,11 +158,13 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F3F4F6',
+   marginTop: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+     marginTop: 20,
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#0E7A3D',

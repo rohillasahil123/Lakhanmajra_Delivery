@@ -177,11 +177,13 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+     marginTop: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+     marginTop: 20,
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#0E7A3D',
@@ -401,6 +403,7 @@ const styles = StyleSheet.create({
   },
   bottomContent: {
     flexDirection: 'row',
+    marginBottom: 14,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,

@@ -175,12 +175,14 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+   marginTop: 20,
   },
   container: {
     flex: 1,
   },
   header: {
     flexDirection: 'row',
+     marginTop: 20,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
