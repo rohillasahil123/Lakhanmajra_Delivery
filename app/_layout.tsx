@@ -2,8 +2,8 @@ import { Stack } from 'expo-router';
 
 export default function RootLayout() {
   return (
-    <Stack 
-      screenOptions={{ 
+    <Stack
+      screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
         contentStyle: { backgroundColor: '#F9FAFB' }
@@ -16,6 +16,10 @@ export default function RootLayout() {
       <Stack.Screen name="location" />
       <Stack.Screen name="home" />
       <Stack.Screen name="cart" />
+      <Stack.Screen name="search" />
+      <Stack.Screen name="categories" />
+      <Stack.Screen name="products" />
+      <Stack.Screen name="productdetail" />
       <Stack.Screen name="checkout" />
     </Stack>
   );

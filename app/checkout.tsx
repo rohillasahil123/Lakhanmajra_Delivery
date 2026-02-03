@@ -1,6 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import {
     Alert,
     SafeAreaView,
@@ -10,54 +10,28 @@ import {
     View
 } from 'react-native';
 
-// Dummy cart data
-const CART_ITEMS = [
-  { 
-    id: 1, 
-    name: 'Amul Milk', 
-    quantity: 2, 
-    price: 25, 
-    unit: '500ml',
-    image: '🥛',
-    total: 50 
-  },
-  { 
-    id: 2, 
-    name: 'Aashirvaad Atta', 
-    quantity: 1, 
-    price: 200, 
-    unit: '5kg',
-    image: '🌾',
-    total: 200 
-  },
-  { 
-    id: 3, 
-    name: 'Parle-G Biscuits', 
-    quantity: 1, 
-    price: 30, 
-    unit: 'pack',
-    image: '🍪',
-    total: 30 
-  },
-];
+import useCart from '@/stores/cartStore';
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const [cartItems] = useState(CART_ITEMS);
-  
+  const cartItems = useCart((s) => s.items);
+  const clearCart = useCart((s) => s.clear);
+
   // Calculate totals
-  const billTotal = cartItems.reduce((sum, item) => sum + item.total, 0);
+  const billTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryFee = 10;
   const totalPayable = billTotal + deliveryFee;
 
   const handlePlaceOrder = () => {
+    // In real app: call API, process payment, then clear
+    clearCart();
     Alert.alert(
       'Order Placed! 🎉',
       `Your order of ₹${totalPayable} has been placed successfully!\n\nDelivery Time: 30 minutes`,
       [
         {
-          text: 'Track Order',
-          onPress: () => router.push('/home'),
+          text: 'View Orders',
+          onPress: () => router.push('/orders'),
         },
       ]
     );
@@ -115,7 +89,7 @@ export default function CheckoutScreen() {
                 </ThemedText>
                 <ThemedText style={styles.itemUnit}>{item.unit}</ThemedText>
               </View>
-              <ThemedText style={styles.itemPrice}>₹ {item.total}</ThemedText>
+              <ThemedText style={styles.itemPrice}>₹ {item.price * item.quantity}</ThemedText>
             </View>
           ))}
         </View>
