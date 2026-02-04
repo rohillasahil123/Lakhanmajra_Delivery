@@ -1,23 +1,19 @@
 import express, { Application } from "express";
 import cors from "cors";
-
-import connectMongo from "./config/mongo.js";
+import mongoose from "mongoose";
 
 const app: Application = express();
 
-// middlewares
 app.use(cors());
 app.use(express.json());
 
-// database
-connectMongo();
+mongoose
+  .connect(process.env.MONGO_URI as string)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => console.error("❌ Mongo error:", err));
 
-// health route
 app.get("/", (_req, res) => {
-  res.json({
-    status: "Backend running fine 🟢",
-    env: process.env.NODE_ENV || "dev"
-  });
+  res.json({ message: "Backend running fine 🟢" });
 });
 
 export default app;
