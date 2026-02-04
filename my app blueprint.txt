@@ -1,0 +1,67 @@
+High-level implementation plan 🔧
+Navigation
+Add routing screens: app/signup.tsx, app/otp.tsx, app/location.tsx, app/checkout.tsx, app/order-tracking.tsx, app/payment.tsx, app/categories.tsx.
+Use current root Stack for auth flow → tabs.
+Shared UI components (create once, reuse)
+components/ui/Header.tsx (green header with back and title)
+components/ui/TextInput.tsx (label, error, icons)
+components/ui/Button.tsx (primary orange, secondary green)
+components/ui/OTPInput.tsx
+components/ui/CategoryCard.tsx and components/ui/CartItem.tsx
+Screens
+Build Signup, OTP, Location (map picker), Checkout, Order Tracking, Payment, Categories using shared components.
+Styling
+Use existing tooling: Tailwind (nativewind) + small StyleSheet for complex elements.
+Use ThemedText/ThemedView and theme.ts colors.
+Map & images
+For location screen, use react-native-maps (expo) or placeholder if native setup is not possible during first pass.
+Accessibility & form validation
+Basic validation for Signup/Checkout, keyboard types, focus flow.
+Testing
+Run on device/emulator & web; adjust spacing for small screens.
+Required dependencies & notes ⚠️
+Possible new packages: react-native-maps (expo install), react-native-gesture-handler if not already, maybe react-native-svg for icons. I’ll list exact commands before installing.
+If you want pixel-perfect map features (location detection), we may need native permissions (Expo config).
+7-day blueprint (day-by-day) 📅
+Day 1 — Project setup & core components ✅
+
+Tasks: create shared UI components (Header, Button, Input, OTPInput), add colors and button styles.
+Deliverable: Reusable components with story/example inside screen app/signup.tsx (static layout).
+Acceptance: Signup screen looks like screenshot layout (no map/logic yet).
+Day 2 — Signup form & OTP screen 🔐
+
+Tasks: implement Signup form with validation and navigation to OTP; implement OTP screen UI + timer.
+Deliverable: Flow Signup → OTP navigation; OTP input and verify button.
+Acceptance: Form input validation works, OTP screen visually matches.
+Day 3 — Location screen (map picker) 📍
+
+Tasks: integrate react-native-maps (or placeholder), add "Detect Location" and "Use This Location" UI.
+Deliverable: Pick location UI and store selected location state.
+Acceptance: Can select/confirm location; button UI works. If native setup blocks, provide placeholder and instructions.
+Day 4 — Categories & product grid 🧺
+
+Tasks: implement Categories screen grid with illustrative cards; wire sample product items.
+Deliverable: Category cards with images and labels; responsive layout.
+Acceptance: Grid matches screenshot spacing; cards have shadows / rounded style.
+Day 5 — Checkout screen & cart items 🧾
+
+Tasks: Checkout screen UI with delivery address, cart list (CartItem), totals, Place Order CTA.
+Deliverable: Checkout layout & item rows.
+Acceptance: totals calculated from sample data and Place Order button present.
+Day 6 — Order tracking & Notifications 🚚
+
+Tasks: OrderTracking screen (order summary card, small action buttons), notifications list UI.
+Deliverable: Tracking card UI that matches screenshot (bottom action & call button).
+Acceptance: Mock real order data shows correctly in card.
+Day 7 — Payment screen & polish, testing & deployment 🧾💎
+
+Tasks: implement Payment screen visuals, final spacing, accessibility, small fixes, test on devices.
+Deliverable: All screens implemented, tested, and tidy PR/commit history.
+Acceptance: App visually matches screenshot and flows between screens.
+Next actions (what I need from you) ▶️
+Confirm platform(s) and which screen to start with (I recommend Signup).
+Upload any brand assets (logo, exact brand colors, category images) if available.
+Give permission to start implementing Signup screen — I’ll create files one-by-one and ask for approval before each file change.
+If you approve, I’ll start by creating the Signup screen UI and the basic Button, TextInput, and Header components. Ready to proceed with Signup? ✅
+
+Raptor mini (Preview) • 1x
