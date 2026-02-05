@@ -2,6 +2,8 @@ import express, { Application } from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes";
+import categoryRoutes from "./routes/category.routes";
+import productRoutes from "./routes/product.routes";
 
 const app: Application = express();
 
@@ -19,6 +21,8 @@ app.get("/", (_req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/products", productRoutes);
 
 app.get("/", (req, res) => {
   res.send("API running");

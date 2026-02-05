@@ -282,6 +282,21 @@ Phase 7 🚀 Production Docker
 
 
 
+Phase 3 All api Name 
+
+POST   /api/categories               → नई category add करना (admin)
+GET    /api/categories               → सभी active categories लाना (user)
+POST   /api/products                 → नई product entry बनाना (admin)
+GET    /api/products                 → category के हिसाब से products लाना (user)
+GET    /api/products/:productId      → किसी एक product का पूरा detail लाना
+POST   /api/variants                 → product का size/price/stock variant add करना (admin)
+GET    /api/variants/:productId      → किसी product के सभी variants लाना
+PATCH  /api/variants/:id/stock       → variant का stock update करना (admin)
+GET    /api/home/products            → home screen के लिए fast product listing
+PATCH  /api/products/:id/status      → product को active / inactive करना (admin)
+
+
+
 
 
 
