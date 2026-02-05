@@ -28,3 +28,19 @@ export const protect = (
     return res.status(401).json({ message: "Invalid token" });
   }
 };
+
+export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+  // Accept role variations from JWT: `role`, `roleName`, or populated `roleId.name`
+  const roleCandidate = req.user.role || req.user.roleName || (req.user.roleId && (req.user.roleId.name || req.user.roleId));
+  if (roleCandidate && (roleCandidate === "admin" || roleCandidate === "superadmin")) return next();
+  return res.status(403).json({ message: "Admin privileges required" });
+};
+
+export const requireRole = (role: string) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    if (req.user.role && req.user.role === role) return next();
+    return res.status(403).json({ message: `Require role: ${role}` });
+  };
+};

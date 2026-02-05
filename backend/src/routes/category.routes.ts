@@ -1,13 +1,13 @@
 import { Router } from "express";
-import {
-  createCategory,
-  getCategories,
-} from "../controllers/category.controller";
+import { createCategory, getCategories } from "../controllers/category.controller";
+import { protect, isAdmin } from "../middlewares/auth.middleware";
 
 const router = Router();
 
-// later → admin middleware add karenge
-router.post("/", createCategory);
+// Public
 router.get("/", getCategories);
+
+// Admin
+router.post("/", protect, isAdmin, createCategory);
 
 export default router;

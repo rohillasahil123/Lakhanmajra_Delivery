@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import authRoutes from "./routes/auth.routes";
 import categoryRoutes from "./routes/category.routes";
 import productRoutes from "./routes/product.routes";
+import adminRoutes from "./routes/admin.routes";
+import { errorHandler } from "./middlewares/error.middleware";
 
 const app: Application = express();
 
@@ -23,9 +25,9 @@ app.get("/", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/admin", adminRoutes);
 
-app.get("/", (req, res) => {
-  res.send("API running");
-});
+// Error handler (should be last middleware)
+app.use(errorHandler);
 
 export default app;

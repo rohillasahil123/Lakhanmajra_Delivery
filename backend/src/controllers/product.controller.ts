@@ -1,103 +1,94 @@
 import { Request, Response } from "express";
-import { Product } from "../models/product.model";
+import * as service from "../services/product.service";
+import { createProductSchema, updateProductSchema } from "../validators/product.validator";
+import { success, fail } from "../utils/response";
 
-// ADMIN → Create Product
-export const createProduct = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const createProduct = async (req: Request, res: Response) => {
   try {
-    const { name, description, images, categoryId } = req.body;
+    const { error, value } = createProductSchema.validate(req.body);
+    if (error) return fail(res, "Validation failed", 400, error.details);
 
-    const product = await Product.create({
-      name,
-      description,
-      images,
-      categoryId,
-    });
-
-    res.status(201).json({
-      success: true,
-      data: product,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    const doc = await service.createProduct(value as any);
+    return success(res, doc, "Product created", 201);
+  } catch (err: any) {
+    return fail(res, err.message || "Create failed", 500);
   }
 };
 
-// USER → Get Products (by category)
-export const getProducts = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getProducts = async (req: Request, res: Response) => {
   try {
-    const { categoryId } = req.query;
+    const { q, categoryId, page = "1", limit = "20", minPrice, maxPrice, tags } = req.query as any;
+    const filters: any = {};
+    if (q) filters.q = q;
+    if (categoryId) filters.categoryId = categoryId;
+    if (minPrice) filters.minPrice = Number(minPrice);
+    if (maxPrice) filters.maxPrice = Number(maxPrice);
+    if (tags) filters.tags = (tags as string).split(",");
 
-    const filter: any = { isActive: true };
-    if (categoryId) filter.categoryId = categoryId;
-
-    const products = await Product.find(filter);
-
-    res.status(200).json({
-      success: true,
-      data: products,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    const result = await service.getProducts(filters, Number(page), Number(limit));
+    return success(res, result, "Products fetched");
+  } catch (err: any) {
+    return fail(res, err.message || "Fetch failed", 500);
   }
 };
 
-// USER → Get Single Product
-export const getProductById = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getProductById = async (req: Request, res: Response) => {
   try {
     const { productId } = req.params;
-
-    const product = await Product.findById(productId);
-
-    res.status(200).json({
-      success: true,
-      data: product,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    const doc = await service.getProductById(productId);
+    if (!doc) return fail(res, "Product not found", 404);
+    return success(res, doc, "Product fetched");
+  } catch (err: any) {
+    return fail(res, err.message || "Fetch failed", 500);
   }
 };
 
-// ADMIN → Activate / Deactivate Product
-export const updateProductStatus = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const updateProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { error, value } = updateProductSchema.validate(req.body);
+    if (error) return fail(res, "Validation failed", 400, error.details);
+
+    const doc = await service.updateProduct(id, value as any);
+    if (!doc) return fail(res, "Product not found", 404);
+    return success(res, doc, "Product updated");
+  } catch (err: any) {
+    return fail(res, err.message || "Update failed", 500);
+  }
+};
+
+export const updateProductStatus = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
+    const doc = await service.updateProduct(id, { isActive } as any);
+    if (!doc) return fail(res, "Product not found", 404);
+    return success(res, doc, "Status updated");
+  } catch (err: any) {
+    return fail(res, err.message || "Update failed", 500);
+  }
+};
 
-    const product = await Product.findByIdAndUpdate(
-      id,
-      { isActive },
-      { new: true }
-    );
+export const deleteProduct = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const doc = await service.softDeleteProduct(id);
+    if (!doc) return fail(res, "Product not found", 404);
+    return success(res, doc, "Product soft-deleted");
+  } catch (err: any) {
+    return fail(res, err.message || "Delete failed", 500);
+  }
+};
 
-    res.status(200).json({
-      success: true,
-      data: product,
-    });
-  } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+export const changeStock = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { delta } = req.body;
+    if (typeof delta !== "number") return fail(res, "delta must be number", 400);
+    const doc = await service.changeStock(id, Number(delta));
+    if (!doc) return fail(res, "Product not found", 404);
+    return success(res, doc, "Stock updated");
+  } catch (err: any) {
+    return fail(res, err.message || "Stock update failed", 500);
   }
 };

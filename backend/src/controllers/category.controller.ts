@@ -1,50 +1,41 @@
 import { Request, Response } from "express";
 import { Category } from "../models/category.model";
+import { createCategorySchema } from "../validators/category.validator";
+import { success, fail } from "../utils/response";
 
 // ADMIN → Create category
-export const createCategory = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const createCategory = async (req: Request, res: Response) => {
   try {
-    const { name, icon, priority } = req.body;
+    const { error, value } = createCategorySchema.validate(req.body);
+    if (error) return fail(res, "Validation failed", 400, error.details);
+
+    const { name, icon, priority, parentCategory } = value as any;
+    const base = (name || "").toString().toLowerCase().trim();
+    const slug = base.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
 
     const category = await Category.create({
       name,
-      icon,
+      slug,
+      image: icon,
       priority,
+      parentCategory: parentCategory || null,
     });
 
-    res.status(201).json({
-      success: true,
-      data: category,
-    });
+    return success(res, category, "Category created", 201);
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return fail(res, error.message || "Create failed", 500);
   }
 };
 
 // USER → Get active categories
-export const getCategories = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+export const getCategories = async (req: Request, res: Response) => {
   try {
     const categories = await Category.find({ isActive: true }).sort({
       priority: 1,
     });
 
-    res.status(200).json({
-      success: true,
-      data: categories,
-    });
+    return success(res, categories, "Categories fetched");
   } catch (error: any) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    return fail(res, error.message || "Fetch failed", 500);
   }
 };

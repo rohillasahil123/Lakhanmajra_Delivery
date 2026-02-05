@@ -1,8 +1,10 @@
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document, Types } from "mongoose";
 
 export interface ICategory extends Document {
   name: string;
-  icon?: string;
+  slug: string;
+  image?: string;
+  parentCategory?: Types.ObjectId | null;
   priority: number;
   isActive: boolean;
 }
@@ -12,12 +14,22 @@ const categorySchema = new Schema<ICategory>(
     name: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
     },
-    icon: {
+    slug: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true,
+    },
+    image: {
       type: String,
       default: "",
+    },
+    parentCategory: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      default: null,
     },
     priority: {
       type: Number,
@@ -30,5 +42,7 @@ const categorySchema = new Schema<ICategory>(
   },
   { timestamps: true }
 );
+
+categorySchema.index({ slug: 1 }, { unique: true, sparse: true });
 
 export const Category = model<ICategory>("Category", categorySchema);
