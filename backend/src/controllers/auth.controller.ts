@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model";
 import { AuthRequest } from "../middlewares/auth.middleware";
-import { getRoleByName, assignRoleToUser } from "../services/role.service";
+import { getRoleByName, assignRoleToUser, getUserWithRole, getUserPermissions } from "../services/role.service";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -24,7 +24,7 @@ export const register = async (req: Request, res: Response) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await User.create({
+    const created = await User.create({
       name,
       email,
       phone,
@@ -32,7 +32,8 @@ export const register = async (req: Request, res: Response) => {
       roleId: userRole._id,
     });
 
-    res.status(201).json({ message: "User registered successfully" });
+    const safeUser = await User.findById(created._id).select('-password').populate('roleId');
+    res.status(201).json({ message: "User registered successfully", user: safeUser });
   } catch (err) {
     res.status(500).json({ message: "Register failed" });
   }
@@ -80,15 +81,25 @@ export const login = async (req: Request, res: Response) => {
 
 /* ================= GET LOGGED IN USER ================= */
 export const getUsers = async (req: AuthRequest, res: Response) => {
-  const userId = req.user.id;
-
-  const user = await User.findById(userId).populate("roleId").select("-password");
-
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
+  try {
+    const userId = req.user.id;
+    const user = await getUserWithRole(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    const safeUser = (user as any).toObject ? { ...user.toObject(), password: undefined } : user;
+    return res.json(safeUser);
+  } catch (err) {
+    return res.status(500).json({ message: "Fetch failed" });
   }
+};
 
-  res.json(user);
+/* ================= GET CURRENT USER PERMISSIONS ================= */
+export const getPermissions = async (req: AuthRequest, res: Response) => {
+  try {
+    const perms = await getUserPermissions(req.user!.id);
+    return res.json({ permissions: perms });
+  } catch (err) {
+    return res.status(500).json({ message: "Failed to fetch permissions" });
+  }
 };
 
 /* ================= UPDATE USER ================= */

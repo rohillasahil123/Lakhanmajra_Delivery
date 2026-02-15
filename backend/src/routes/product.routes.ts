@@ -7,8 +7,10 @@ import {
   updateProduct,
   deleteProduct,
   changeStock,
+  importProducts,
 } from "../controllers/product.controller";
-import { protect, isAdmin } from "../middlewares/auth.middleware";
+import { protect } from "../middlewares/auth.middleware";
+import { requirePermission } from "../middlewares/permission.middleware";
 
 const router = Router();
 
@@ -16,11 +18,12 @@ const router = Router();
 router.get("/", getProducts);
 router.get("/:productId", getProductById);
 
-// Admin
-router.post("/", protect, isAdmin, createProduct);
-router.patch("/:id", protect, isAdmin, updateProduct);
-router.patch("/:id/status", protect, isAdmin, updateProductStatus);
-router.patch("/:id/stock", protect, isAdmin, changeStock);
-router.delete("/:id", protect, isAdmin, deleteProduct);
+// Admin (permission-based)
+router.post("/", protect, requirePermission('products:create'), createProduct);
+router.post("/import", protect, requirePermission('products:create'), importProducts);
+router.patch("/:id", protect, requirePermission('products:update'), updateProduct);
+router.patch("/:id/status", protect, requirePermission('products:update'), updateProductStatus);
+router.patch("/:id/stock", protect, requirePermission('products:update'), changeStock);
+router.delete("/:id", protect, requirePermission('products:delete'), deleteProduct);
 
 export default router;

@@ -74,3 +74,47 @@ export const changeStock = async (id: string, delta: number) => {
   await doc.save();
   return doc;
 };
+
+// Bulk import / upsert products from admin CSV/JSON import
+export const importProducts = async (items: Array<any>) => {
+  const results: any[] = [];
+  for (const it of items) {
+    const name = (it.name || it.title || '').toString().trim();
+    if (!name) continue;
+
+    // generate slug from name
+    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    let slug = it.slug ? it.slug.toString().toLowerCase() : base;
+
+    // try find by slug or name
+    let existing = await Product.findOne({ slug });
+    if (!existing) existing = await Product.findOne({ name });
+
+    const payload: any = {
+      name,
+      description: it.description || it.desc || undefined,
+      price: it.price !== undefined ? Number(it.price) : (it.priceFrom || undefined),
+      mrp: it.mrp !== undefined ? Number(it.mrp) : undefined,
+      stock: it.stock !== undefined ? Number(it.stock) : (it.qty !== undefined ? Number(it.qty) : 0),
+      tags: Array.isArray(it.tags) ? it.tags : (it.tags ? it.tags.toString().split(',').map((s:string)=>s.trim()) : []),
+      images: Array.isArray(it.images) ? it.images : (it.images ? it.images.toString().split(',').map((s:string)=>s.trim()) : []),
+      categoryId: it.categoryId || it.category || undefined,
+      isActive: it.isActive === undefined ? true : Boolean(it.isActive),
+    };
+
+    if (existing) {
+      const before = existing.toObject();
+      Object.assign(existing, payload);
+      await existing.save();
+      results.push({ action: 'updated', id: existing._id.toString(), name: existing.name, before, after: existing.toObject() });
+    } else {
+      // ensure slug uniqueness
+      let finalSlug = slug;
+      let found = await Product.findOne({ slug: finalSlug });
+      if (found) finalSlug = `${slug}-${Date.now().toString().slice(-5)}`;
+      const created = await Product.create({ ...payload, slug: finalSlug });
+      results.push({ action: 'created', id: created._id.toString(), name: created.name, after: created.toObject() });
+    }
+  }
+  return results;
+};

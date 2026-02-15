@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { Category } from "../models/category.model";
 import { createCategorySchema } from "../validators/category.validator";
 import { success, fail } from "../utils/response";
+import { recordAudit } from "../services/audit.service";
 
 // ADMIN → Create category
 export const createCategory = async (req: Request, res: Response) => {
@@ -21,9 +22,70 @@ export const createCategory = async (req: Request, res: Response) => {
       parentCategory: parentCategory || null,
     });
 
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'create',
+      resource: 'category',
+      resourceId: category._id.toString(),
+      after: category.toObject(),
+    }).catch(() => {}); // non‑blocking
+
     return success(res, category, "Category created", 201);
   } catch (error: any) {
     return fail(res, error.message || "Create failed", 500);
+  }
+};
+
+// ADMIN → Update category (name, description, icon, priority)
+export const updateCategory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, icon, priority } = req.body;
+    const update: any = {};
+    if (name !== undefined) {
+      update.name = name;
+      update.slug = (name || "").toString().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
+    }
+    if (icon !== undefined) update.image = icon;
+    if (priority !== undefined) update.priority = priority;
+
+    const before = await Category.findById(id);
+    const category = await Category.findByIdAndUpdate(id, update, { new: true });
+    if (!category) return fail(res, 'Category not found', 404);
+
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'update',
+      resource: 'category',
+      resourceId: id,
+      before: before?.toObject(),
+      after: category.toObject(),
+    }).catch(() => {}); // non‑blocking
+
+    return success(res, category, 'Category updated');
+  } catch (error: any) {
+    return fail(res, error.message || 'Update failed', 500);
+  }
+};
+
+// ADMIN → Delete category (soft)
+export const deleteCategory = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const category = await Category.findByIdAndUpdate(id, { isActive: false }, { new: true });
+    if (!category) return fail(res, 'Category not found', 404);
+
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'delete',
+      resource: 'category',
+      resourceId: id,
+      after: { isActive: false },
+    }).catch(() => {}); // non‑blocking
+
+    return success(res, category, 'Category soft-deleted');
+  } catch (error: any) {
+    return fail(res, error.message || 'Delete failed', 500);
   }
 };
 
