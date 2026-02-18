@@ -1,45 +1,49 @@
-# =========================
 # Expo
-# =========================
 .expo/
 
-# =========================
 # Dependencies
-# =========================
 node_modules/
 
-# =========================
 # Build outputs
-# =========================
 dist/
 build/
 .next/
 out/
 
-# =========================
 # Environment variables
-# =========================
 .env
 .env.local
 .env.development
 .env.production
 
-# =========================
 # Logs
-# =========================
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+*.log
 
-# =========================
 # Editor / OS
-# =========================
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
 
-# =========================
-# Misc
-# =========================
-*.log
+# Docker
+docker-data/
+volumes/
+*.tar
+
+# Temp / Cache
+tmp/
+temp/
+.cache/
+
+# Coverage
+coverage/
+
+# Local configs
+*.local
+*.backup
+
+# Old admin template
+
