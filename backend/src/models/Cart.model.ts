@@ -441,12 +441,12 @@ cartSchema.methods.removeCoupon = function (this: ICart): ICart {
 };
 
 // Static Methods
-cartSchema.statics.getOrCreateCart = async function (
+(cartSchema.statics as any).getOrCreateCart = async function (
   this: Model<ICart>,
   userId: mongoose.Types.ObjectId,
   sessionId?: string
 ): Promise<ICart> {
-  let cart = await this.findOne({
+  let cart = await (this as any).findOne({
     user: userId,
     status: 'active',
   });
@@ -462,12 +462,12 @@ cartSchema.statics.getOrCreateCart = async function (
   return cart;
 };
 
-cartSchema.statics.mergeGuestCart = async function (
+(cartSchema.statics as any).mergeGuestCart = async function (
   this: Model<ICart>,
   guestSessionId: string,
   userId: mongoose.Types.ObjectId
 ): Promise<ICart | null> {
-  const guestCart = await this.findOne({
+  const guestCart = await (this as any).findOne({
     sessionId: guestSessionId,
     isGuest: true,
     status: 'active',

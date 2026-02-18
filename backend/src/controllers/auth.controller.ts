@@ -126,15 +126,23 @@ export const deleteUser = async (req: Request, res: Response) => {
 /* ================= ASSIGN ROLE TO USER (SUPERADMIN) ================= */
 export const assignRole = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const { roleId } = req.body;
-    
-    if (!roleId) {
-      return res.status(400).json({ message: "roleId is required" });
+    let { id } = req.params;
+    let { roleId } = req.body;
+
+    // Ensure id and roleId are strings (not arrays)
+    if (Array.isArray(id)) id = id[0];
+    if (Array.isArray(roleId)) roleId = roleId[0];
+
+    if (!roleId || typeof roleId !== 'string') {
+      return res.status(400).json({ message: "roleId is required and must be a string" });
+    }
+
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ message: "id is required and must be a string" });
     }
 
     const user = await assignRoleToUser(id, roleId);
-    
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }

@@ -100,7 +100,9 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
 // Admin: get order detail
 export const adminGetOrderById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const order = await Order.findById(req.params.id)
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
+    const order = await Order.findById(id)
       .populate('userId')
       .populate('assignedRiderId')
       .populate('items.productId');
@@ -149,7 +151,8 @@ export const adminListOrders = async (req: Request, res: Response): Promise<void
 
 export const assignOrderToRider = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { riderId } = req.body;
     if (!riderId) {
       res.status(400).json({ message: 'riderId is required' });
@@ -188,7 +191,8 @@ export const assignOrderToRider = async (req: Request, res: Response): Promise<v
 
 export const adminUpdateOrderStatus = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { status } = req.body;
     const allowed = ['pending','processing','confirmed','shipped','delivered','cancelled'];
     if (!allowed.includes(status)) {

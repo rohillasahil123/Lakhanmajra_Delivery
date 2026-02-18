@@ -142,7 +142,8 @@ export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, ne
 // @route   PUT /api/cart/update/:itemId
 // @access  Public (Guest + Authenticated)
 export const updateQuantity = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  const { itemId } = req.params;
+  let { itemId } = req.params;
+  if (Array.isArray(itemId)) itemId = itemId[0];
   const { quantity }: UpdateQuantityRequest = req.body;
 
   if (!quantity || quantity < 1) {
@@ -204,7 +205,8 @@ export const updateQuantity = asyncHandler(async (req: AuthRequest, res: Respons
 // @route   DELETE /api/cart/remove/:itemId
 // @access  Public (Guest + Authenticated)
 export const removeItem = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  const { itemId } = req.params;
+  let { itemId } = req.params;
+  if (Array.isArray(itemId)) itemId = itemId[0];
 
   let cart;
 

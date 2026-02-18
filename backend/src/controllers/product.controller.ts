@@ -42,7 +42,8 @@ export const getProducts = async (req: Request, res: Response) => {
 
 export const getProductById = async (req: Request, res: Response) => {
   try {
-    const { productId } = req.params;
+    let { productId } = req.params;
+    if (Array.isArray(productId)) productId = productId[0];
     const doc = await service.getProductById(productId);
     if (!doc) return fail(res, "Product not found", 404);
     return success(res, doc, "Product fetched");
@@ -53,7 +54,8 @@ export const getProductById = async (req: Request, res: Response) => {
 
 export const updateProduct = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { error, value } = updateProductSchema.validate(req.body);
     if (error) return fail(res, "Validation failed", 400, error.details);
 
@@ -78,7 +80,8 @@ export const updateProduct = async (req: Request, res: Response) => {
 
 export const updateProductStatus = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { isActive } = req.body;
     const doc = await service.updateProduct(id, { isActive } as any);
     if (!doc) return fail(res, "Product not found", 404);
@@ -90,7 +93,8 @@ export const updateProductStatus = async (req: Request, res: Response) => {
 
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const doc = await service.softDeleteProduct(id);
     if (!doc) return fail(res, "Product not found", 404);
     
@@ -131,7 +135,8 @@ export const importProducts = async (req: Request, res: Response) => {
 
 export const changeStock = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { delta } = req.body;
     if (typeof delta !== "number") return fail(res, "delta must be number", 400);
     const doc = await service.changeStock(id, Number(delta));

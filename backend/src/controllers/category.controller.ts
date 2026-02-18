@@ -57,7 +57,7 @@ export const updateCategory = async (req: Request, res: Response) => {
       actorId: (req as any).user?.id,
       action: 'update',
       resource: 'category',
-      resourceId: id,
+      resourceId: Array.isArray(id) ? id[0] : id,
       before: before?.toObject(),
       after: category.toObject(),
     }).catch(() => {}); // non‑blocking
@@ -79,7 +79,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
       actorId: (req as any).user?.id,
       action: 'delete',
       resource: 'category',
-      resourceId: id,
+      resourceId: Array.isArray(id) ? id[0] : id,
       after: { isActive: false },
     }).catch(() => {}); // non‑blocking
 
@@ -105,7 +105,8 @@ export const getCategories = async (req: Request, res: Response) => {
 // USER → Get single category by id
 export const getCategoryById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
 
     const category = await Category.findOne({
       _id: id,

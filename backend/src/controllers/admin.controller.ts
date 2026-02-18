@@ -20,7 +20,8 @@ export const getAllRoles = async (req: Request, res: Response) => {
 // Get single role with permissions
 export const getRoleById = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const role = await Role.findById(id).populate("permissions");
     if (!role) return fail(res, "Role not found", 404);
     return success(res, role, "Role fetched");
@@ -69,7 +70,8 @@ export const createRole = async (req: Request, res: Response) => {
 // Update role (name, description, permissions)
 export const updateRole = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { name, description, permissionIds } = req.body;
 
     const update: any = { description };
@@ -94,7 +96,8 @@ export const updateRole = async (req: Request, res: Response) => {
 // Delete role (will prevent deleting core roles or roles that have assigned users)
 export const deleteRole = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const role = await Role.findById(id);
     if (!role) return fail(res, 'Role not found', 404);
 
@@ -118,7 +121,8 @@ export const deleteRole = async (req: Request, res: Response) => {
 // Get users assigned to a role (paginated)
 export const getUsersByRole = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { page = '1', limit = '50' } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -154,7 +158,8 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
 // Superadmin: update user's isActive (activate/deactivate)
 export const updateUserStatus = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
     const { isActive } = req.body;
 
     if (typeof isActive !== 'boolean') return fail(res, 'isActive must be boolean', 400);
