@@ -101,3 +101,24 @@ export const getCategories = async (req: Request, res: Response) => {
     return fail(res, error.message || "Fetch failed", 500);
   }
 };
+
+// USER → Get single category by id
+export const getCategoryById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const category = await Category.findOne({
+      _id: id,
+      isActive: true,
+    });
+
+    if (!category) {
+      return fail(res, "Category not found", 404);
+    }
+
+    return success(res, category, "Category fetched");
+  } catch (error: any) {
+    return fail(res, error.message || "Fetch failed", 500);
+  }
+};
+

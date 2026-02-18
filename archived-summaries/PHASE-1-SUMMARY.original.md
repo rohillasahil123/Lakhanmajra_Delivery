@@ -88,7 +88,6 @@ npm run dev           # Runs on http://localhost:5173
 
 ## Architecture Overview
 
-```
 Frontend Admin (React + Vite)
 ├── Products.tsx      (Create, CSV import, search, delete, paginate)
 ├── Orders.tsx        (List, detail modal, assign rider, status update)
@@ -113,7 +112,6 @@ Database (MongoDB)
 ├── Roles            (with permissions array)
 ├── Permissions
 └── Audits ✅ NEW   (with actorId, before/after, meta)
-```
 
 ---
 
@@ -152,14 +150,14 @@ Database (MongoDB)
 - `backend/src/services/audit.service.ts`
 
 ### Backend Modified
-- `backend/src/services/product.service.ts` (+ importProducts)
-- `backend/src/controllers/product.controller.ts` (+ audit logging)
-- `backend/src/routes/product.routes.ts` (+ import endpoint)
-- `backend/src/controllers/category.controller.ts` (+ update/delete + audit)
-- `backend/src/routes/category.routes.ts` (+ PATCH/DELETE)
-- `backend/src/controllers/order.controller.ts` (+ adminGetOrderById + audit)
-- `backend/src/routes/admin.routes.ts` (+ audit endpoints)
-- `backend/src/controllers/admin.controller.ts` (+ getAuditLogs)
+- `backend/src/services/product.service.ts` - Added importProducts
+- `backend/src/controllers/product.controller.ts` - Audit logging + importProducts controller
+- `backend/src/routes/product.routes.ts` - Added import endpoint
+- `backend/src/controllers/category.controller.ts` - Added update/delete + audit logging
+- `backend/src/routes/category.routes.ts` - Added PATCH/DELETE routes
+- `backend/src/controllers/order.controller.ts` - Added adminGetOrderById + audit logging
+- `backend/src/routes/admin.routes.ts` - Added adminGetOrderById + getAuditLogs routes
+- `backend/src/controllers/admin.controller.ts` - Added getAuditLogs function
 
 ### Frontend New
 - `admin/src/pages/Riders.tsx`
@@ -215,14 +213,12 @@ cd admin && npm run build
 
 ---
 
-## Questions?
+## How I can help next
 
-Refer to these docs:
-- **[PHASE-1-COMPLETION.md](PHASE-1-COMPLETION.md)** — Detailed feature breakdown
-- **[PHASE-1-TESTING.md](PHASE-1-TESTING.md)** — Step-by-step testing guide
-- **[README.md](README.md)** — Project overview
+- Expand file summaries into detailed tasks
+- Create issue/PR templates
+- Implement Phase-2 features on request
 
 ---
 
-**Status**: 🟢 **COMPLETE - Ready for Testing & Deployment**
-
+**End of archived PHASE-1-SUMMARY.md**
