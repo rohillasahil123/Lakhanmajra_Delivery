@@ -1,250 +1,504 @@
 import { ThemedText } from '@/components/themed-text';
-import { TextField } from '@/components/ui/text-field';
+import { API_BASE_URL } from '@/config/api';
+import { tokenManager } from '@/utils/tokenManager';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { Alert, StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { authService } from '@/services/authService';
+
+const AUTH_API_URL = `${API_BASE_URL}/api/auth`;
+const OTP_LENGTH = 4;
+const PHONE_LENGTH = 10;
 
 export default function SignupScreen() {
   const router = useRouter();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(0);
 
-  async function onSubmit() {
+  useEffect(() => {
+    if (timer > 0) {
+      const interval = setInterval(() => setTimer(t => t - 1), 1000);
+      return () => clearInterval(interval);
+    }
+  }, [timer]);
+
+  function normalizePhone(value: string): string {
+    return value.replace(/\D/g, '').slice(0, PHONE_LENGTH);
+  }
+
+  async function postAuth<T>(endpoint: string, payload: Record<string, string>): Promise<T> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
     try {
-      // Validation
-      if (!name.trim() || !email.trim() || !phone.trim() || !password) {
-        Alert.alert('Validation', 'Please fill all required fields.');
-        return;
+      const response = await fetch(`${AUTH_API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || 'Request failed');
       }
 
-      if (password !== confirm) {
-        Alert.alert('Validation', 'Passwords do not match.');
+      return data as T;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
+
+  async function sendOtp() {
+    try {
+      const cleanPhone = normalizePhone(phone);
+
+      if (cleanPhone.length !== PHONE_LENGTH) {
+        Alert.alert('Error', 'Please enter a valid 10-digit phone number');
         return;
       }
 
       setLoading(true);
 
-      // Call auth service
-      const user = await authService.register({
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        phone: phone.trim(),
-        password,
-      });
+      await postAuth('/send-otp', { phone: cleanPhone });
 
-      setLoading(false);
-
-      if (user) {
-        // Success - navigate to OTP verification
-        Alert.alert('Success', 'Account created successfully! Please verify OTP sent to your phone.', [
-          {
-            text: 'OK',
-            onPress: () => router.push({ pathname: '/otp', params: { phone: user.phone || phone } }),
-          },
-        ]);
-      }
+      setTimer(120); // 2 minutes timer
+      setStep(2);
+      setPhone(cleanPhone);
+      Alert.alert('Success', `OTP sent successfully to ${cleanPhone}`);
     } catch (error: any) {
+      const errorMsg = error?.name === 'AbortError'
+        ? 'Request timeout. Please check your backend and network connection.'
+        : error.message || 'Failed to send OTP';
+      Alert.alert('Error', errorMsg);
+    } finally {
       setLoading(false);
-      const errorMessage = error.message || 'Registration failed. Please try again.';
-      Alert.alert('Registration Error', errorMessage);
-      console.error('Signup error:', error);
+    }
+  }
+
+  async function verifyOtpStep() {
+    try {
+      const cleanPhone = normalizePhone(phone);
+      const cleanOtp = otp.replace(/\D/g, '').slice(0, OTP_LENGTH);
+
+      if (cleanPhone.length !== PHONE_LENGTH) {
+        Alert.alert('Error', 'Phone number is invalid. Please go back and retry.');
+        return;
+      }
+
+      if (cleanOtp.length !== OTP_LENGTH) {
+        Alert.alert('Error', 'Please enter a valid 4-digit OTP');
+        return;
+      }
+
+      setLoading(true);
+
+      await postAuth('/verify-otp', { phone: cleanPhone, otp: cleanOtp });
+
+      setStep(3);
+      setOtp(cleanOtp);
+      Alert.alert('Success', 'OTP verified! Now enter your details.');
+    } catch (error: any) {
+      const errorMsg = error?.name === 'AbortError'
+        ? 'Request timeout'
+        : error.message || 'OTP verification failed';
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function registerUser() {
+    try {
+      if (!name.trim() || !email.trim() || !password) {
+        Alert.alert('Error', 'Please fill all fields');
+        return;
+      }
+
+      if (password !== confirm) {
+        Alert.alert('Error', 'Passwords do not match');
+        return;
+      }
+
+      if (otp.length !== OTP_LENGTH) {
+        Alert.alert('Error', 'OTP session expired. Please verify OTP again.');
+        setStep(2);
+        return;
+      }
+
+      setLoading(true);
+
+      const data = await postAuth<{ token?: string; user?: any; message?: string }>(
+        '/register-with-otp',
+        {
+          phone: normalizePhone(phone),
+          otp: otp.trim(),
+          name: name.trim(),
+          email: email.toLowerCase().trim(),
+          password,
+        },
+      );
+
+      if (data.token) {
+        await tokenManager.storeToken(data.token);
+      }
+
+      if (data.user) {
+        await tokenManager.storeUser(data.user);
+      }
+
+      Alert.alert('Success', 'Account created successfully!', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/location'),
+        },
+      ]);
+    } catch (error: any) {
+      const errorMsg = error?.name === 'AbortError'
+        ? 'Request timeout'
+        : error.message || 'Registration failed';
+      Alert.alert('Error', errorMsg);
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <ThemedText type="title" style={styles.welcome}>Welcome to</ThemedText>
-          <View style={styles.brandContainer}>
-            <ThemedText type="title" style={styles.brandOrange}>Lakhanmajra </ThemedText>
-            <ThemedText type="title" style={styles.brandGreen}>Delivery</ThemedText>
+          <View style={styles.headerSection}>
+            <View style={styles.badge}>
+              <ThemedText style={styles.badgeText}>Secure Signup</ThemedText>
+            </View>
+            <ThemedText style={styles.brandName}>Rural Delivery</ThemedText>
+            <ThemedText style={styles.subtitle}>Quick OTP verification and instant onboarding</ThemedText>
           </View>
-          <ThemedText style={styles.subtitle}>Quick & Easy Delivery to Your Doorstep</ThemedText>
+
+          <View style={styles.progressBar}>
+            <View style={[styles.progressDot, step >= 1 && styles.progressDotActive]} />
+            <View style={[styles.progressLine, step >= 2 && styles.progressLineActive]} />
+            <View style={[styles.progressDot, step >= 2 && styles.progressDotActive]} />
+            <View style={[styles.progressLine, step >= 3 && styles.progressLineActive]} />
+            <View style={[styles.progressDot, step >= 3 && styles.progressDotActive]} />
+          </View>
 
           <View style={styles.form}>
-            <TextField 
-              placeholder="Name" 
-              value={name} 
-              onChangeText={setName}
-              editable={!loading}
-              style={styles.input}
-              placeholderTextColor="#9CA3AF"
-            />
-            <TextField 
-              placeholder="Email" 
-              keyboardType="email-address"
-              value={email} 
-              onChangeText={setEmail}
-              editable={!loading}
-              style={styles.input}
-              placeholderTextColor="#9CA3AF"
-            />
-            <TextField 
-              placeholder="Phone Number" 
-              keyboardType="phone-pad" 
-              value={phone} 
-              onChangeText={setPhone}
-              editable={!loading}
-              style={styles.input}
-              placeholderTextColor="#9CA3AF"
-            />
-            <TextField 
-              placeholder="Password" 
-              secureTextEntry 
-              value={password} 
-              onChangeText={setPassword}
-              editable={!loading}
-              style={styles.input}
-              placeholderTextColor="#9CA3AF"
-            />
-            <TextField 
-              placeholder="Confirm Password" 
-              secureTextEntry 
-              value={confirm} 
-              onChangeText={setConfirm}
-              editable={!loading}
-              style={styles.input}
-              placeholderTextColor="#9CA3AF"
-            />
+            {step === 1 && (
+              <>
+                <ThemedText style={styles.stepTitle}>Enter your mobile number</ThemedText>
+                <ThemedText style={styles.stepSubtitle}>We’ll send a secure OTP for verification.</ThemedText>
+                <TextInput
+                  placeholder="10-digit phone number"
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={(value) => setPhone(normalizePhone(value))}
+                  editable={!loading}
+                  maxLength={PHONE_LENGTH}
+                  style={styles.input}
+                  placeholderTextColor="#94A3B8"
+                />
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={sendOtp}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <ThemedText style={styles.buttonText}>Send OTP</ThemedText>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
 
-            <TouchableOpacity 
-              style={[styles.signupButton, loading && styles.signupButtonDisabled]} 
-              onPress={onSubmit} 
-              disabled={loading}
-            >
-              <ThemedText style={styles.signupButtonText}>
-                {loading ? 'Creating account...' : 'Sign Up'}
-              </ThemedText>
-            </TouchableOpacity>
+            {step === 2 && (
+              <>
+                <ThemedText style={styles.stepTitle}>🔐 Verify OTP</ThemedText>
+                <ThemedText style={styles.stepSubtitle}>
+                  Enter the 4-digit OTP sent to {phone}
+                </ThemedText>
+                <TextInput
+                  placeholder="0000"
+                  keyboardType="number-pad"
+                  value={otp}
+                  onChangeText={(value) => setOtp(value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                  editable={!loading}
+                  maxLength={OTP_LENGTH}
+                  style={[styles.input, styles.otpInput]}
+                  placeholderTextColor="#94A3B8"
+                  textAlign="center"
+                />
+                {timer > 0 && (
+                  <ThemedText style={styles.timerText}>
+                    Resend OTP in {timer}s
+                  </ThemedText>
+                )}
+                {timer === 0 && step === 2 && (
+                  <TouchableOpacity onPress={sendOtp} disabled={loading}>
+                    <ThemedText style={styles.resendText}>Resend OTP</ThemedText>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={verifyOtpStep}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <ThemedText style={styles.buttonText}>Verify OTP</ThemedText>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
 
-            <View style={styles.row}>
-              <ThemedText style={styles.rowText}>Already have an account?</ThemedText>
-              <TouchableOpacity onPress={() => router.push('/login')} style={styles.loginButton} disabled={loading}>
-                <ThemedText style={styles.loginText}> Login</ThemedText>
+            {step === 3 && (
+              <>
+                <ThemedText style={styles.stepTitle}>📝 Complete Your Profile</ThemedText>
+                <TextInput
+                  placeholder="Full Name"
+                  value={name}
+                  onChangeText={setName}
+                  editable={!loading}
+                  style={styles.input}
+                  placeholderTextColor="#94A3B8"
+                />
+                <TextInput
+                  placeholder="Email Address"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                  editable={!loading}
+                  style={styles.input}
+                  placeholderTextColor="#94A3B8"
+                />
+                <TextInput
+                  placeholder="Password"
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                  editable={!loading}
+                  style={styles.input}
+                  placeholderTextColor="#94A3B8"
+                />
+                <TextInput
+                  placeholder="Confirm Password"
+                  secureTextEntry
+                  value={confirm}
+                  onChangeText={setConfirm}
+                  editable={!loading}
+                  style={styles.input}
+                  placeholderTextColor="#94A3B8"
+                />
+                <TouchableOpacity
+                  style={[styles.button, loading && styles.buttonDisabled]}
+                  onPress={registerUser}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <ThemedText style={styles.buttonText}>Create Account</ThemedText>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+
+            {step === 1 && (
+              <View style={styles.footer}>
+                <ThemedText style={styles.footerText}>Already have an account?</ThemedText>
+                <TouchableOpacity onPress={() => router.push('/login')} disabled={loading}>
+                  <ThemedText style={styles.linkText}> Login</ThemedText>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {step > 1 && (
+              <TouchableOpacity onPress={() => setStep(current => (current === 3 ? 2 : 1))} disabled={loading}>
+                <ThemedText style={styles.backText}>← Back</ThemedText>
               </TouchableOpacity>
-            </View>
+            )}
           </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { 
-    flex: 1, 
-    backgroundColor: '#F5F5F5' 
+  safe: {
+    flex: 1,
+    backgroundColor: '#EEF4F0',
   },
-  container: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingHorizontal: 16, 
-    paddingVertical: 24 
+  container: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   card: {
     width: '100%',
     maxWidth: 380,
-    alignSelf: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
+    borderRadius: 24,
     padding: 28,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-    alignItems: 'stretch',
+    shadowOpacity: 0.09,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 9,
   },
-  welcome: {
-    fontSize: 18,
-    marginBottom: 4,
-    fontWeight: '600',
-    color: '#000000',
-    textAlign: 'center',
-  },
-  brandContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+  headerSection: {
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 24,
   },
-  brandOrange: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#CC5500',
+  badge: {
+    backgroundColor: '#E8F5EC',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 12,
   },
-  brandGreen: {
-    fontSize: 26,
+  badgeText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#0E7A3D',
   },
+  brandName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#0E7A3D',
+    marginBottom: 4,
+  },
   subtitle: {
-    color: '#1F2937',
-    marginBottom: 24,
-    fontSize: 13,
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
     textAlign: 'center',
-    fontWeight: '400',
+  },
+  progressBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 28,
+    gap: 8,
+  },
+  progressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#E5E7EB',
+  },
+  progressDotActive: {
+    backgroundColor: '#0E7A3D',
+  },
+  progressLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#E5E7EB',
+    maxWidth: 30,
+  },
+  progressLineActive: {
+    backgroundColor: '#0E7A3D',
   },
   form: {
-    marginTop: 8,
     gap: 14,
   },
+  stepTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  stepSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 12,
+  },
   input: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#DCE5EE',
+    borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 14,
+    fontSize: 15,
     color: '#111827',
+    fontWeight: '500',
   },
-  signupButton: {
-    marginTop: 8,
-    backgroundColor: '#FF6A00',
-    borderRadius: 10,
+  otpInput: {
+    fontSize: 28,
+    fontWeight: '700',
+    letterSpacing: 6,
+  },
+  button: {
+    backgroundColor: '#0E7A3D',
+    borderRadius: 12,
     paddingVertical: 16,
-    shadowColor: '#FF6A00',
+    marginTop: 8,
+    shadowColor: '#0E7A3D',
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  signupButtonDisabled: {
-    backgroundColor: '#E8A565',
+  buttonDisabled: {
+    backgroundColor: '#A3D5A3',
     shadowOpacity: 0.1,
   },
-  signupButtonText: {
-    fontSize: 17,
+  buttonText: {
+    fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
   },
-  row: {
-    marginTop: 16,
+  timerText: {
+    fontSize: 12,
+    color: '#B45309',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  resendText: {
+    fontSize: 13,
+    color: '#0E7A3D',
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 12,
   },
-  rowText: {
-    color: '#000000',
-    fontSize: 14,
-    fontWeight: '400',
+  footerText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
   },
-  loginButton: {
-    marginLeft: 4,
-  },
-  loginText: {
-    color: '#FF6A00',
+  linkText: {
+    fontSize: 13,
+    color: '#0E7A3D',
     fontWeight: '700',
-    fontSize: 14,
+  },
+  backText: {
+    fontSize: 13,
+    color: '#0E7A3D',
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

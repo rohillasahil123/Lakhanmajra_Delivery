@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
   imageContainer: { backgroundColor: '#FFFFFF', height: 280, justifyContent: 'center', alignItems: 'center', position: 'relative' },
   discountBadge: { position: 'absolute', top: 16, right: 16, backgroundColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   discountText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
-  productImage: { fontSize: 140 },
+  productImage: { fontSize: 24 },
   infoSection: { backgroundColor: '#FFFFFF', padding: 16, marginTop: 12 },
   categoryBadge: { backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 8 },
   categoryText: { fontSize: 12, fontWeight: '600', color: '#6B7280' },

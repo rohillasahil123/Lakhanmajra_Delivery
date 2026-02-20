@@ -1,7 +1,8 @@
 import { ThemedText } from '@/components/themed-text';
 import useCart from '@/stores/cartStore';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import useLocationStore from '@/stores/locationStore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -9,8 +10,6 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  LinearGradient,
-  Dimensions,
   useWindowDimensions,
 } from 'react-native';/*  */
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
@@ -57,17 +56,55 @@ const FEATURED_PRODUCTS = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const addItem = useCart((s) => s.addItem);
+  const selectedLocation = useLocationStore((s) => s.selectedLocation);
+  const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
   const cartCount = useCart((s) => s.items.reduce((sum: number, it) => sum + it.quantity, 0));
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(1);
+
+  useEffect(() => {
+    const addressParam = typeof params.address === 'string' ? params.address.trim() : '';
+    const instructionsParam = typeof params.deliveryInstructions === 'string' ? params.deliveryInstructions.trim() : '';
+    const latitudeParam = typeof params.latitude === 'string' ? Number(params.latitude) : NaN;
+    const longitudeParam = typeof params.longitude === 'string' ? Number(params.longitude) : NaN;
+
+    if (!addressParam) {
+      return;
+    }
+
+    setSelectedLocation({
+      address: addressParam,
+      deliveryInstructions: instructionsParam,
+      latitude: Number.isFinite(latitudeParam) ? latitudeParam : selectedLocation.latitude,
+      longitude: Number.isFinite(longitudeParam) ? longitudeParam : selectedLocation.longitude,
+    });
+  }, [params.address, params.deliveryInstructions, params.latitude, params.longitude]);
+
+  const locationLines = useMemo(() => {
+    const fallback = ['Select your location', 'Tap to choose delivery address'];
+    if (!selectedLocation.address || selectedLocation.address === 'Select your delivery location') {
+      return fallback;
+    }
+
+    const pieces = selectedLocation.address
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean);
+
+    if (pieces.length <= 1) {
+      return [pieces[0], 'Tap to update location'];
+    }
+
+    return [pieces.slice(0, 2).join(', '), pieces.slice(2).join(', ') || 'Tap to update location'];
+  }, [selectedLocation.address]);
 
   // Responsive values
   const isSmallScreen = width < 380;
   const headerPadding = getResponsiveValue(12, 16, width);
   const horizontalPadding = getResponsiveValue(12, 16, width);
-  const locationTextSize = getResponsiveValue(12, 13, width);
   const heroFontSize = getResponsiveValue(28, 36, width);
   const productGridColumns = width < 360 ? 1.8 : 2;
   const productCardWidth = (width - horizontalPadding * 2 - 8) / productGridColumns;
@@ -79,12 +116,22 @@ export default function HomeScreen() {
         {/* Location Pill */}
         <TouchableOpacity
           style={[styles.locationPill, { paddingHorizontal: 12, paddingVertical: 8 }]}
-          onPress={() => router.push('/location')}
+          onPress={() =>
+            router.push({
+              pathname: '/location',
+              params: {
+                address: selectedLocation.address,
+                deliveryInstructions: selectedLocation.deliveryInstructions,
+                latitude: selectedLocation.latitude.toString(),
+                longitude: selectedLocation.longitude.toString(),
+              },
+            })
+          }
         >
           <ThemedText style={styles.locationPin}>📍</ThemedText>
           <View style={{ flex: 1 }}>
-            <ThemedText style={[styles.locText, { fontSize: 12 }]}>Home — Sector 12</ThemedText>
-            <ThemedText style={[styles.locSub, { fontSize: 10 }]}>Greater Noida, UP</ThemedText>
+            <ThemedText style={[styles.locText, { fontSize: 12 }]} numberOfLines={1}>{locationLines[0]}</ThemedText>
+            <ThemedText style={[styles.locSub, { fontSize: 10 }]} numberOfLines={1}>{locationLines[1]}</ThemedText>
           </View>
         </TouchableOpacity>
 

@@ -7,6 +7,196 @@ import { getRoleByName, assignRoleToUser, getUserWithRole, getUserPermissions } 
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
+/* ================= OTP STORAGE (In-Memory) ================= */
+interface OtpStore {
+  [key: string]: {
+    otp: string;
+    expiresAt: number;
+    attempts: number;
+    userData?: { name: string; email: string; phone: string };
+  };
+}
+
+const otpStore: OtpStore = {};
+
+// Generate random 4-digit OTP
+const generateOtp = (): string => {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+};
+
+// Clear expired OTPs
+const clearExpiredOtps = () => {
+  const now = Date.now();
+  for (const key in otpStore) {
+    if (otpStore[key].expiresAt < now) {
+      delete otpStore[key];
+    }
+  }
+};
+
+/* ================= SEND OTP ================= */
+export const sendOtp = async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+
+    if (!phone || phone.length < 10) {
+      return res.status(400).json({ message: "Valid phone number is required" });
+    }
+
+    clearExpiredOtps();
+
+    // Generate OTP
+    const otp = generateOtp();
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    // Store OTP
+    otpStore[phone] = {
+      otp,
+      expiresAt,
+      attempts: 0,
+    };
+
+    // Show OTP in terminal (for development, will replace with SMS later)
+    console.log(`\n🔐 OTP for ${phone}: ${otp}`);
+    console.log(`⏰ Expires in 10 minutes\n`);
+
+    res.json({
+      message: "OTP sent successfully",
+      phone: `${phone.slice(0, -4)}****`,
+      expiresIn: "10 minutes",
+      // For development only - remove in production
+      // otp,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+};
+
+/* ================= VERIFY OTP & REGISTER ================= */
+export const verifyOtpAndRegister = async (req: Request, res: Response) => {
+  try {
+    const { phone, otp, name, email, password } = req.body;
+
+    if (!phone || !otp || !name || !email || !password) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    clearExpiredOtps();
+
+    // Check if OTP exists
+    if (!otpStore[phone]) {
+      return res.status(400).json({ message: "OTP not found. Please request a new OTP" });
+    }
+
+    const storedOtp = otpStore[phone];
+
+    // Check if OTP expired
+    if (storedOtp.expiresAt < Date.now()) {
+      delete otpStore[phone];
+      return res.status(400).json({ message: "OTP expired. Please request a new OTP" });
+    }
+
+    // Check attempt limit
+    if (storedOtp.attempts >= 3) {
+      delete otpStore[phone];
+      return res.status(400).json({ message: "Too many attempts. Please request a new OTP" });
+    }
+
+    // Verify OTP
+    if (storedOtp.otp !== otp) {
+      storedOtp.attempts += 1;
+      return res.status(400).json({ message: "Invalid OTP. Please try again" });
+    }
+
+    // OTP is valid - check if user exists
+    const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
+    if (existingUser) {
+      delete otpStore[phone];
+      return res.status(400).json({ message: "User already registered with this email or phone" });
+    }
+
+    // Create new user
+    const userRole = await getRoleByName("user");
+    if (!userRole) {
+      return res.status(500).json({ message: "Default user role not found" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await User.create({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      roleId: userRole._id,
+    });
+
+    // Delete OTP after successful registration
+    delete otpStore[phone];
+
+    // Generate token
+    const role = userRole as any;
+    const token = jwt.sign(
+      { id: newUser._id, email: newUser.email, roleId: newUser.roleId, roleName: role?.name },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    const safeUser = await User.findById(newUser._id).select("-password").populate("roleId");
+
+    res.status(201).json({
+      message: "User registered successfully",
+      token,
+      user: {
+        id: newUser._id,
+        name: newUser.name,
+        email: newUser.email,
+        phone: newUser.phone,
+        role: role?.name || "user",
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Registration failed" });
+  }
+};
+
+/* ================= VERIFY OTP ONLY ================= */
+export const verifyOtp = async (req: Request, res: Response) => {
+  try {
+    const { phone, otp } = req.body;
+
+    if (!phone || !otp) {
+      return res.status(400).json({ message: "Phone and OTP are required" });
+    }
+
+    clearExpiredOtps();
+
+    if (!otpStore[phone]) {
+      return res.status(400).json({ message: "OTP not found" });
+    }
+
+    const storedOtp = otpStore[phone];
+
+    if (storedOtp.expiresAt < Date.now()) {
+      delete otpStore[phone];
+      return res.status(400).json({ message: "OTP expired" });
+    }
+
+    if (storedOtp.otp !== otp) {
+      storedOtp.attempts += 1;
+      return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    res.json({
+      message: "OTP verified successfully",
+      phone,
+      verified: true,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "OTP verification failed" });
+  }
+};
+
 /* ================= REGISTER ================= */
 export const register = async (req: Request, res: Response) => {
   try {

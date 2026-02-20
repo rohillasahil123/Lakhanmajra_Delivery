@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { TextField } from '@/components/ui/text-field';
+import useLocationStore from '@/stores/locationStore';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -21,14 +22,20 @@ export default function LocationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const initialAddress = (params.address as string) || undefined;
+  const initialDeliveryInstructions = (params.deliveryInstructions as string) || '';
+  const initialLatitude = Number(params.latitude);
+  const initialLongitude = Number(params.longitude);
+  const hasInitialCoords = Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
+  const setSelectedLocationInStore = useLocationStore((state) => state.setSelectedLocation);
+
   const [selectedLocation, setSelectedLocation] = useState({
-    latitude: 30.7333, // Default to Chandigarh
-    longitude: 76.7794,
+    latitude: hasInitialCoords ? initialLatitude : 30.7333,
+    longitude: hasInitialCoords ? initialLongitude : 76.7794,
     latitudeDelta: 0.012,
     longitudeDelta: 0.012,
   });
   const [address, setAddress] = useState('');
-  const [deliveryInstructions, setDeliveryInstructions] = useState('');
+  const [deliveryInstructions, setDeliveryInstructions] = useState(initialDeliveryInstructions);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
 
@@ -124,13 +131,22 @@ export default function LocationScreen() {
       return;
     }
 
-    router.push({
+    const payload = {
+      address: address.trim(),
+      deliveryInstructions: deliveryInstructions.trim(),
+      latitude: selectedLocation.latitude,
+      longitude: selectedLocation.longitude,
+    };
+
+    setSelectedLocationInStore(payload);
+
+    router.replace({
       pathname: '/home',
       params: {
-        address,
-        deliveryInstructions,
-        latitude: selectedLocation.latitude.toString(),
-        longitude: selectedLocation.longitude.toString(),
+        address: payload.address,
+        deliveryInstructions: payload.deliveryInstructions,
+        latitude: payload.latitude.toString(),
+        longitude: payload.longitude.toString(),
       },
     });
   };
@@ -138,7 +154,14 @@ export default function LocationScreen() {
   // Optional: Load initial address if coming back or default
   useEffect(() => {
     const loadInitial = async () => {
-      if (initialAddress) {
+      if (initialAddress && hasInitialCoords) {
+        setAddress(initialAddress);
+        setSelectedLocation((prev) => ({
+          ...prev,
+          latitude: initialLatitude,
+          longitude: initialLongitude,
+        }));
+      } else if (initialAddress) {
         setAddress(initialAddress);
         try {
           // Request location permission before geocoding to avoid authorization errors
@@ -173,7 +196,7 @@ export default function LocationScreen() {
       }
     };
     loadInitial();
-  }, [initialAddress]);
+  }, [hasInitialCoords, initialAddress, initialLatitude, initialLongitude]);
 
   return (
     <SafeAreaView style={styles.safe}>
