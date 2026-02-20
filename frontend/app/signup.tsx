@@ -9,6 +9,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const AUTH_API_URL = `${API_BASE_URL}/api/auth`;
 const OTP_LENGTH = 4;
 const PHONE_LENGTH = 10;
+const VILLAGE_OPTIONS = ['LakhanMajra'];
+
+type VerifyOtpResponse = {
+  verified: boolean;
+  isExistingUser?: boolean;
+  token?: string;
+  user?: any;
+  message?: string;
+};
 
 export default function SignupScreen() {
   const router = useRouter();
@@ -17,8 +26,8 @@ export default function SignupScreen() {
   const [otp, setOtp] = useState('');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [village, setVillage] = useState('');
+  const [showVillageOptions, setShowVillageOptions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
 
@@ -101,7 +110,20 @@ export default function SignupScreen() {
 
       setLoading(true);
 
-      await postAuth('/verify-otp', { phone: cleanPhone, otp: cleanOtp });
+      const data = await postAuth<VerifyOtpResponse>('/verify-otp', { phone: cleanPhone, otp: cleanOtp });
+
+      if (data.isExistingUser && data.token && data.user) {
+        await tokenManager.storeToken(data.token);
+        await tokenManager.storeUser(data.user);
+        setOtp(cleanOtp);
+        Alert.alert('Success', 'Welcome back!', [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/home'),
+          },
+        ]);
+        return;
+      }
 
       setStep(3);
       setOtp(cleanOtp);
@@ -118,13 +140,8 @@ export default function SignupScreen() {
 
   async function registerUser() {
     try {
-      if (!name.trim() || !email.trim() || !password) {
+      if (!name.trim() || !email.trim() || !village.trim()) {
         Alert.alert('Error', 'Please fill all fields');
-        return;
-      }
-
-      if (password !== confirm) {
-        Alert.alert('Error', 'Passwords do not match');
         return;
       }
 
@@ -143,7 +160,7 @@ export default function SignupScreen() {
           otp: otp.trim(),
           name: name.trim(),
           email: email.toLowerCase().trim(),
-          password,
+          village: village.trim(),
         },
       );
 
@@ -281,24 +298,35 @@ export default function SignupScreen() {
                   style={styles.input}
                   placeholderTextColor="#94A3B8"
                 />
-                <TextInput
-                  placeholder="Password"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                  editable={!loading}
-                  style={styles.input}
-                  placeholderTextColor="#94A3B8"
-                />
-                <TextInput
-                  placeholder="Confirm Password"
-                  secureTextEntry
-                  value={confirm}
-                  onChangeText={setConfirm}
-                  editable={!loading}
-                  style={styles.input}
-                  placeholderTextColor="#94A3B8"
-                />
+                <View>
+                  <TouchableOpacity
+                    style={styles.selectInput}
+                    onPress={() => setShowVillageOptions((current) => !current)}
+                    disabled={loading}
+                  >
+                    <ThemedText style={[styles.selectText, !village && styles.placeholderText]}>
+                      {village || 'Select Village'}
+                    </ThemedText>
+                    <ThemedText style={styles.selectArrow}>{showVillageOptions ? '▲' : '▼'}</ThemedText>
+                  </TouchableOpacity>
+
+                  {showVillageOptions && (
+                    <View style={styles.dropdownMenu}>
+                      {VILLAGE_OPTIONS.map((option) => (
+                        <TouchableOpacity
+                          key={option}
+                          style={styles.dropdownOption}
+                          onPress={() => {
+                            setVillage(option);
+                            setShowVillageOptions(false);
+                          }}
+                        >
+                          <ThemedText style={styles.dropdownOptionText}>{option}</ThemedText>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
                 <TouchableOpacity
                   style={[styles.button, loading && styles.buttonDisabled]}
                   onPress={registerUser}
@@ -437,6 +465,48 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#111827',
     fontWeight: '500',
+  },
+  selectInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1.5,
+    borderColor: '#DCE5EE',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectText: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  placeholderText: {
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  selectArrow: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  dropdownMenu: {
+    marginTop: 6,
+    borderWidth: 1.2,
+    borderColor: '#DCE5EE',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  dropdownOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  dropdownOptionText: {
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '600',
   },
   otpInput: {
     fontSize: 28,

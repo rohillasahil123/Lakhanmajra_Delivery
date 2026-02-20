@@ -1,12 +1,25 @@
-// API Configuration
-// Change API_BASE_URL based on your environment:
-// - For Expo Go on mobile: Use your machine's IP (e.g., http://192.168.x.x:5000)
-// - For web/simulator: Use http://localhost:5000
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-// Your machine IP: 192.168.1.13
-// This allows the phone to connect to your backend server
+function resolveExpoHost(): string | null {
+  const hostUri =
+    (Constants as any)?.expoConfig?.hostUri ||
+    (Constants as any)?.manifest2?.extra?.expoClient?.hostUri ||
+    (Constants as any)?.manifest?.debuggerHost;
 
-export const API_BASE_URL = 'http://192.168.1.13:5000';
+  if (!hostUri || typeof hostUri !== 'string') {
+    return null;
+  }
+
+  return hostUri.split(':')[0] || null;
+}
+
+const envBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+const expoHost = resolveExpoHost();
+const lanBaseUrl = expoHost ? `http://${expoHost}:5000` : null;
+const localFallbackBaseUrl = Platform.OS === 'android' ? 'http://10.0.2.2:5000' : 'http://localhost:5000';
+
+export const API_BASE_URL = envBaseUrl || lanBaseUrl || localFallbackBaseUrl;
 
 export const API_ENDPOINTS = {
   AUTH: {

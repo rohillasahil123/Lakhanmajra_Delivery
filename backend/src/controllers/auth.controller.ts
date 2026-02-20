@@ -24,6 +24,10 @@ const generateOtp = (): string => {
   return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
+const generateInternalPassword = (): string => {
+  return `otp_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+};
+
 // Clear expired OTPs
 const clearExpiredOtps = () => {
   const now = Date.now();
@@ -75,9 +79,9 @@ export const sendOtp = async (req: Request, res: Response) => {
 /* ================= VERIFY OTP & REGISTER ================= */
 export const verifyOtpAndRegister = async (req: Request, res: Response) => {
   try {
-    const { phone, otp, name, email, password } = req.body;
+    const { phone, otp, name, email, village } = req.body;
 
-    if (!phone || !otp || !name || !email || !password) {
+    if (!phone || !otp || !name || !email || !village) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -121,12 +125,13 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Default user role not found" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(generateInternalPassword(), 10);
 
     const newUser = await User.create({
       name,
       email,
       phone,
+      village,
       password: hashedPassword,
       roleId: userRole._id,
     });
@@ -152,6 +157,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
         name: newUser.name,
         email: newUser.email,
         phone: newUser.phone,
+        village: newUser.village,
         role: role?.name || "user",
       },
     });
@@ -187,10 +193,44 @@ export const verifyOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
+    const existingUser = await User.findOne({ phone }).populate("roleId");
+
+    if (existingUser) {
+      delete otpStore[phone];
+
+      const role = existingUser.roleId as any;
+      const token = jwt.sign(
+        {
+          id: existingUser._id,
+          email: existingUser.email,
+          roleId: existingUser.roleId,
+          roleName: role?.name,
+        },
+        JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      return res.json({
+        message: "OTP verified. Login successful",
+        verified: true,
+        isExistingUser: true,
+        token,
+        user: {
+          id: existingUser._id,
+          name: existingUser.name,
+          email: existingUser.email,
+          phone: existingUser.phone,
+          village: (existingUser as any).village,
+          role: role?.name || "user",
+        },
+      });
+    }
+
     res.json({
       message: "OTP verified successfully",
       phone,
       verified: true,
+      isExistingUser: false,
     });
   } catch (err) {
     res.status(500).json({ message: "OTP verification failed" });
@@ -200,7 +240,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
 /* ================= REGISTER ================= */
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, village } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -218,6 +258,7 @@ export const register = async (req: Request, res: Response) => {
       name,
       email,
       phone,
+      village,
       password: hashedPassword,
       roleId: userRole._id,
     });

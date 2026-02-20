@@ -4,6 +4,9 @@ import useLocationStore from '@/stores/locationStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ImageBackground,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -54,6 +57,30 @@ const FEATURED_PRODUCTS = [
   { id: 6, name: 'Dove Moisturising Body Wash', price: 289, oldPrice: 340, unit: 'bottle', image: '🧴', category: 'Care', discount: '15% OFF', rating: 4.8, reviews: 870 },
 ];
 
+const OFFER_SLIDES = [
+  {
+    id: 1,
+    title: 'Weekend Mega Sale',
+    subtitle: 'Up to 40% OFF on fruits & vegetables',
+    cta: 'Shop Offers',
+    image: require('../assets/images/2.png'),
+  },
+  {
+    id: 2,
+    title: 'Milk & Dairy Deals',
+    subtitle: 'Buy 2, Get 1 FREE on selected items',
+    cta: 'View Deals',
+    image: require('../assets/images/1.png'),
+  },
+  {
+    id: 3,
+    title: 'Free Delivery Day',
+    subtitle: 'No delivery fee above ₹199 order',
+    cta: 'Order Now',
+    image: require('../assets/images/1.png'),
+  },
+];
+
 export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -64,6 +91,7 @@ export default function HomeScreen() {
   const cartCount = useCart((s) => s.items.reduce((sum: number, it) => sum + it.quantity, 0));
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(1);
+  const [activeOfferIndex, setActiveOfferIndex] = useState(0);
 
   useEffect(() => {
     const addressParam = typeof params.address === 'string' ? params.address.trim() : '';
@@ -108,6 +136,14 @@ export default function HomeScreen() {
   const heroFontSize = getResponsiveValue(28, 36, width);
   const productGridColumns = width < 360 ? 1.8 : 2;
   const productCardWidth = (width - horizontalPadding * 2 - 8) / productGridColumns;
+  const offerCardWidth = width - horizontalPadding * 2;
+
+  const handleOfferScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / offerCardWidth);
+    if (nextIndex !== activeOfferIndex) {
+      setActiveOfferIndex(nextIndex);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.bg }]}>
@@ -175,6 +211,44 @@ export default function HomeScreen() {
           <TouchableOpacity style={styles.orderTrackBtn}>
             <ThemedText style={styles.orderTrackBtnText}>Track →</ThemedText>
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.sectionHead}>
+          <ThemedText style={[styles.sectionTitle, { fontSize: 20 }]}>🎁 Offers For You</ThemedText>
+        </View>
+
+        <View style={styles.offerSection}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={handleOfferScroll}
+            decelerationRate="fast"
+          >
+            {OFFER_SLIDES.map((offer) => (
+              <View key={offer.id} style={{ width: offerCardWidth }}>
+                <ImageBackground source={offer.image} style={styles.offerCard} imageStyle={styles.offerCardImage}>
+                  <View style={styles.offerOverlay} />
+                  <View style={styles.offerContent}>
+                    <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
+                    <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
+                    <TouchableOpacity style={styles.offerCta}>
+                      <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+                </ImageBackground>
+              </View>
+            ))}
+          </ScrollView>
+
+          <View style={styles.offerDots}>
+            {OFFER_SLIDES.map((offer, index) => (
+              <View
+                key={offer.id}
+                style={[styles.offerDot, index === activeOfferIndex && styles.offerDotActive]}
+              />
+            ))}
+          </View>
         </View>
 
         {/* Hero Banner */}
@@ -504,6 +578,68 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: COLORS.accent,
     fontSize: 12,
+  },
+  offerSection: {
+    marginBottom: 24,
+  },
+  offerCard: {
+    height: 165,
+    borderRadius: 18,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
+    backgroundColor: COLORS.accent,
+  },
+  offerCardImage: {
+    resizeMode: 'cover',
+    borderRadius: 18,
+  },
+  offerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(13,61,30,0.52)',
+  },
+  offerContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 6,
+  },
+  offerTitle: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  offerSubtitle: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 12,
+  },
+  offerCta: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  offerCtaText: {
+    color: COLORS.accent,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  offerDots: {
+    marginTop: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  offerDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#D1D5DB',
+  },
+  offerDotActive: {
+    width: 22,
+    backgroundColor: COLORS.accent,
   },
   hero: {
     borderRadius: 20,
