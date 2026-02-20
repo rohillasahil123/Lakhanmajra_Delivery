@@ -104,7 +104,7 @@ export default function HomeScreen() {
 
           {/* Header Actions */}
           <TouchableOpacity style={[styles.iconBtn, { width: 44, height: 44 }]}>
-            <ThemedText style={{ fontSize: 24 }}>🔔</ThemedText>
+            <ThemedText style={{ fontSize: 22 }}>🔔</ThemedText>
             <View style={styles.dot} />
           </TouchableOpacity>
           
@@ -150,7 +150,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={styles.heroRight}>
-            <ThemedText style={{ fontSize: 90 }}>🛒</ThemedText>
+            <ThemedText style={{ fontSize: 35 }}>🛒</ThemedText>
           </View>
         </ExpoLinearGradient>
 
@@ -158,7 +158,7 @@ export default function HomeScreen() {
         <View style={styles.deliveryStrip}>
           <View style={styles.deliveryCard}>
             <View style={[styles.dcIcon, { backgroundColor: '#FFF8D0', width: 44, height: 44 }]}>
-              <ThemedText style={{ fontSize: 24 }}>⚡</ThemedText>
+              <ThemedText style={{ fontSize: 22 }}>⚡</ThemedText>
             </View>
             <View style={{ flex: 1 }}>
               <ThemedText style={styles.deliveryTime}>10 MIN</ThemedText>
@@ -169,7 +169,7 @@ export default function HomeScreen() {
 
           <View style={styles.deliveryCard}>
             <View style={[styles.dcIcon, { backgroundColor: '#DCFCE7', width: 44, height: 44 }]}>
-              <ThemedText style={{ fontSize: 24 }}>🌿</ThemedText>
+              <ThemedText style={{ fontSize: 22 }}>🌿</ThemedText>
             </View>
             <View style={{ flex: 1 }}>
               <ThemedText style={[styles.deliveryTime, { backgroundColor: '#22C55E' }]}>100% FRESH</ThemedText>
@@ -180,7 +180,7 @@ export default function HomeScreen() {
 
           <View style={styles.deliveryCard}>
             <View style={[styles.dcIcon, { backgroundColor: '#DBEAFE', width: 44, height: 44 }]}>
-              <ThemedText style={{ fontSize: 24 }}>🏷️</ThemedText>
+              <ThemedText style={{ fontSize: 22 }}>🏷️</ThemedText>
             </View>
             <View style={{ flex: 1 }}>
               <ThemedText style={[styles.deliveryTime, { backgroundColor: '#8B5CF6' }]}>BEST PRICE</ThemedText>
@@ -193,7 +193,7 @@ export default function HomeScreen() {
         {/* Categories */}
         <View style={styles.sectionHead}>
           <ThemedText style={[styles.sectionTitle, { fontSize: 20 }]}>Shop by Category</ThemedText>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/categories')}>
             <ThemedText style={styles.seeAll}>View All →</ThemedText>
           </TouchableOpacity>
         </View>
@@ -210,7 +210,7 @@ export default function HomeScreen() {
               style={[styles.catChip, selectedCategory === cat.id && styles.catChipActive]}
               onPress={() => setSelectedCategory(cat.id)}
             >
-              <ThemedText style={{ fontSize: 26 }}>{cat.icon}</ThemedText>
+              <ThemedText style={{ fontSize: 22 }}>{cat.icon}</ThemedText>
               <ThemedText style={[styles.catName, { fontSize: 10 }]}>{cat.name}</ThemedText>
             </TouchableOpacity>
           ))}
@@ -219,7 +219,7 @@ export default function HomeScreen() {
         {/* Products */}
         <View style={styles.sectionHead}>
           <ThemedText style={[styles.sectionTitle, { fontSize: 20 }]}>🔥 Trending Now</ThemedText>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/products')}>
             <ThemedText style={styles.seeAll}>See All →</ThemedText>
           </TouchableOpacity>
         </View>
@@ -228,7 +228,7 @@ export default function HomeScreen() {
           {FEATURED_PRODUCTS.map((product) => (
             <TouchableOpacity key={product.id} style={styles.productCard}>
               <View style={styles.productImg}>
-                <ThemedText style={{ fontSize: 56 }}>{product.image}</ThemedText>
+                <ThemedText style={{ fontSize: 28}}>{product.image}</ThemedText>
                 {product.discount && <View style={styles.discountTag}>
                   <ThemedText style={styles.discountText}>{product.discount}</ThemedText>
                 </View>}
@@ -290,7 +290,7 @@ export default function HomeScreen() {
                 <ThemedText style={styles.dealBtnText}>Shop →</ThemedText>
               </TouchableOpacity>
             </View>
-            <ThemedText style={{ fontSize: 56 }}>🍉</ThemedText>
+            <ThemedText style={{ fontSize: 40 }}>🍉</ThemedText>
           </ExpoLinearGradient>
 
           <ExpoLinearGradient
@@ -306,7 +306,7 @@ export default function HomeScreen() {
                 <ThemedText style={styles.dealBtnText}>Shop →</ThemedText>
               </TouchableOpacity>
             </View>
-            <ThemedText style={{ fontSize: 56 }}>🥛</ThemedText>
+            <ThemedText style={{ fontSize: 40 }}>🥛</ThemedText>
           </ExpoLinearGradient>
         </View>
 
@@ -320,12 +320,15 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.bg,
+    paddingVertical: 40,
   },
   header: {
     backgroundColor: COLORS.white,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.06)',
     flexDirection: 'column',
+    
+  
   },
   locationPill: {
     flexDirection: 'row',
@@ -334,10 +337,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: COLORS.light,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 50,
-
-    gap: 6,
+    gap: 8,
     flexShrink: 1,
   },
   locationPin: {
@@ -509,7 +511,11 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
   },
   heroRight: {
-    marginRight: -20,
+    marginRight: -10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 100,
+    height: 100,
   },
   deliveryStrip: {
     marginBottom: 28,
@@ -613,6 +619,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     position: 'relative',
+    overflow: 'visible',
   },
   discountTag: {
     position: 'absolute',

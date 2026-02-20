@@ -109,7 +109,7 @@ export default function ProductDetailDynamic() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  safe: { flex: 1, backgroundColor: '#F9FAFB', paddingVertical: 30 },
   container: { flex: 1 },
   imageContainer: { backgroundColor: '#FFFFFF', height: 280, justifyContent: 'center', alignItems: 'center', position: 'relative' },
   discountBadge: { position: 'absolute', top: 16, right: 16, backgroundColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   section: { backgroundColor: '#FFFFFF', padding: 16, marginTop: 12 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 12 },
   description: { fontSize: 14, lineHeight: 22, color: '#6B7280' },
-  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#E5E7EB', flexDirection: 'row', gap: 12, elevation: 8 },
+  bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#E5E7EB', flexDirection: 'row', gap: 12, elevation: 8,  paddingBottom: 30 },
   quantityContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 8 },
   quantityButton: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
   quantityButtonText: { fontSize: 20, fontWeight: '700', color: '#0E7A3D' },

@@ -21,6 +21,28 @@ export default function ProductsScreen() {
 
   const categoryName = params.categoryName || 'All Products';
 
+  const getSortedProducts = () => {
+    let sorted = [...ALL_PRODUCTS];
+    
+    switch (selectedSort) {
+      case 'price-low':
+        sorted.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-high':
+        sorted.sort((a, b) => b.price - a.price);
+        break;
+      case 'discount':
+        sorted.sort((a, b) => b.discount - a.discount);
+        break;
+      case 'popular':
+      default:
+        sorted.sort((a, b) => b.rating - a.rating);
+        break;
+    }
+    
+    return sorted;
+  };
+
   const handleProductPress = (product: any) => {
     router.push({ pathname: '/product/[productId]', params: { productId: product.id } });
   };
@@ -97,7 +119,7 @@ export default function ProductsScreen() {
       {/* Products Grid */}
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.productsGrid}>
-          {ALL_PRODUCTS.map((product) => (
+          {getSortedProducts().map((product) => (
             <TouchableOpacity
               key={product.id}
               style={styles.productCard}
@@ -160,13 +182,14 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F9FAFB',
+    paddingVertical: 40,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 4,
     backgroundColor: '#0E7A3D',
     elevation: 4,
     shadowColor: '#000',
