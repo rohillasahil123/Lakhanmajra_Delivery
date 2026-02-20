@@ -12,6 +12,9 @@ import {
   getUserSummary,
   getDashboardMetrics,
   getAuditLogs,
+  createUser,
+  updateUser,
+  deleteUser,
 } from "../controllers/admin.controller";
 import { protect, requireRole } from "../middlewares/auth.middleware";
 import { requirePermission } from "../middlewares/permission.middleware";
@@ -39,6 +42,11 @@ router.get('/roles/:id/users', protect, requirePermission('users:view'), getUser
 
 router.get('/users', protect, requirePermission('users:view'), listUsersWithRoles);
 router.get('/users/summary', protect, requirePermission('users:view'), getUserSummary);
+
+// User management (superadmin only)
+router.post('/users', protect, requireRole('superadmin'), createUser);
+router.patch('/users/:id', protect, requireRole('superadmin'), updateUser);
+router.delete('/users/:id', protect, requireRole('superadmin'), deleteUser);
 
 // Superadmin: activate / deactivate user
 router.patch('/users/:id/status', protect, requireRole('superadmin'), updateUserStatus);

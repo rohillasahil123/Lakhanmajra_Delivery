@@ -21,14 +21,14 @@ app.use(hpp());
 // Compression
 app.use(compression());
 
-// CORS - More permissive for development
+// CORS - More permissive for development (Expo Go, web, simulators)
 const allowedOrigins = (process.env.FRONTEND_URLS || "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175").split(",").map(url => url.trim());
 
 console.log("✅ Allowed Origins:", allowedOrigins);
+console.log("ℹ️  CORS Origin function will also allow all origins in development");
 
 app.use(
   cors({
-    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

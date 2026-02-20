@@ -11,10 +11,9 @@ build/
 out/
 
 # Environment variables
-.env
-.env.local
-.env.development
-.env.production
+# .env.local
+# .env.development
+# .env.production
 
 # Logs
 npm-debug.log*

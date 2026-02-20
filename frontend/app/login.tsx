@@ -4,33 +4,43 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { authService } from '@/services/authService';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState(''); // Can be email or phone
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  function onSubmit() {
-    if (!email.trim() || !password) {
-      Alert.alert('Validation', 'Please fill all required fields.');
-      return;
-    }
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      Alert.alert('Validation', 'Please enter a valid email address.');
-      return;
-    }
-    
-    // Dummy credentials check
-    const DUMMY_EMAIL = 'test@gmail.com';
-    const DUMMY_PASSWORD = 'test@123';
-    
-    if (email.toLowerCase() === DUMMY_EMAIL && password === DUMMY_PASSWORD) {
-      // Navigate to location page first (to select delivery location)
-      router.replace('/location');
-    } else {
-      Alert.alert('Login Failed', 'Invalid email or password. \n\nUse:\nEmail: test@gmail.com\nPassword: test@123');
+  async function onSubmit() {
+    try {
+      // Validate inputs
+      if (!identifier.trim() || !password) {
+        Alert.alert('Validation', 'Please fill all required fields.');
+        return;
+      }
+
+      setLoading(true);
+
+      // Call auth service
+      const { token, user } = await authService.login(identifier.trim(), password);
+
+      setLoading(false);
+
+      if (token && user) {
+        // Success - navigate to location page
+        Alert.alert('Success', `Welcome back, ${user.name}!`, [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/location'),
+          },
+        ]);
+      }
+    } catch (error: any) {
+      setLoading(false);
+      const errorMessage = error.message || 'Login failed. Please try again.';
+      Alert.alert('Login Error', errorMessage);
+      console.error('Login error:', error);
     }
   }
 
@@ -47,11 +57,12 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             <TextField 
-              placeholder="Email" 
-              value={email} 
-              onChangeText={setEmail}
+              placeholder="Email or Phone" 
+              value={identifier} 
+              onChangeText={setIdentifier}
               keyboardType="email-address"
               autoCapitalize="none"
+              editable={!loading}
               style={styles.input}
               placeholderTextColor="#C7C7CC"
             />
@@ -60,6 +71,7 @@ export default function LoginScreen() {
               secureTextEntry 
               value={password} 
               onChangeText={setPassword}
+              editable={!loading}
               style={styles.input}
               placeholderTextColor="#C7C7CC"
             />
@@ -68,17 +80,28 @@ export default function LoginScreen() {
             <TouchableOpacity 
               onPress={() => Alert.alert('Forgot Password', 'Password recovery feature coming soon!')} 
               style={styles.forgotButton}
+              disabled={loading}
             >
               <ThemedText style={styles.forgotText}>Forgot Password?</ThemedText>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.loginButton} onPress={onSubmit}>
-              <ThemedText style={styles.loginButtonText}>Login</ThemedText>
+            <TouchableOpacity 
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+              onPress={onSubmit}
+              disabled={loading}
+            >
+              <ThemedText style={styles.loginButtonText}>
+                {loading ? 'Please wait...' : 'Login'}
+              </ThemedText>
             </TouchableOpacity>
 
             <View style={styles.row}>
               <ThemedText style={styles.rowText}>Don't have an account?</ThemedText>
-              <TouchableOpacity onPress={() => router.push('/signup')} style={styles.signupButton}>
+              <TouchableOpacity 
+                onPress={() => router.push('/signup')} 
+                style={styles.signupButton}
+                disabled={loading}
+              >
                 <ThemedText style={styles.signupText}> Sign Up</ThemedText>
               </TouchableOpacity>
             </View>
@@ -178,6 +201,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#D4A574',
+    shadowOpacity: 0.1,
   },
   loginButtonText: {
     fontSize: 17,

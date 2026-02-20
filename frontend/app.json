@@ -55,6 +55,12 @@
       "reactCompiler": true
     },
 
+    "updates": {
+      "enabled": false,
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
+    },
+
     "extra": {
       "router": {},
       "eas": {

@@ -4,25 +4,57 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { authService } from '@/services/authService';
 
 export default function SignupScreen() {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  function onSubmit() {
-    if (!name.trim() || !phone.trim() || !password) {
-      Alert.alert('Validation', 'Please fill all required fields.');
-      return;
+  async function onSubmit() {
+    try {
+      // Validation
+      if (!name.trim() || !email.trim() || !phone.trim() || !password) {
+        Alert.alert('Validation', 'Please fill all required fields.');
+        return;
+      }
+
+      if (password !== confirm) {
+        Alert.alert('Validation', 'Passwords do not match.');
+        return;
+      }
+
+      setLoading(true);
+
+      // Call auth service
+      const user = await authService.register({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        phone: phone.trim(),
+        password,
+      });
+
+      setLoading(false);
+
+      if (user) {
+        // Success - navigate to OTP verification
+        Alert.alert('Success', 'Account created successfully! Please verify OTP sent to your phone.', [
+          {
+            text: 'OK',
+            onPress: () => router.push({ pathname: '/otp', params: { phone: user.phone || phone } }),
+          },
+        ]);
+      }
+    } catch (error: any) {
+      setLoading(false);
+      const errorMessage = error.message || 'Registration failed. Please try again.';
+      Alert.alert('Registration Error', errorMessage);
+      console.error('Signup error:', error);
     }
-    if (password !== confirm) {
-      Alert.alert('Validation', 'Passwords do not match.');
-      return;
-    }
-    // Navigate to OTP screen and pass phone as a param
-    router.push({ pathname: '/otp', params: { phone } });
   }
 
   return (
@@ -41,6 +73,16 @@ export default function SignupScreen() {
               placeholder="Name" 
               value={name} 
               onChangeText={setName}
+              editable={!loading}
+              style={styles.input}
+              placeholderTextColor="#9CA3AF"
+            />
+            <TextField 
+              placeholder="Email" 
+              keyboardType="email-address"
+              value={email} 
+              onChangeText={setEmail}
+              editable={!loading}
               style={styles.input}
               placeholderTextColor="#9CA3AF"
             />
@@ -49,6 +91,7 @@ export default function SignupScreen() {
               keyboardType="phone-pad" 
               value={phone} 
               onChangeText={setPhone}
+              editable={!loading}
               style={styles.input}
               placeholderTextColor="#9CA3AF"
             />
@@ -57,6 +100,7 @@ export default function SignupScreen() {
               secureTextEntry 
               value={password} 
               onChangeText={setPassword}
+              editable={!loading}
               style={styles.input}
               placeholderTextColor="#9CA3AF"
             />
@@ -65,17 +109,24 @@ export default function SignupScreen() {
               secureTextEntry 
               value={confirm} 
               onChangeText={setConfirm}
+              editable={!loading}
               style={styles.input}
               placeholderTextColor="#9CA3AF"
             />
 
-            <TouchableOpacity style={styles.signupButton} onPress={onSubmit}>
-              <ThemedText style={styles.signupButtonText}>Sign Up</ThemedText>
+            <TouchableOpacity 
+              style={[styles.signupButton, loading && styles.signupButtonDisabled]} 
+              onPress={onSubmit} 
+              disabled={loading}
+            >
+              <ThemedText style={styles.signupButtonText}>
+                {loading ? 'Creating account...' : 'Sign Up'}
+              </ThemedText>
             </TouchableOpacity>
 
             <View style={styles.row}>
-              <ThemedText style={styles.rowText}>Already have ans account?</ThemedText>
-              <TouchableOpacity onPress={() => router.push('/login')} style={styles.loginButton}>
+              <ThemedText style={styles.rowText}>Already have an account?</ThemedText>
+              <TouchableOpacity onPress={() => router.push('/login')} style={styles.loginButton} disabled={loading}>
                 <ThemedText style={styles.loginText}> Login</ThemedText>
               </TouchableOpacity>
             </View>
@@ -166,6 +217,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+  },
+  signupButtonDisabled: {
+    backgroundColor: '#E8A565',
+    shadowOpacity: 0.1,
   },
   signupButtonText: {
     fontSize: 17,

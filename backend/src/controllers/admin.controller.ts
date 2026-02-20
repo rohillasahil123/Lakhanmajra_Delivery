@@ -1,4 +1,5 @@
 import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
 import { Role } from "../models/role.model";
 import { Permission } from "../models/permission.model";
 import User from "../models/user.model";
@@ -358,5 +359,121 @@ export const getAuditLogs = async (req: Request, res: Response) => {
     return success(res, { logs, total, page: Number(page), limit: Number(limit) }, 'Audit logs fetched');
   } catch (err: any) {
     return fail(res, err.message || 'Fetch failed', 500);
+  }
+};
+
+/* ================= CREATE USER (SUPERADMIN ONLY) ================= */
+export const createUser = async (req: Request, res: Response) => {
+  try {
+    const { name, email, phone, password, roleId } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !phone || !password || !roleId) {
+      return fail(res, 'name, email, phone, password, and roleId are required', 400);
+    }
+
+    // Check email uniqueness
+    const existing = await User.findOne({ email: email.toLowerCase() });
+    if (existing) {
+      return fail(res, 'User with this email already exists', 400);
+    }
+
+    // Validate role exists
+    const role = await Role.findById(roleId);
+    if (!role) {
+      return fail(res, 'Role not found', 404);
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const user = await User.create({
+      name,
+      email: email.toLowerCase(),
+      phone,
+      password: hashedPassword,
+      roleId,
+      isActive: true,
+    });
+
+    // Return user with role populated (without password)
+    await user.populate('roleId');
+    const safeUser = { ...user.toObject(), password: undefined };
+
+    return success(res, safeUser, 'User created successfully', 201);
+  } catch (err: any) {
+    return fail(res, err.message || 'User creation failed', 500);
+  }
+};
+
+/* ================= UPDATE USER (SUPERADMIN ONLY) ================= */
+export const updateUser = async (req: Request, res: Response) => {
+  try {
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
+
+    const { name, email, phone, roleId } = req.body;
+
+    // Find user
+    const user = await User.findById(id);
+    if (!user) {
+      return fail(res, 'User not found', 404);
+    }
+
+    // Prevent editing superadmin (except superadmin themselves)
+    if (user.email === 'superadmin@example.com') {
+      return fail(res, 'Cannot edit superadmin user', 403);
+    }
+
+    // Build update object
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+    if (roleId) {
+      const role = await Role.findById(roleId);
+      if (!role) return fail(res, 'Role not found', 404);
+      updateData.roleId = roleId;
+    }
+    if (email) {
+      const existing = await User.findOne({ email: email.toLowerCase(), _id: { $ne: id } });
+      if (existing) return fail(res, 'Email already in use', 400);
+      updateData.email = email.toLowerCase();
+    }
+
+    // Update user
+    const updated = await User.findByIdAndUpdate(id, updateData, { new: true })
+      .select('-password')
+      .populate('roleId');
+
+    return success(res, updated, 'User updated successfully');
+  } catch (err: any) {
+    return fail(res, err.message || 'User update failed', 500);
+  }
+};
+
+/* ================= DELETE USER (SUPERADMIN ONLY) ================= */
+export const deleteUser = async (req: Request, res: Response) => {
+  try {
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
+
+    // Find user
+    const user = await User.findById(id);
+    if (!user) {
+      return fail(res, 'User not found', 404);
+    }
+
+    // Prevent deletion of superadmin user
+    if (user.email === 'superadmin@example.com' || user.roleId.toString() === (await Role.findOne({ name: 'superadmin' }))?._id.toString()) {
+      return fail(res, 'Cannot delete superadmin user', 403);
+    }
+
+    // Delete user
+    await User.findByIdAndDelete(id);
+
+    return success(res, null, 'User deleted successfully');
+  } catch (err: any) {
+    return fail(res, err.message || 'User deletion failed', 500);
   }
 };

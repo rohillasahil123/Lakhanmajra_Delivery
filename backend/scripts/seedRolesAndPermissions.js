@@ -148,7 +148,7 @@ async function seed() {
 
     // Step 4: Create/update superadmin user
     const superadminEmail = process.env.SUPERADMIN_EMAIL || 'superadmin@example.com';
-    const superadminPassword = process.env.SUPERADMIN_PASSWORD || 'SuperAdmin@123';
+    const superadminPassword = process.env.SUPERADMIN_PASSWORD || 'superadmin@123';
 
     let superadminUser = await User.findOne({ email: superadminEmail });
     if (!superadminUser) {

@@ -118,9 +118,25 @@ export const updateUser = async (req: Request, res: Response) => {
 
 /* ================= DELETE USER ================= */
 export const deleteUser = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  await User.findByIdAndDelete(id);
-  res.json({ message: "User deleted successfully" });
+  try {
+    const { id } = req.params;
+
+    // Prevent deletion of superadmin user
+    const user = await User.findById(id).populate("roleId");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const role = user.roleId as any;
+    if (role?.name === "superadmin" || user.email === "superadmin@example.com") {
+      return res.status(403).json({ message: "Cannot delete superadmin user" });
+    }
+
+    await User.findByIdAndDelete(id);
+    res.json({ message: "User deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Delete failed" });
+  }
 };
 
 /* ================= ASSIGN ROLE TO USER (SUPERADMIN) ================= */
