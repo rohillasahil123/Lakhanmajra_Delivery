@@ -2,7 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import useCart from '@/stores/cartStore';
 import useLocationStore from '@/stores/locationStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ImageBackground,
   NativeScrollEvent,
@@ -12,10 +12,38 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Pressable,
   View,
   useWindowDimensions,
+  FlatList,
+  Dimensions,
 } from 'react-native';/*  */
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
+import catalogService, { fetchCategories, fetchProducts, fetchOffers } from '@/services/catalogService';
+// Local offer images
+const shamImg = require('../assets/images/sham.png');
+const msaleImg = require('../assets/images/msale.png');
+const teaImg = require('../assets/images/Tea.png');
+const oneImg = require('../assets/images/1.png');
+
+// Category colors
+const CATEGORY_COLORS: { [key: string]: string } = {
+  'vegitable': '#D1F2EB',
+  'vegetables': '#D1F2EB',
+  'fruits': '#FEF3C7',
+  'dairy': '#DBEAFE',
+  'snacks': '#FCE7F3',
+  'beverages': '#E9D5FF',
+  'bakery': '#FFE4E6',
+  'meat': '#FED7AA',
+  'care': '#D1D5DB',
+};
+
+// Helper function to get color for category
+const getCategoryColor = (categoryName: string) => {
+  const slug = (categoryName || '').toLowerCase().trim();
+  return CATEGORY_COLORS[slug] || '#F3F4F6';
+};
 
 // Color Scheme
 const COLORS = {
@@ -36,51 +64,6 @@ const getResponsiveValue = (smallScreen: number, largeScreen: number, width: num
   return width < 380 ? smallScreen : largeScreen;
 };
 
-const CATEGORIES = [
-  { id: 1, name: 'Trending', icon: '🔥' },
-  { id: 2, name: 'Veggies', icon: '🥦' },
-  { id: 3, name: 'Fruits', icon: '🍎' },
-  { id: 4, name: 'Dairy', icon: '🥛' },
-  { id: 5, name: 'Meat', icon: '🍗' },
-  { id: 6, name: 'Bakery', icon: '🥖' },
-  { id: 7, name: 'Snacks', icon: '🍫' },
-  { id: 8, name: 'Drinks', icon: '🧃' },
-  { id: 9, name: 'Care', icon: '🧴' },
-];
-
-const FEATURED_PRODUCTS = [
-  { id: 1, name: 'Fresh Avocado Premium', price: 79, oldPrice: 105, unit: 'piece', image: '🥑', category: 'Organics', discount: '25% OFF', rating: 4.8, reviews: 320 },
-  { id: 2, name: 'Imported Strawberry Pack', price: 149, oldPrice: 190, unit: 'pack', image: '🍓', category: 'Fruits', discount: 'NEW', rating: 4.9, reviews: 512 },
-  { id: 3, name: 'Amul Full Cream Milk', price: 66, oldPrice: 69, unit: 'litre', image: '🥛', category: 'Dairy', discount: '5% OFF', rating: 4.7, reviews: 1200 },
-  { id: 4, name: 'Robusta Banana Bunch', price: 45, oldPrice: null, unit: 'bunch', image: '🍌', category: 'Fruits', discount: null, rating: 4.6, reviews: 680 },
-  { id: 5, name: 'Chocolate Truffle Cupcake', price: 179, oldPrice: 256, unit: 'pack', image: '🧁', category: 'Bakery', discount: '30% OFF', rating: 4.5, reviews: 290 },
-  { id: 6, name: 'Dove Moisturising Body Wash', price: 289, oldPrice: 340, unit: 'bottle', image: '🧴', category: 'Care', discount: '15% OFF', rating: 4.8, reviews: 870 },
-];
-
-const OFFER_SLIDES = [
-  {
-    id: 1,
-    title: 'Weekend Mega Sale',
-    subtitle: 'Up to 40% OFF on fruits & vegetables',
-    cta: 'Shop Offers',
-    image: require('../assets/images/2.png'),
-  },
-  {
-    id: 2,
-    title: 'Milk & Dairy Deals',
-    subtitle: 'Buy 2, Get 1 FREE on selected items',
-    cta: 'View Deals',
-    image: require('../assets/images/1.png'),
-  },
-  {
-    id: 3,
-    title: 'Free Delivery Day',
-    subtitle: 'No delivery fee above ₹199 order',
-    cta: 'Order Now',
-    image: require('../assets/images/1.png'),
-  },
-];
-
 export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -90,8 +73,12 @@ export default function HomeScreen() {
   const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
   const cartCount = useCart((s) => s.items.reduce((sum: number, it) => sum + it.quantity, 0));
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeOfferIndex, setActiveOfferIndex] = useState(0);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const addressParam = typeof params.address === 'string' ? params.address.trim() : '';
@@ -110,6 +97,54 @@ export default function HomeScreen() {
       longitude: Number.isFinite(longitudeParam) ? longitudeParam : selectedLocation.longitude,
     });
   }, [params.address, params.deliveryInstructions, params.latitude, params.longitude]);
+
+  // Load remote catalog data
+  useEffect(() => {
+    let mounted = true;
+    async function loadCatalog() {
+      setLoading(true);
+      try {
+        const [cats, prods, offs] = await Promise.all([
+          fetchCategories(),
+          fetchProducts({ limit: 12 }),
+          fetchOffers(),
+        ]);
+        if (!mounted) return;
+        setCategories(cats || []);
+        setProducts(prods || []);
+        // Attach local images as fallbacks for offers. Prefer remote offers if available.
+        const localImgs = [shamImg, msaleImg, teaImg, oneImg];
+        let finalOffers: any[] = [];
+        if (offs && offs.length > 0) {
+          finalOffers = offs.map((o: any, i: number) => ({
+            ...o,
+            image: o.image && (typeof o.image === 'number' || typeof o.image === 'object') ? o.image : localImgs[i % localImgs.length],
+          }));
+        } else {
+          finalOffers = localImgs.map((img, i) => ({ id: `local-${i}`, title: '', subtitle: '', image: img }));
+        }
+        setOffers(finalOffers);
+        // Set first category as selected
+        if (cats && cats.length > 0) {
+          setSelectedCategory(cats[0]._id);
+        }
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    loadCatalog();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const isLocalImage = (img: any) => typeof img === 'number';
+
+  // Filter products by selected category
+  const filteredProducts = selectedCategory 
+    ? products.filter((p: any) => p.categoryId === selectedCategory)
+    : products;
 
   const locationLines = useMemo(() => {
     const fallback = ['Select your location', 'Tap to choose delivery address'];
@@ -144,6 +179,36 @@ export default function HomeScreen() {
       setActiveOfferIndex(nextIndex);
     }
   };
+
+  // Refs to control offer auto-scroll and keep current index in sync
+  const offerScrollRef = useRef<any>(null);
+  const offerIndexRef = useRef<number>(0);
+
+  useEffect(() => {
+    offerIndexRef.current = activeOfferIndex;
+  }, [activeOfferIndex]);
+
+  useEffect(() => {
+    if (!offers || offers.length <= 1) return;
+    let mounted = true;
+    const interval = setInterval(() => {
+      if (!mounted) return;
+      const next = (offerIndexRef.current + 1) % offers.length;
+      try {
+        offerScrollRef.current?.scrollTo({ x: next * offerCardWidth, animated: true });
+      } catch (e) {
+        // ignore if ref not ready
+      }
+      offerIndexRef.current = next;
+      // update visible index state
+      setActiveOfferIndex(next);
+    }, 4000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [offers, offerCardWidth]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.bg }]}>
@@ -219,32 +284,50 @@ export default function HomeScreen() {
 
         <View style={styles.offerSection}>
           <ScrollView
+            ref={offerScrollRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={handleOfferScroll}
             decelerationRate="fast"
           >
-            {OFFER_SLIDES.map((offer) => (
-              <View key={offer.id} style={{ width: offerCardWidth }}>
-                <ImageBackground source={offer.image} style={styles.offerCard} imageStyle={styles.offerCardImage}>
-                  <View style={styles.offerOverlay} />
-                  <View style={styles.offerContent}>
-                    <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
-                    <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
-                    <TouchableOpacity style={styles.offerCta}>
-                      <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
-                    </TouchableOpacity>
+            {offers.map((offer, idx) => (
+              <View key={offer.id ?? idx} style={{ width: offerCardWidth }}>
+                {isLocalImage(offer.image) ? (
+                  <ImageBackground source={offer.image} style={styles.offerCard} imageStyle={styles.offerCardImage}>
+                    <View style={styles.offerOverlay} />
+                    <View style={styles.offerContent}>
+                      <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
+                      <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
+                      {offer.cta && (
+                        <TouchableOpacity style={styles.offerCta}>
+                          <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  </ImageBackground>
+                ) : (
+                  <View style={[styles.offerCard, { backgroundColor: COLORS.accent }]}> 
+                    <View style={styles.offerOverlay} />
+                    <View style={styles.offerContent}>
+                      <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
+                      <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
+                      {offer.cta && (
+                        <TouchableOpacity style={styles.offerCta}>
+                          <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
-                </ImageBackground>
+                )}
               </View>
             ))}
           </ScrollView>
 
           <View style={styles.offerDots}>
-            {OFFER_SLIDES.map((offer, index) => (
+            {offers.map((offer, index) => (
               <View
-                key={offer.id}
+                key={offer.id ?? index}
                 style={[styles.offerDot, index === activeOfferIndex && styles.offerDotActive]}
               />
             ))}
@@ -319,23 +402,44 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.categoriesScroll}
-          contentContainerStyle={{ paddingHorizontal: 6, gap: 8 }}
-        >
-          {CATEGORIES.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.catChip, selectedCategory === cat.id && styles.catChipActive]}
-              onPress={() => setSelectedCategory(cat.id)}
-            >
-              <ThemedText style={{ fontSize: 22 }}>{cat.icon}</ThemedText>
-              <ThemedText style={[styles.catName, { fontSize: 10 }]}>{cat.name}</ThemedText>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Categories — horizontal FlatList single-row */}
+        <View>
+          {(() => {
+            const visibleOnScreen = 5; // how many cards fit before scrolling
+            const gap = 12;
+            const horizontalPadding = 32; // 16 left + 16 right
+            const winW = Dimensions.get('window').width;
+            const cardSize = Math.floor((winW - horizontalPadding - (visibleOnScreen - 1) * gap) / visibleOnScreen);
+
+            return (
+              <FlatList
+                key="categories-horizontal"
+                data={categories}
+                keyExtractor={(item, idx) => item._id ?? String(idx)}
+                horizontal={true}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8 }}
+                scrollEnabled={true}
+                nestedScrollEnabled={true}
+                renderItem={({ item }) => (
+                  <Pressable
+                    onPress={() => setSelectedCategory(item._id)}
+                    style={({ pressed }) => [
+                      styles.categoryCard,
+                      { backgroundColor: getCategoryColor(item.name), width: cardSize, height: cardSize, marginRight: gap, transform: [{ scale: pressed ? 0.96 : 1 }] },
+                    ]}
+                  >
+                    <ThemedText style={styles.categoryIcon}>{item.icon || '🥬'}</ThemedText>
+                    <ThemedText style={styles.categoryTitle} numberOfLines={2} ellipsizeMode="tail">
+                      {item.name || item.title}
+                    </ThemedText>
+                  </Pressable>
+                )}
+                ListEmptyComponent={<View style={{ height: 8 }} />}
+              />
+            );
+          })()}
+        </View>
 
         {/* Products */}
         <View style={styles.sectionHead}>
@@ -346,10 +450,10 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.productGrid}>
-          {FEATURED_PRODUCTS.map((product) => (
-            <TouchableOpacity key={product.id} style={styles.productCard}>
+          {filteredProducts.map((product) => (
+            <TouchableOpacity key={product.id || product._id} style={styles.productCard}>
               <View style={styles.productImg}>
-                <ThemedText style={{ fontSize: 28}}>{product.image}</ThemedText>
+                <ThemedText style={{ fontSize: 28}}>{product.image || product.emoji || '🛍️'}</ThemedText>
                 {product.discount && <View style={styles.discountTag}>
                   <ThemedText style={styles.discountText}>{product.discount}</ThemedText>
                 </View>}
@@ -358,27 +462,29 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
               <View style={styles.productBody}>
-                <ThemedText style={styles.productMeta}>{product.category}</ThemedText>
-                <View style={styles.rating}>
-                  <ThemedText style={styles.ratingText}>⭐ {product.rating}</ThemedText>
-                </View>
+                <ThemedText style={styles.productMeta}>{product.category || product.meta || product.type}</ThemedText>
+                {product.rating && (
+                  <View style={styles.rating}>
+                    <ThemedText style={styles.ratingText}>⭐ {product.rating}</ThemedText>
+                  </View>
+                )}
                 <ThemedText style={styles.productName} numberOfLines={2}>{product.name}</ThemedText>
-                <ThemedText style={styles.productWeight}>Per {product.unit}</ThemedText>
+                <ThemedText style={styles.productWeight}>Per {product.unit || 'piece'}</ThemedText>
                 <View style={styles.productFooter}>
                   <View>
                     <ThemedText style={styles.price}>₹{product.price}</ThemedText>
-                    {product.oldPrice && <ThemedText style={styles.priceOld}>₹{product.oldPrice}</ThemedText>}
+                    {product.mrp && <ThemedText style={styles.priceOld}>₹{product.mrp}</ThemedText>}
                   </View>
                   <TouchableOpacity
                     style={styles.addBtn}
                     onPress={() =>
                       addItem(
                         {
-                          id: product.id,
+                          id: product._id || product.id,
                           name: product.name,
                           price: product.price,
-                          unit: product.unit,
-                          image: product.image,
+                          unit: product.unit || '',
+                          image: product.image || product.emoji || '🛍️',
                         },
                         1,
                       )
@@ -751,31 +857,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.accent,
   },
-  categoriesScroll: {
+  categoriesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
     marginBottom: 24,
+    gap: 12,
   },
-  catChip: {
-    flexDirection: 'column',
+  columnWrapper: {
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  categoryCard: {
+    borderRadius: 20,
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.white,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: 'transparent',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    justifyContent: 'center',
+    marginRight: 12,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 0,
   },
-  catChipActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#FFFBEB',
+  categoryCardActive: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.06)',
   },
-  catEmoji: {
+  categoryIcon: {
+    fontSize: 44,
+    width: 44,
+    height: 44,
+    textAlign: 'center',
+    marginBottom: 8,
     color: COLORS.text,
   },
-  catName: {
+  categoryTitle: {
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.text,
     textAlign: 'center',

@@ -1,7 +1,7 @@
 import { ThemedText } from '@/components/themed-text';
 import useCart from '@/stores/cartStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     SafeAreaView,
     ScrollView,
@@ -10,7 +10,7 @@ import {
     View,
 } from 'react-native';
 
-import { ALL_PRODUCTS } from '@/data/products';
+import { fetchProducts } from '@/services/catalogService';
 
 export default function ProductsScreen() {
   const router = useRouter();
@@ -18,33 +18,49 @@ export default function ProductsScreen() {
   const addItem = useCart((s) => s.addItem);
   const cartCount = useCart((s) => s.items.reduce((sum, it) => sum + it.quantity, 0));
   const [selectedSort, setSelectedSort] = useState('popular');
-
+  const [products, setProducts] = useState<any[]>([]);
   const categoryName = params.categoryName || 'All Products';
 
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const catId = typeof params.categoryId === 'string' ? params.categoryId : params.categoryId ?? undefined;
+        // fetch products for category if categoryId is present, else fetch default
+        const prods = await fetchProducts(catId ? { categoryId: catId, limit: 100 } : { limit: 100 });
+        if (!mounted) return;
+        setProducts(prods || []);
+      } catch (e) {
+        if (mounted) setProducts([]);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, [params.categoryId]);
+
   const getSortedProducts = () => {
-    let sorted = [...ALL_PRODUCTS];
-    
+    let sorted = [...products];
     switch (selectedSort) {
       case 'price-low':
-        sorted.sort((a, b) => a.price - b.price);
+        sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
         break;
       case 'price-high':
-        sorted.sort((a, b) => b.price - a.price);
+        sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
         break;
       case 'discount':
-        sorted.sort((a, b) => b.discount - a.discount);
+        sorted.sort((a, b) => (b.discount || 0) - (a.discount || 0));
         break;
       case 'popular':
       default:
-        sorted.sort((a, b) => b.rating - a.rating);
+        sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
     }
-    
     return sorted;
   };
 
   const handleProductPress = (product: any) => {
-    router.push({ pathname: '/product/[productId]', params: { productId: product.id } });
+    const id = product._id || product.id;
+    router.push({ pathname: '/product/[productId]', params: { productId: id } });
   };
 
   return (
@@ -113,7 +129,7 @@ export default function ProductsScreen() {
 
       {/* Products Count */}
       <View style={styles.countContainer}>
-        <ThemedText style={styles.countText}>{ALL_PRODUCTS.length} products found</ThemedText>
+        <ThemedText style={styles.countText}>{products.length} products found</ThemedText>
       </View>
 
       {/* Products Grid */}
@@ -121,7 +137,7 @@ export default function ProductsScreen() {
         <View style={styles.productsGrid}>
           {getSortedProducts().map((product) => (
             <TouchableOpacity
-              key={product.id}
+              key={product._id || product.id}
               style={styles.productCard}
               onPress={() => handleProductPress(product)}
             >
@@ -142,7 +158,7 @@ export default function ProductsScreen() {
                 <ThemedText style={styles.productName} numberOfLines={2}>
                   {product.name}
                 </ThemedText>
-                <ThemedText style={styles.productUnit}>{product.unit}</ThemedText>
+                <ThemedText style={styles.productUnit}>{product.unit || product.unitType || ''}</ThemedText>
 
                 {/* Rating */}
                 <View style={styles.ratingContainer}>
@@ -154,15 +170,13 @@ export default function ProductsScreen() {
                 <View style={styles.productFooter}>
                   <View>
                     <ThemedText style={styles.productPrice}>₹{product.price}</ThemedText>
-                    {product.discount > 0 && (
-                      <ThemedText style={styles.originalPrice}>
-                        ₹{Math.round(product.price / (1 - product.discount / 100))}
-                      </ThemedText>
+                    {product.mrp && (
+                      <ThemedText style={styles.originalPrice}>₹{product.mrp}</ThemedText>
                     )}
                   </View>
                   <TouchableOpacity
                     style={styles.addButton}
-                    onPress={() => addItem({ id: product.id, name: product.name, price: product.price, unit: product.unit, image: product.image }, 1)}
+                    onPress={() => addItem({ id: product._id || product.id, name: product.name, price: product.price, unit: product.unit || product.unitType, image: product.image || product.emoji }, 1)}
                   >
                     <ThemedText style={styles.addButtonText}>+</ThemedText>
                   </TouchableOpacity>

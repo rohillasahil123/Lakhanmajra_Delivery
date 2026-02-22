@@ -1,100 +1,37 @@
 import { ThemedText } from '@/components/themed-text';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { fetchCategories } from '@/services/catalogService';
 
-// All categories with subcategories
-const CATEGORIES = [
-  {
-    id: 1,
-    name: 'Vegetables & Fruits',
-    icon: '🥬',
-    color: '#10B981',
-    itemCount: 120,
-    subcategories: ['Fresh Vegetables', 'Seasonal Fruits', 'Exotic Vegetables', 'Organic'],
-  },
-  {
-    id: 2,
-    name: 'Dairy & Eggs',
-    icon: '🥛',
-    color: '#3B82F6',
-    itemCount: 85,
-    subcategories: ['Milk', 'Curd & Yogurt', 'Paneer & Cheese', 'Eggs', 'Butter & Ghee'],
-  },
-  {
-    id: 3,
-    name: 'Snacks & Beverages',
-    icon: '🍿',
-    color: '#EF4444',
-    itemCount: 200,
-    subcategories: ['Chips & Namkeen', 'Biscuits', 'Cold Drinks', 'Tea & Coffee', 'Chocolates'],
-  },
-  {
-    id: 4,
-    name: 'Bakery & Bread',
-    icon: '🍞',
-    color: '#F97316',
-    itemCount: 45,
-    subcategories: ['Bread', 'Buns & Pav', 'Cakes & Pastries', 'Cookies'],
-  },
-  {
-    id: 5,
-    name: 'Atta, Rice & Dal',
-    icon: '🌾',
-    color: '#FBBF24',
-    itemCount: 95,
-    subcategories: ['Atta & Flour', 'Rice & Rice Products', 'Dal & Pulses', 'Organic'],
-  },
-  {
-    id: 6,
-    name: 'Cooking Essentials',
-    icon: '🧂',
-    color: '#8B5CF6',
-    itemCount: 150,
-    subcategories: ['Masala & Spices', 'Oil & Ghee', 'Salt & Sugar', 'Dry Fruits'],
-  },
-  {
-    id: 7,
-    name: 'Personal Care',
-    icon: '🧴',
-    color: '#EC4899',
-    itemCount: 180,
-    subcategories: ['Bath & Body', 'Hair Care', 'Oral Care', 'Skin Care'],
-  },
-  {
-    id: 8,
-    name: 'Household Items',
-    icon: '🧹',
-    color: '#06B6D4',
-    itemCount: 130,
-    subcategories: ['Cleaning', 'Detergents', 'Kitchen Accessories', 'Fresheners'],
-  },
-  {
-    id: 9,
-    name: 'Frozen & Meat',
-    icon: '🍖',
-    color: '#DC2626',
-    itemCount: 60,
-    subcategories: ['Chicken', 'Fish & Seafood', 'Mutton', 'Frozen Snacks'],
-  },
-  {
-    id: 10,
-    name: 'Baby Care',
-    icon: '👶',
-    color: '#F59E0B',
-    itemCount: 75,
-    subcategories: ['Diapers', 'Baby Food', 'Baby Care', 'Toys'],
-  },
-];
+// Categories will be loaded from backend
 
 export default function CategoriesScreen() {
   const router = useRouter();
+
+  const [categories, setCategories] = useState<any[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      try {
+        const cats = await fetchCategories();
+        if (!mounted) return;
+        setCategories(cats || []);
+      } catch (e) {
+        // fallback to empty
+        if (mounted) setCategories([]);
+      }
+    }
+    load();
+    return () => { mounted = false; };
+  }, []);
 
   const handleCategoryPress = (category: any) => {
     router.push({
@@ -122,37 +59,25 @@ export default function CategoriesScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Categories Grid */}
         <View style={styles.categoriesGrid}>
-          {CATEGORIES.map((category) => (
+          {categories.map((category: any) => (
             <TouchableOpacity
-              key={category.id}
+              key={category._id || category.id}
               style={styles.categoryCard}
-              onPress={() => handleCategoryPress(category)}
+              onPress={() => handleCategoryPress({ id: category._id, name: category.name })}
             >
               <View
                 style={[
                   styles.categoryIconContainer,
-                  { backgroundColor: category.color + '20' },
+                  { backgroundColor: (category.color || '#F3F4F6') + '20' },
                 ]}
               >
-                <ThemedText style={styles.categoryIcon}>{category.icon}</ThemedText>
+                <ThemedText style={styles.categoryIcon}>{category.icon || category.emoji || '📦'}</ThemedText>
               </View>
               <View style={styles.categoryInfo}>
                 <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
                 <ThemedText style={styles.categoryCount}>
-                  {category.itemCount} items
+                  {category.itemCount || ''}
                 </ThemedText>
-                <View style={styles.subcategoriesContainer}>
-                  {category.subcategories.slice(0, 2).map((sub, index) => (
-                    <View key={index} style={styles.subcategoryTag}>
-                      <ThemedText style={styles.subcategoryText}>{sub}</ThemedText>
-                    </View>
-                  ))}
-                  {category.subcategories.length > 2 && (
-                    <ThemedText style={styles.moreText}>
-                      +{category.subcategories.length - 2} more
-                    </ThemedText>
-                  )}
-                </View>
               </View>
               <ThemedText style={styles.arrowIcon}>→</ThemedText>
             </TouchableOpacity>
