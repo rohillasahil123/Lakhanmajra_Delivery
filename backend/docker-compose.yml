@@ -1,18 +1,6 @@
 services:
-  mongo:
-    image: mongo:7
-    container_name: mongo
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - ecommerce_network
-
   redis:
     image: redis:7
-    container_name: redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -24,7 +12,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: rabbitmq
     restart: unless-stopped
     ports:
       - "5672:5672"
@@ -36,16 +23,77 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - ecommerce_network
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2023-09-04T19-57-37Z
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123456
+      MINIO_BROWSER: "on"
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - ecommerce_network
     healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
       timeout: 10s
       retries: 5
+      start_period: 20s
+
+  minio_init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    networks:
+      - ecommerce_network
+    entrypoint: >
+      /bin/sh -c "
+      echo '========================================';
+      echo 'Starting MinIO Setup...';
+      echo '========================================';
+
+      until mc alias set local http://minio:9000 minioadmin minioadmin123456; do
+        echo 'Waiting for MinIO to be ready...';
+        sleep 3;
+      done;
+
+      echo 'Creating products bucket...';
+      mc mb --ignore-existing local/products;
+
+      echo 'Setting bucket policy to public...';
+      mc anonymous set public local/products;
+
+      echo 'Creating admin user...';
+      mc admin user add local akashadmin Akash@Secret999 || true;
+
+      echo 'Attaching all admin policies...';
+      mc admin policy attach local consoleAdmin --user akashadmin || true;
+      mc admin policy attach local readwrite --user akashadmin || true;
+      mc admin policy attach local diagnostics --user akashadmin || true;
+
+      echo 'Final verification...';
+      mc admin user info local akashadmin;
+
+      echo '========================================';
+      echo 'SETUP COMPLETE';
+      echo 'URL      : http://localhost:9001';
+      echo 'Username : akashadmin';
+      echo 'Password : Akash@Secret999';
+      echo '========================================';
+      exit 0;
+      "
 
 volumes:
-  mongo_data:
   redis_data:
   rabbitmq_data:
+  minio_data:
 
 networks:
   ecommerce_network:
