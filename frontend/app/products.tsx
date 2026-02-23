@@ -11,11 +11,13 @@ import {
   View,
 } from 'react-native';
 import { fetchProducts } from '@/services/catalogService';
+import { resolveImageUrl } from '@/config/api';
 
 // ── Helper: render product image from MinIO URL or fallback ──────────────────
 function ProductImage({ images, name }: { images?: string[]; name: string }) {
   const [errored, setErrored] = useState(false);
-  const uri = images && images.length > 0 ? images[0] : null;
+  const rawUri = images && images.length > 0 ? images[0] : null;
+  const uri = resolveImageUrl(rawUri);
 
   if (uri && !errored) {
     return (
@@ -193,7 +195,7 @@ export default function ProductsScreen() {
                           name: product.name,
                           price: product.price,
                           unit: product.unit || product.unitType || '',
-                          image: product.images?.[0] || product.image || '',
+                          image: resolveImageUrl(product.images?.[0] || product.image || ''),
                         },
                         1
                       )

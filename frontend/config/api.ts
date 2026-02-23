@@ -33,6 +33,35 @@ const minioFallback = Platform.OS === 'android' ? 'http://10.0.2.2:9000' : 'http
 
 export const MINIO_BASE_URL = envMinioUrl || minioHost || minioFallback;
 
+export function resolveImageUrl(rawUrl?: string | null): string {
+  if (!rawUrl || typeof rawUrl !== 'string') return '';
+
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return '';
+
+  if (trimmed.startsWith('data:') || trimmed.startsWith('file:')) {
+    return trimmed;
+  }
+
+  if (!/^https?:\/\//i.test(trimmed)) {
+    return `${MINIO_BASE_URL.replace(/\/$/, '')}/${trimmed.replace(/^\/+/, '')}`;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const shouldSwapHost =
+      parsed.hostname === 'localhost' ||
+      parsed.hostname === '127.0.0.1' ||
+      parsed.hostname === 'minio';
+
+    if (!shouldSwapHost) return trimmed;
+
+    return `${MINIO_BASE_URL.replace(/\/$/, '')}${parsed.pathname}${parsed.search}`;
+  } catch {
+    return trimmed;
+  }
+}
+
 console.log('🌐 API_BASE_URL:', API_BASE_URL);
 console.log('🗂️  MINIO_BASE_URL:', MINIO_BASE_URL);
 

@@ -20,6 +20,7 @@ import {
 } from 'react-native';/*  */
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import catalogService, { fetchCategories, fetchProducts, fetchOffers } from '@/services/catalogService';
+import { resolveImageUrl } from '@/config/api';
 // Local offer images
 const shamImg = require('../assets/images/sham.png');
 const msaleImg = require('../assets/images/msale.png');
@@ -456,7 +457,7 @@ export default function HomeScreen() {
                 {/* Show MinIO image if available, else fallback to emoji or placeholder */}
                 {Array.isArray(product.images) && product.images[0] ? (
                   <ImageBackground
-                    source={{ uri: product.images[0] }}
+                    source={{ uri: resolveImageUrl(product.images[0]) }}
                     style={{ width: 80, height: 80, justifyContent: 'center', alignItems: 'center' }}
                     imageStyle={{ resizeMode: 'contain', borderRadius: 12 }}
                   >
@@ -495,7 +496,9 @@ export default function HomeScreen() {
                           name: product.name,
                           price: product.price,
                           unit: product.unit || '',
-                          image: (Array.isArray(product.images) && product.images[0]) ? product.images[0] : (product.emoji || product.image || '🛍️'),
+                          image: (Array.isArray(product.images) && product.images[0])
+                            ? resolveImageUrl(product.images[0])
+                            : (product.emoji || product.image || '🛍️'),
                         },
                         1,
                       )

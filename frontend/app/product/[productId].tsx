@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { fetchProducts } from '@/services/catalogService';
+import { resolveImageUrl } from '@/config/api';
 
 export default function ProductDetailDynamic() {
   const router = useRouter();
@@ -72,7 +73,9 @@ export default function ProductDetailDynamic() {
     );
   }
 
-  const images: string[] = product.images || [];
+  const images: string[] = Array.isArray(product.images)
+    ? product.images.map((img: string) => resolveImageUrl(img)).filter(Boolean)
+    : [];
   const currentImage = images[activeImage] || null;
 
   const handleAddToCart = () => {
