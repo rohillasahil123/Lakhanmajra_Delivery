@@ -11,6 +11,7 @@ import adminRoutes from "./routes/admin.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
 import { connectRabbitMQ } from "./config/rabbitmq";
+import { initMinio } from "./services/minio.service";
 
 const app: Application = express();
 
@@ -21,24 +22,29 @@ app.use(hpp());
 // Compression
 app.use(compression());
 
-// CORS - More permissive for development (Expo Go, web, simulators)
-const allowedOrigins = (process.env.FRONTEND_URLS || "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175").split(",").map(url => url.trim());
+// CORS
+const allowedOrigins = (
+  process.env.FRONTEND_URLS ||
+  "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:5175"
+)
+  .split(",")
+  .map((url) => url.trim());
 
 console.log("✅ Allowed Origins:", allowedOrigins);
-console.log("ℹ️  CORS Origin function will also allow all origins in development");
 
 app.use(
   cors({
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
     optionsSuccessStatus: 200,
   })
 );
 
-// Body parser
+// Body parser — NOTE: multipart/form-data is handled by multer in routes
+// Keep json limit for regular JSON requests
 app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // MongoDB Connection
 mongoose
@@ -50,6 +56,11 @@ mongoose
 connectRabbitMQ()
   .then(() => console.log("✅ RabbitMQ connected"))
   .catch((err) => console.error("❌ RabbitMQ error:", err));
+
+// MinIO Connection
+initMinio()
+  .then(() => console.log("✅ MinIO ready"))
+  .catch((err) => console.error("❌ MinIO error:", err));
 
 // Health check
 app.get("/health", (_req, res) => {

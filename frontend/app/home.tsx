@@ -453,7 +453,18 @@ export default function HomeScreen() {
           {filteredProducts.map((product) => (
             <TouchableOpacity key={product.id || product._id} style={styles.productCard}>
               <View style={styles.productImg}>
-                <ThemedText style={{ fontSize: 28}}>{product.image || product.emoji || '🛍️'}</ThemedText>
+                {/* Show MinIO image if available, else fallback to emoji or placeholder */}
+                {Array.isArray(product.images) && product.images[0] ? (
+                  <ImageBackground
+                    source={{ uri: product.images[0] }}
+                    style={{ width: 80, height: 80, justifyContent: 'center', alignItems: 'center' }}
+                    imageStyle={{ resizeMode: 'contain', borderRadius: 12 }}
+                  >
+                    {/* Optionally overlay discount or wishlist here if needed */}
+                  </ImageBackground>
+                ) : (
+                  <ThemedText style={{ fontSize: 28 }}>{product.emoji || product.image || '🛍️'}</ThemedText>
+                )}
                 {product.discount && <View style={styles.discountTag}>
                   <ThemedText style={styles.discountText}>{product.discount}</ThemedText>
                 </View>}
@@ -484,7 +495,7 @@ export default function HomeScreen() {
                           name: product.name,
                           price: product.price,
                           unit: product.unit || '',
-                          image: product.image || product.emoji || '🛍️',
+                          image: (Array.isArray(product.images) && product.images[0]) ? product.images[0] : (product.emoji || product.image || '🛍️'),
                         },
                         1,
                       )
