@@ -102,7 +102,7 @@ export default function CheckoutScreen() {
         {/* Cart Items Section */}
         <View style={styles.section}>
           {cartItems.map((item) => (
-            <View key={item.id} style={styles.cartItem}>
+            <View key={item.cartItemId || item.id} style={styles.cartItem}>
               <View style={styles.itemImageContainer}>
                 {(() => {
                   const imageValue = String(item.image || '').trim();

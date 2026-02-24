@@ -98,7 +98,7 @@ export default function CartScreen() {
             {/* Cart Items */}
             <View style={styles.itemsSection}>
               {cartItems.map((item) => (
-                <View key={item.id} style={styles.cartItem}>
+                <View key={item.cartItemId || item.id} style={styles.cartItem}>
                   <View style={styles.itemImageContainer}>
                     {(() => {
                       const imageValue = String(item.image || '').trim();

@@ -11,6 +11,21 @@ import {
 
 const CART_STORAGE_KEY = '@lakhanmajra_cart_items';
 
+function readObjectId(value: any): string {
+  if (!value) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+
+  const fromCommonKeys = value?._id || value?.id || value?.$oid;
+  if (fromCommonKeys) return String(fromCommonKeys);
+
+  if (typeof value?.toString === 'function') {
+    const asString = value.toString();
+    if (asString && asString !== '[object Object]') return asString;
+  }
+
+  return '';
+}
+
 export type CartItem = {
   id: string;
   cartItemId?: string;
@@ -48,16 +63,18 @@ const normalizeItem = (item: any): CartItem => {
     productIdObj?.image ||
     (Array.isArray(productIdObj?.images) && productIdObj.images.length > 0 ? productIdObj.images[0] : '');
 
+  const productId =
+    readObjectId(product) ||
+    readObjectId(productIdObj) ||
+    readObjectId(item?.productId) ||
+    readObjectId(item?.product) ||
+    readObjectId(item?.id);
+
+  const cartItemId = item?._id ? String(item._id) : item?.cartItemId ? String(item.cartItemId) : '';
+
   return {
-    id: String(
-      product?._id ||
-        productIdObj?._id ||
-        item?.productId ||
-        item?.product ||
-        item?.id ||
-        ''
-    ),
-    cartItemId: item?._id ? String(item._id) : item?.cartItemId,
+    id: productId || cartItemId,
+    cartItemId: cartItemId || undefined,
     name: item?.name || product?.name || productIdObj?.name || 'Product',
     price: Number(item?.price ?? product?.price ?? productIdObj?.price ?? 0),
     unit: item?.unit || product?.unit || productIdObj?.unit || 'piece',

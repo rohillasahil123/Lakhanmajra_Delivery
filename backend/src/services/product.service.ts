@@ -96,9 +96,9 @@ export const importProducts = async (items: Array<any>) => {
     const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     let slug = it.slug ? it.slug.toString().toLowerCase() : base;
 
-    // try find by slug or name
-    let existing = await Product.findOne({ slug });
-    if (!existing) existing = await Product.findOne({ name });
+    // Only upsert by explicit slug. Do not match by name,
+    // otherwise new products with same name can overwrite existing ones.
+    const existing = it.slug ? await Product.findOne({ slug }) : null;
 
     const payload: any = {
       name,
