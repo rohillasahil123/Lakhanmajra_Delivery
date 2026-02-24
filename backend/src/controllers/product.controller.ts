@@ -239,24 +239,28 @@ export const deleteProduct = async (req: Request, res: Response) => {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
 
-    // Delete all images from MinIO before soft-deleting product
-    const doc = await service.getProductById(id);
-    if (doc && doc.images?.length > 0) {
-      await Promise.all(doc.images.map((url) => deleteFromMinio(url)));
-    }
+    const existing = await service.getProductByIdForDelete(id);
+    if (!existing) return fail(res, "Product not found", 404);
 
-    const deleted = await service.softDeleteProduct(id);
+    const imageUrls = Array.isArray(existing.images) ? [...existing.images] : [];
+
+    const deleted = await service.deleteProductById(id);
     if (!deleted) return fail(res, "Product not found", 404);
+
+    // Cleanup image objects in background (best effort, do not block DB delete)
+    if (imageUrls.length > 0) {
+      Promise.allSettled(imageUrls.map((url) => deleteFromMinio(url))).catch(() => {});
+    }
 
     recordAudit({
       actorId: (req as any).user?.id,
       action: "delete",
       resource: "product",
       resourceId: id,
-      after: { isDeleted: true },
+      after: { deleted: true },
     }).catch(() => {});
 
-    return success(res, deleted, "Product soft-deleted");
+    return success(res, deleted, "Product deleted permanently");
   } catch (err: any) {
     return fail(res, err.message || "Delete failed", 500);
   }

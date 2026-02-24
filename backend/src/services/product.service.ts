@@ -57,6 +57,11 @@ export const getProductById = async (id: string) => {
   return doc;
 };
 
+export const getProductByIdForDelete = async (id: string) => {
+  if (!Types.ObjectId.isValid(id)) return null;
+  return Product.findById(id);
+};
+
 export const updateProduct = async (id: string, payload: Partial<IProduct>) => {
   const doc = await Product.findByIdAndUpdate(id, payload, { new: true });
   return doc;
@@ -64,6 +69,11 @@ export const updateProduct = async (id: string, payload: Partial<IProduct>) => {
 
 export const softDeleteProduct = async (id: string) => {
   return Product.findByIdAndUpdate(id, { isDeleted: true, isActive: false }, { new: true });
+};
+
+export const deleteProductById = async (id: string) => {
+  if (!Types.ObjectId.isValid(id)) return null;
+  return Product.findByIdAndDelete(id);
 };
 
 export const changeStock = async (id: string, delta: number) => {
