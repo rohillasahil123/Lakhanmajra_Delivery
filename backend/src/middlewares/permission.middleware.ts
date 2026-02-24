@@ -9,11 +9,24 @@ export interface AuthRequest extends Request {
 export const requirePermission = (requiredPermission: string | string[]) => {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      if (!req.user || !req.user.id) {
+      const userId = req.user?.id || req.user?._id?.toString?.();
+      if (!req.user || !userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const permissions = await getUserPermissions(req.user.id);
+      const roleCandidate =
+        req.user.role ||
+        req.user.roleName ||
+        (req.user.roleId && (req.user.roleId.name || req.user.roleId));
+      const normalizedRole =
+        typeof roleCandidate === "string" ? roleCandidate.toLowerCase() : "";
+
+      if (normalizedRole === "superadmin") {
+        req.permissions = ["*"];
+        return next();
+      }
+
+      const permissions = await getUserPermissions(userId);
       const required = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission];
       const hasPermission = required.some((p) => permissions.includes(p));
 

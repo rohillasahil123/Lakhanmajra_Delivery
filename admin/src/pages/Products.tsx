@@ -12,6 +12,7 @@ type Product = {
 };
 
 type Category = { _id: string; name: string };
+type SortKey = 'name' | 'price' | 'stock' | null;
 
 export default function Products() {
   const [items, setItems] = useState<Product[]>([]);
@@ -21,6 +22,14 @@ export default function Products() {
   const [limit] = useState(20);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>(null);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editMrp, setEditMrp] = useState('');
+  const [editStock, setEditStock] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   // Create form fields
   const [name, setName] = useState('');
@@ -58,18 +67,7 @@ export default function Products() {
         setPermissions(await getPermissions());
         const catsRes = await api.get('/categories');
         const apiCats = catsRes.data?.data ?? catsRes.data ?? [];
-
-        const staticCategories = [
-          { _id: '65d7b1a2c8e4f1a9b2c3d4e5', name: 'Grocery' },
-          { _id: '65d7b1a2c8e4f1a9b2c3d4e6', name: 'Dairy & Breakfast' },
-          { _id: '65d7b1a2c8e4f1a9b2c3d4e7', name: 'Snacks & Branded Foods' },
-          { _id: '65d7b1a2c8e4f1a9b2c3d4e8', name: 'Staples' },
-          { _id: '65d7b1a2c8e4f1a9b2c3d4e9', name: 'Beverages' },
-          { _id: '65d7b1a2c8e4f1a9b2c3d4ea', name: 'Household Essentials' },
-          { _id: '65d7b1a2c8e4f1a9b2c3d4eb', name: 'Personal Care' },
-        ];
-
-        setCategories([...staticCategories, ...(Array.isArray(apiCats) ? apiCats : [])]);
+        setCategories([...(Array.isArray(apiCats) ? apiCats : [])]);
         await load(1);
       } catch (err) {
         console.error(err);
@@ -78,6 +76,43 @@ export default function Products() {
   }, []);
 
   const hasPerm = (p: string) => permissions.includes(p);
+
+  const toggleSort = (key: Exclude<SortKey, null>) => {
+    if (sortKey === key) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(key);
+    setSortOrder('asc');
+  };
+
+  const getSortIndicator = (key: Exclude<SortKey, null>) => {
+    if (sortKey !== key) return '↕';
+    return sortOrder === 'asc' ? '↑' : '↓';
+  };
+
+  const sortedItems = [...items].sort((a, b) => {
+    if (!sortKey) return 0;
+
+    const direction = sortOrder === 'asc' ? 1 : -1;
+
+    if (sortKey === 'name') {
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) * direction;
+    }
+
+    if (sortKey === 'price') {
+      return ((a.price ?? 0) - (b.price ?? 0)) * direction;
+    }
+
+    const aStockMissing = a.stock === undefined || a.stock === null;
+    const bStockMissing = b.stock === undefined || b.stock === null;
+
+    if (aStockMissing && bStockMissing) return 0;
+    if (aStockMissing) return 1;
+    if (bStockMissing) return -1;
+
+    return ((a.stock as number) - (b.stock as number)) * direction;
+  });
 
   // ── Handle file selection & previews ────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,6 +139,48 @@ export default function Products() {
     setCatId(''); setDescription(''); setTags('');
     setSelectedFiles([]); setPreviewUrls([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const startEdit = (product: Product) => {
+    setEditingId(product._id);
+    setEditName(product.name || '');
+    setEditPrice(String(product.price ?? ''));
+    setEditMrp(String((product as any).mrp ?? ''));
+    setEditStock(String(product.stock ?? ''));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditPrice('');
+    setEditMrp('');
+    setEditStock('');
+  };
+
+  const saveEdit = async () => {
+    if (!editingId) return;
+    if (!editName.trim()) return alert('Product name is required');
+    if (!editPrice.trim()) return alert('Price is required');
+
+    setUpdating(true);
+    try {
+      const payload: any = {
+        name: editName.trim(),
+        price: Number(editPrice),
+      };
+
+      if (editMrp.trim() !== '') payload.mrp = Number(editMrp);
+      if (editStock.trim() !== '') payload.stock = Number(editStock);
+
+      await api.patch(`/products/${editingId}`, payload);
+      cancelEdit();
+      await load(page);
+      alert('Product updated');
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Update failed');
+    } finally {
+      setUpdating(false);
+    }
   };
 
   // ── Create product ───────────────────────────────────────────────────────────
@@ -318,23 +395,7 @@ export default function Products() {
             </button>
           </div>
 
-          {/* ── CSV Import ────────────────────────────────────────────────── */}
-          <div className="border-t pt-4 mt-4">
-            <div className="text-sm font-medium mb-2 text-slate-600">Bulk Import (Tab-separated CSV)</div>
-            <textarea
-              className="border px-3 py-2 rounded w-full h-24 text-xs font-mono"
-              placeholder="name&#9;price&#9;stock&#9;category&#9;description"
-              value={csvText}
-              onChange={(e) => setCsvText(e.target.value)}
-            />
-            <button
-              className="bg-purple-600 text-white px-4 py-2 rounded mt-2 disabled:opacity-50"
-              onClick={importCSV}
-              disabled={importing}
-            >
-              {importing ? 'Importing...' : 'Import CSV'}
-            </button>
-          </div>
+
         </div>
       )}
 
@@ -358,22 +419,34 @@ export default function Products() {
           <thead className="bg-slate-50 border-b">
             <tr>
               <th className="p-3">Image</th>
-              <th className="p-3">Name</th>
-              <th className="p-3">Price</th>
+              <th className="p-3">
+                <button className="inline-flex items-center gap-1" onClick={() => toggleSort('name')}>
+                  Name <span className="text-slate-500">{getSortIndicator('name')}</span>
+                </button>
+              </th>
+              <th className="p-3">
+                <button className="inline-flex items-center gap-1" onClick={() => toggleSort('price')}>
+                  Price <span className="text-slate-500">{getSortIndicator('price')}</span>
+                </button>
+              </th>
               <th className="p-3">MRP</th>
-              <th className="p-3">Stock</th>
+              <th className="p-3">
+                <button className="inline-flex items-center gap-1" onClick={() => toggleSort('stock')}>
+                  Stock <span className="text-slate-500">{getSortIndicator('stock')}</span>
+                </button>
+              </th>
               <th className="p-3">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {items.length === 0 ? (
+            {sortedItems.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-6 text-center text-slate-400">
                   No products found
                 </td>
               </tr>
             ) : (
-              items.map((p) => (
+              sortedItems.map((p) => (
                 <tr key={p._id} className="border-b last:border-0 hover:bg-slate-50">
                   {/* Product image thumbnail */}
                   <td className="p-3">
@@ -408,21 +481,93 @@ export default function Products() {
                       </div>
                     )}
                   </td>
-                  <td className="p-3 font-medium">{p.name}</td>
-                  <td className="p-3">₹{p.price}</td>
-                  <td className="p-3 text-slate-500">
-                    {(p as any).mrp ? `₹${(p as any).mrp}` : '—'}
-                  </td>
-                  <td className="p-3">{p.stock ?? '—'}</td>
-                  <td className="p-3">
-                    {hasPerm('products:delete') && (
-                      <button
-                        className="text-red-600 text-sm hover:underline"
-                        onClick={() => remove(p._id)}
-                      >
-                        Delete
-                      </button>
+                  <td className="p-3 font-medium">
+                    {editingId === p._id ? (
+                      <input
+                        className="border px-2 py-1 rounded w-full"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                      />
+                    ) : (
+                      p.name
                     )}
+                  </td>
+                  <td className="p-3">
+                    {editingId === p._id ? (
+                      <input
+                        className="border px-2 py-1 rounded w-28"
+                        type="number"
+                        value={editPrice}
+                        onChange={(e) => setEditPrice(e.target.value)}
+                      />
+                    ) : (
+                      `₹${p.price}`
+                    )}
+                  </td>
+                  <td className="p-3 text-slate-500">
+                    {editingId === p._id ? (
+                      <input
+                        className="border px-2 py-1 rounded w-28"
+                        type="number"
+                        value={editMrp}
+                        onChange={(e) => setEditMrp(e.target.value)}
+                      />
+                    ) : (
+                      (p as any).mrp ? `₹${(p as any).mrp}` : '—'
+                    )}
+                  </td>
+                  <td className="p-3">
+                    {editingId === p._id ? (
+                      <input
+                        className="border px-2 py-1 rounded w-24"
+                        type="number"
+                        value={editStock}
+                        onChange={(e) => setEditStock(e.target.value)}
+                      />
+                    ) : (
+                      p.stock ?? '—'
+                    )}
+                  </td>
+                  <td className="p-3">
+                    <div className="flex items-center gap-3">
+                      {editingId === p._id ? (
+                        <>
+                          <button
+                            className="text-green-600 text-sm hover:underline disabled:opacity-50"
+                            onClick={saveEdit}
+                            disabled={updating}
+                          >
+                            {updating ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            className="text-slate-600 text-sm hover:underline"
+                            onClick={cancelEdit}
+                            disabled={updating}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {hasPerm('products:update') && (
+                            <button
+                              className="text-blue-600 text-sm hover:underline"
+                              onClick={() => startEdit(p)}
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {hasPerm('products:delete') && (
+                            <button
+                              className="text-red-600 text-sm hover:underline"
+                              onClick={() => remove(p._id)}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
