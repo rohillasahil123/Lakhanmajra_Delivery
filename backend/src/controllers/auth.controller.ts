@@ -302,6 +302,10 @@ export const login = async (req: Request, res: Response) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        address: (user as any).address || '',
+        deliveryInstructions: (user as any).deliveryInstructions || '',
+        latitude: (user as any).latitude,
+        longitude: (user as any).longitude,
         role: role?.name || "user",
       }
     });
@@ -313,7 +317,7 @@ export const login = async (req: Request, res: Response) => {
 /* ================= GET LOGGED IN USER ================= */
 export const getUsers = async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id || req.user?._id;
     const user = await getUserWithRole(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
     const safeUser = (user as any).toObject ? { ...user.toObject(), password: undefined } : user;
@@ -334,17 +338,49 @@ export const getPermissions = async (req: AuthRequest, res: Response) => {
 };
 
 /* ================= UPDATE USER ================= */
-export const updateUser = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { name, email } = req.body;
+export const updateUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, address, deliveryInstructions, latitude, longitude } = req.body;
 
-  const updated = await User.findByIdAndUpdate(
-    id,
-    { name, email },
-    { new: true }
-  ).select("-password");
+    const requesterId = String(req.user?.id || req.user?._id || '');
+    const requesterRole = String(req.user?.role || req.user?.roleName || req.user?.roleId?.name || '').toLowerCase();
+    const isAdminUser = requesterRole === 'admin' || requesterRole === 'superadmin';
 
-  res.json(updated);
+    if (!isAdminUser && requesterId !== String(id)) {
+      return res.status(403).json({ message: 'You can only update your own profile' });
+    }
+
+    const updates: any = {};
+    if (typeof name === 'string') updates.name = name.trim();
+    if (typeof email === 'string') updates.email = email.trim().toLowerCase();
+    if (typeof phone === 'string') updates.phone = phone.trim();
+    if (typeof address === 'string') updates.address = address.trim();
+    if (typeof deliveryInstructions === 'string') updates.deliveryInstructions = deliveryInstructions.trim();
+    if (typeof latitude === 'number' && Number.isFinite(latitude)) updates.latitude = latitude;
+    if (typeof longitude === 'number' && Number.isFinite(longitude)) updates.longitude = longitude;
+
+    if (updates.phone && updates.phone.replace(/\D/g, '').length < 10) {
+      return res.status(400).json({ message: 'Valid phone number is required' });
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      id,
+      updates,
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!updated) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    return res.json(updated);
+  } catch (err: any) {
+    if (err?.code === 11000) {
+      return res.status(409).json({ message: 'Email already in use' });
+    }
+    return res.status(500).json({ message: 'Update failed' });
+  }
 };
 
 /* ================= DELETE USER ================= */

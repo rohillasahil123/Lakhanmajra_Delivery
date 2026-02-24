@@ -5,6 +5,10 @@ export interface IUser extends Document {
   email: string;
   phone: string;
   village: string;
+  address?: string;
+  deliveryInstructions?: string;
+  latitude?: number;
+  longitude?: number;
   password: string;
   roleId: Types.ObjectId; // reference to Role
   isActive: boolean;
@@ -17,6 +21,10 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true  , lowercase: true  },
     phone: { type: String , required: true },
     village: { type: String, default: "LakhanMajra" },
+    address: { type: String, default: "" },
+    deliveryInstructions: { type: String, default: "" },
+    latitude: { type: Number },
+    longitude: { type: Number },
     password: { type: String, required: true },
     roleId: {
       type: Schema.Types.ObjectId,

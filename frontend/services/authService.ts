@@ -318,6 +318,10 @@ class AuthService {
         name: response.name,
         email: response.email,
         phone: response.phone,
+        address: response.address,
+        deliveryInstructions: response.deliveryInstructions,
+        latitude: response.latitude,
+        longitude: response.longitude,
         role: response.role,
         roleId: response.roleId,
       };
@@ -397,6 +401,75 @@ class AuthService {
     } catch (error) {
       console.error('❌ Get token error:', error);
       return null;
+    }
+  }
+
+  /**
+   * Update current user profile fields
+   */
+  async updateProfile(
+    userId: string,
+    payload: {
+      name: string;
+      email: string;
+      phone: string;
+      address?: string;
+      deliveryInstructions?: string;
+      latitude?: number;
+      longitude?: number;
+    }
+  ): Promise<User> {
+    try {
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
+      if (!payload.name || !payload.name.trim()) {
+        throw new Error('Name is required');
+      }
+
+      if (!payload.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim())) {
+        throw new Error('Valid email is required');
+      }
+
+      if (!payload.phone || payload.phone.replace(/\D/g, '').length < 10) {
+        throw new Error('Valid phone number is required (10 digits)');
+      }
+
+      const authHeader = await this.getAuthHeader();
+      const response = await this.request<any>(`/api/auth/users/${userId}`, {
+        method: 'PUT',
+        headers: authHeader,
+        body: JSON.stringify({
+          name: payload.name.trim(),
+          email: payload.email.trim().toLowerCase(),
+          phone: payload.phone.trim(),
+          address: payload.address?.trim() || '',
+          deliveryInstructions: payload.deliveryInstructions?.trim() || '',
+          latitude: payload.latitude,
+          longitude: payload.longitude,
+        }),
+      });
+
+      const user: User = {
+        _id: response._id || response.id || userId,
+        id: response.id || response._id || userId,
+        name: response.name,
+        email: response.email,
+        phone: response.phone,
+        address: response.address,
+        deliveryInstructions: response.deliveryInstructions,
+        latitude: response.latitude,
+        longitude: response.longitude,
+        role: response.role,
+        roleId: response.roleId,
+      };
+
+      await tokenManager.storeUser(user);
+      return user;
+    } catch (error: any) {
+      const message = error.message || 'Failed to update profile';
+      throw new Error(message);
     }
   }
 

@@ -84,7 +84,18 @@ export default function CheckoutScreen() {
           <ThemedText style={styles.sectionTitle}>Delivery Address</ThemedText>
           <TouchableOpacity 
             style={styles.addressCard}
-            onPress={() => router.push('/location')}
+            onPress={() =>
+              router.push({
+                pathname: '/location',
+                params: {
+                  returnTo: '/checkout',
+                  address: selectedLocation.address,
+                  deliveryInstructions: selectedLocation.deliveryInstructions,
+                  latitude: selectedLocation.latitude.toString(),
+                  longitude: selectedLocation.longitude.toString(),
+                },
+              })
+            }
           >
             <View style={styles.addressContent}>
               <View style={styles.checkmarkContainer}>

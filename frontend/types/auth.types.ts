@@ -10,6 +10,10 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  address?: string;
+  deliveryInstructions?: string;
+  latitude?: number;
+  longitude?: number;
   role?: string;
   roleId?: string;
   createdAt?: string;
@@ -48,6 +52,10 @@ export interface GetUserResponse {
   name: string;
   email: string;
   phone: string;
+  address?: string;
+  deliveryInstructions?: string;
+  latitude?: number;
+  longitude?: number;
   roleId?: string;
   role?: string;
 }

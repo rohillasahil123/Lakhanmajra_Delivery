@@ -25,6 +25,10 @@ export default function LocationScreen() {
   const initialDeliveryInstructions = (params.deliveryInstructions as string) || '';
   const initialLatitude = Number(params.latitude);
   const initialLongitude = Number(params.longitude);
+  const rawReturnTo = typeof params.returnTo === 'string' ? params.returnTo : '/home';
+  const returnTo = rawReturnTo === '/profile' || rawReturnTo === '/checkout' || rawReturnTo === '/home'
+    ? rawReturnTo
+    : '/home';
   const hasInitialCoords = Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
   const setSelectedLocationInStore = useLocationStore((state) => state.setSelectedLocation);
 
@@ -141,7 +145,7 @@ export default function LocationScreen() {
     setSelectedLocationInStore(payload);
 
     router.replace({
-      pathname: '/home',
+      pathname: returnTo,
       params: {
         address: payload.address,
         deliveryInstructions: payload.deliveryInstructions,

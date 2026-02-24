@@ -262,6 +262,7 @@ export default function HomeScreen() {
               router.push({
                 pathname: '/location',
                 params: {
+                  returnTo: '/home',
                   address: selectedLocation.address,
                   deliveryInstructions: selectedLocation.deliveryInstructions,
                   latitude: selectedLocation.latitude.toString(),
