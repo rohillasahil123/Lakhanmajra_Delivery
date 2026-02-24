@@ -49,7 +49,7 @@ export default function ProductsScreen() {
   }>();
 
   const addItem = useCart((s) => s.addItem);
-  const cartCount = useCart((s) => s.items.reduce((sum, it) => sum + it.quantity, 0));
+  const cartCount = useCart((s) => s.items.length);
   const [selectedSort, setSelectedSort] = useState('popular');
   const [products, setProducts] = useState<any[]>([]);
 

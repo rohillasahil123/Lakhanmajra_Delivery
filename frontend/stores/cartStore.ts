@@ -133,8 +133,14 @@ const useCart = create<CartState>((set, get) => ({
 
   addItem: async (item, qty = 1) => {
     const productId = String(item.id);
+    const quantityToAdd = Number(qty) > 0 ? Number(qty) : 1;
+    const existing = get().items.find((row) => row.id === productId);
+
     try {
-      const cart = await addToCartApi(productId, qty);
+      const cart = existing?.cartItemId
+        ? await updateCartQuantityApi(existing.cartItemId, existing.quantity + quantityToAdd)
+        : await addToCartApi(productId, quantityToAdd);
+
       const synced = mapServerCartToItems(cart);
       set({ items: synced });
       await saveLocal(synced);

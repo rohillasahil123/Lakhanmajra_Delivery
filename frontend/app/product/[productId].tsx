@@ -20,7 +20,7 @@ export default function ProductDetailDynamic() {
   const productId = params.productId as string;
 
   const addItem = useCart((s) => s.addItem);
-  const cartCount = useCart((s) => s.items.reduce((sum, it) => sum + it.quantity, 0));
+  const cartCount = useCart((s) => s.items.length);
 
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);

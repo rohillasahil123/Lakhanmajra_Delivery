@@ -49,7 +49,7 @@ export default function ProductDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const addItem = useCart((s) => s.addItem);
-  const cartCount = useCart((s) => s.items.reduce((sum, it) => sum + it.quantity, 0));
+  const cartCount = useCart((s) => s.items.length);
   const [selectedVariant, setSelectedVariant] = useState(PRODUCT_DETAIL.variants[1]);
   const [quantity, setQuantity] = useState(1);
 

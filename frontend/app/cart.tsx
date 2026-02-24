@@ -33,7 +33,7 @@ export default function CartScreen() {
   }, [initialized, hydrateLocal, syncFromServer]);
 
   // Calculate totals (give explicit types to reduce callback to satisfy strict TS)
-  const itemCount = cartItems.reduce((sum: number, item) => sum + item.quantity, 0);
+  const itemCount = cartItems.length;
   const billTotal = cartItems.reduce((sum: number, item) => sum + item.quantity * item.price, 0);
   const deliveryFee = 10;
   const totalPayable = billTotal + deliveryFee;

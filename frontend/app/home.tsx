@@ -21,6 +21,7 @@ import {
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import catalogService, { fetchCategories, fetchProducts, fetchOffers } from '@/services/catalogService';
 import { resolveImageUrl } from '@/config/api';
+import { getMyOrdersApi, OrderRow } from '@/services/orderService';
 // Local offer images
 const shamImg = require('../assets/images/sham.png');
 const msaleImg = require('../assets/images/msale.png');
@@ -72,7 +73,7 @@ export default function HomeScreen() {
   const addItem = useCart((s) => s.addItem);
   const selectedLocation = useLocationStore((s) => s.selectedLocation);
   const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
-  const cartCount = useCart((s) => s.items.reduce((sum: number, it) => sum + it.quantity, 0));
+  const cartCount = useCart((s) => s.items.length);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeOfferIndex, setActiveOfferIndex] = useState(0);
@@ -80,6 +81,7 @@ export default function HomeScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [latestOrder, setLatestOrder] = useState<OrderRow | null>(null);
 
   useEffect(() => {
     const addressParam = typeof params.address === 'string' ? params.address.trim() : '';
@@ -135,6 +137,36 @@ export default function HomeScreen() {
     }
 
     loadCatalog();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      try {
+        const rows = await getMyOrdersApi();
+        if (!mounted) return;
+
+        if (!rows || rows.length === 0) {
+          setLatestOrder(null);
+          return;
+        }
+
+        const sortedOrders = [...rows].sort((a, b) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
+        setLatestOrder(sortedOrders[0]);
+      } catch {
+        if (mounted) setLatestOrder(null);
+      }
+    })();
+
     return () => {
       mounted = false;
     };
@@ -215,30 +247,52 @@ export default function HomeScreen() {
     <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.bg }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: headerPadding, paddingVertical: 10, gap: 12 }]}>
-        {/* Location Pill */}
-        <TouchableOpacity
-          style={[styles.locationPill, { paddingHorizontal: 12, paddingVertical: 8 }]}
-          onPress={() =>
-            router.push({
-              pathname: '/location',
-              params: {
-                address: selectedLocation.address,
-                deliveryInstructions: selectedLocation.deliveryInstructions,
-                latitude: selectedLocation.latitude.toString(),
-                longitude: selectedLocation.longitude.toString(),
-              },
-            })
-          }
-        >
-          <ThemedText style={styles.locationPin}>📍</ThemedText>
-          <View style={{ flex: 1 }}>
-            <ThemedText style={[styles.locText, { fontSize: 12 }]} numberOfLines={1}>{locationLines[0]}</ThemedText>
-            <ThemedText style={[styles.locSub, { fontSize: 10 }]} numberOfLines={1}>{locationLines[1]}</ThemedText>
-          </View>
-        </TouchableOpacity>
+        {/* Location & Profile Row */}
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+          <TouchableOpacity
+            style={[styles.iconBtn, { width: 44, height: 44 }]}
+            onPress={() => router.push('/profile')}
+          >
+            <ThemedText style={{ fontSize: 20 }}>👤</ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.locationPill, { flex: 1, paddingHorizontal: 12, paddingVertical: 8 }]}
+            onPress={() =>
+              router.push({
+                pathname: '/location',
+                params: {
+                  address: selectedLocation.address,
+                  deliveryInstructions: selectedLocation.deliveryInstructions,
+                  latitude: selectedLocation.latitude.toString(),
+                  longitude: selectedLocation.longitude.toString(),
+                },
+              })
+            }
+          >
+            <ThemedText style={styles.locationPin}>📍</ThemedText>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={[styles.locText, { fontSize: 12 }]} numberOfLines={1}>{locationLines[0]}</ThemedText>
+              <ThemedText style={[styles.locSub, { fontSize: 10 }]} numberOfLines={1}>{locationLines[1]}</ThemedText>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         {/* Search Bar & Actions Row */}
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+          {/* Header Actions */}
+          <TouchableOpacity style={[styles.iconBtn, { width: 44, height: 44 }]}>
+            <ThemedText style={{ fontSize: 22 }}>🔔</ThemedText>
+            <View style={styles.dot} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={[styles.cartBtn, { paddingHorizontal: 14, paddingVertical: 10, height: 44, justifyContent: 'center' }]} onPress={() => router.push('/cart')}>
+            <ThemedText style={{ fontSize: 22 }}>🛒</ThemedText>
+            {cartCount > 0 && <ThemedText style={[styles.cartCount, { fontSize: 12 }]}>
+              {cartCount}
+            </ThemedText>}
+          </TouchableOpacity>
+
           {/* Search Bar */}
           <View style={[styles.searchBar, { flex: 1 }]}>
             <ThemedText style={styles.searchIcon}>🔍</ThemedText>
@@ -250,41 +304,27 @@ export default function HomeScreen() {
               onChangeText={setSearchQuery}
             />
           </View>
-
-          {/* Header Actions */}
-          <TouchableOpacity style={[styles.iconBtn, { width: 44, height: 44 }]}>
-            <ThemedText style={{ fontSize: 22 }}>🔔</ThemedText>
-            <View style={styles.dot} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.iconBtn, { width: 44, height: 44 }]}
-            onPress={() => router.push('/profile')}
-          >
-            <ThemedText style={{ fontSize: 20 }}>👤</ThemedText>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={[styles.cartBtn, { paddingHorizontal: 14, paddingVertical: 10, height: 44, justifyContent: 'center' }]} onPress={() => router.push('/cart')}>
-            <ThemedText style={{ fontSize: 22 }}>🛒</ThemedText>
-            {cartCount > 0 && <ThemedText style={[styles.cartCount, { fontSize: 12 }]}>
-              {cartCount}
-            </ThemedText>}
-          </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView style={styles.main} showsVerticalScrollIndicator={false}>
         {/* Active Order */}
-        <View style={styles.orderStatus}>
-          <View style={styles.orderDot} />
-          <View style={styles.orderStatusInfo}>
-            <ThemedText style={styles.orderStatusTitle}>Order #QC-4892 is on the way!</ThemedText>
-            <ThemedText style={styles.orderStatusSub}>Arriving in 6 minutes · 5 items</ThemedText>
+        {latestOrder ? (
+          <View style={styles.orderStatus}>
+            <View style={styles.orderDot} />
+            <View style={styles.orderStatusInfo}>
+              <ThemedText style={styles.orderStatusTitle}>
+                Order #{latestOrder._id?.slice(-8).toUpperCase()} is {String(latestOrder.status || 'placed').toLowerCase()}!
+              </ThemedText>
+              <ThemedText style={styles.orderStatusSub}>
+                {latestOrder.createdAt ? new Date(latestOrder.createdAt).toLocaleString() : 'Recently placed'} · {latestOrder.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 0} items
+              </ThemedText>
+            </View>
+            <TouchableOpacity style={styles.orderTrackBtn} onPress={() => router.push('/orders')}>
+              <ThemedText style={styles.orderTrackBtnText}>Track →</ThemedText>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.orderTrackBtn}>
-            <ThemedText style={styles.orderTrackBtnText}>Track →</ThemedText>
-          </TouchableOpacity>
-        </View>
+        ) : null}
 
         <View style={styles.sectionHead}>
           <ThemedText style={[styles.sectionTitle, { fontSize: 20 }]}>🎁 Offers For You</ThemedText>
