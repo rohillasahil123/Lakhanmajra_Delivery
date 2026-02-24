@@ -84,26 +84,24 @@ export const updateCategory = async (req: Request, res: Response) => {
   }
 };
 
-// ADMIN → Delete category (soft)
+// ADMIN → Delete category (permanent)
 export const deleteCategory = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const category = await Category.findByIdAndUpdate(
-      id,
-      { isActive: false },
-      { new: true }
-    );
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
+
+    const category = await Category.findByIdAndDelete(id);
     if (!category) return fail(res, "Category not found", 404);
 
     recordAudit({
       actorId: (req as any).user?.id,
       action: "delete",
       resource: "category",
-      resourceId: Array.isArray(id) ? id[0] : id,
-      after: { isActive: false },
+      resourceId: id,
+      after: { deleted: true },
     }).catch(() => {});
 
-    return success(res, category, "Category soft-deleted");
+    return success(res, category, "Category deleted permanently");
   } catch (error: any) {
     return fail(res, error.message || "Delete failed", 500);
   }

@@ -31,7 +31,14 @@ export default function Riders() {
     try {
       const res = await api.get(`/admin/users?role=rider&page=${pageNum}&limit=${limit}`);
       const data = res.data?.data ?? res.data;
-      setRiders(Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []));
+      const riderRows = Array.isArray(data?.users)
+        ? data.users
+        : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+        ? data
+        : [];
+      setRiders(riderRows);
       setTotal(data?.total ?? 0);
       setPage(pageNum);
     } catch (err) {

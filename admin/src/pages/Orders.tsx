@@ -43,7 +43,14 @@ export default function Orders() {
         setPermissions(await getPermissions());
         // Load riders for assignment
         const ridersRes = await api.get('/admin/users?role=rider&limit=100');
-        setRiders(ridersRes.data?.data ?? ridersRes.data ?? []);
+        const riderData = ridersRes.data?.data ?? ridersRes.data;
+        setRiders(
+          Array.isArray(riderData?.users)
+            ? riderData.users
+            : Array.isArray(riderData)
+            ? riderData
+            : []
+        );
         await load(1);
       } catch (err) {
         console.error(err);
