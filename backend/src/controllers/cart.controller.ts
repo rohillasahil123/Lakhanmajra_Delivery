@@ -111,9 +111,25 @@ export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, ne
     return next(new ErrorResponse('Session ID required', 400));
   }
 
-  // Prepare product data with variant if provided
+  // Prepare product data with safe defaults expected by Cart schema
+  const productObj = product.toObject() as any;
+  const allowedUnits = ['kg', 'g', 'l', 'ml', 'piece', 'pack'];
+  const unitValue = String(productObj.unit || 'piece').toLowerCase();
+
   const productData = {
-    ...product.toObject(),
+    ...productObj,
+    image: productObj.images?.[0] || productObj.image || 'no-image',
+    mrp: typeof productObj.mrp === 'number' && productObj.mrp > 0 ? productObj.mrp : productObj.price,
+    unit: allowedUnits.includes(unitValue) ? unitValue : 'piece',
+    weight: String(productObj.weight || '1 piece'),
+    category:
+      productObj.category ||
+      productObj.categoryName ||
+      (productObj.categoryId ? String(productObj.categoryId) : 'general'),
+    subCategory:
+      productObj.subCategory ||
+      productObj.subcategoryName ||
+      (productObj.subcategoryId ? String(productObj.subcategoryId) : undefined),
     variant: variant || {},
   };
 

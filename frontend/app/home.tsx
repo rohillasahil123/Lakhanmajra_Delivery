@@ -256,6 +256,13 @@ export default function HomeScreen() {
             <ThemedText style={{ fontSize: 22 }}>🔔</ThemedText>
             <View style={styles.dot} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.iconBtn, { width: 44, height: 44 }]}
+            onPress={() => router.push('/profile')}
+          >
+            <ThemedText style={{ fontSize: 20 }}>👤</ThemedText>
+          </TouchableOpacity>
           
           <TouchableOpacity style={[styles.cartBtn, { paddingHorizontal: 14, paddingVertical: 10, height: 44, justifyContent: 'center' }]} onPress={() => router.push('/cart')}>
             <ThemedText style={{ fontSize: 22 }}>🛒</ThemedText>

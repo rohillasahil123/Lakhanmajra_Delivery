@@ -1,6 +1,19 @@
 import { Stack } from 'expo-router';
+import React, { useEffect } from 'react';
+import useCart from '@/stores/cartStore';
 
 export default function RootLayout() {
+  const hydrateLocal = useCart((s) => s.hydrateLocal);
+  const syncFromServer = useCart((s) => s.syncFromServer);
+  const initialized = useCart((s) => s.initialized);
+
+  useEffect(() => {
+    (async () => {
+      if (!initialized) await hydrateLocal();
+      await syncFromServer();
+    })();
+  }, [initialized, hydrateLocal, syncFromServer]);
+
   return (
     <Stack
       screenOptions={{
@@ -16,6 +29,8 @@ export default function RootLayout() {
       <Stack.Screen name="location" />
       <Stack.Screen name="home" />
       <Stack.Screen name="cart" />
+      <Stack.Screen name="orders" />
+      <Stack.Screen name="profile" />
       <Stack.Screen name="search" />
       <Stack.Screen name="categories" />
       <Stack.Screen name="products" />

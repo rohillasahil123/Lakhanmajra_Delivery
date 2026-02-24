@@ -1,9 +1,10 @@
 import { ThemedText } from '@/components/themed-text';
 import useCart from '@/stores/cartStore';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Alert,
+  Image,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -20,6 +21,16 @@ export default function CartScreen() {
   const decreaseQuantity = useCart((s) => s.decrease);
   const removeFromCart = useCart((s) => s.remove);
   const clearCart = useCart((s) => s.clear);
+  const hydrateLocal = useCart((s) => s.hydrateLocal);
+  const syncFromServer = useCart((s) => s.syncFromServer);
+  const initialized = useCart((s) => s.initialized);
+
+  useEffect(() => {
+    (async () => {
+      if (!initialized) await hydrateLocal();
+      await syncFromServer();
+    })();
+  }, [initialized, hydrateLocal, syncFromServer]);
 
   // Calculate totals (give explicit types to reduce callback to satisfy strict TS)
   const itemCount = cartItems.reduce((sum: number, item) => sum + item.quantity, 0);
@@ -28,7 +39,7 @@ export default function CartScreen() {
   const totalPayable = billTotal + deliveryFee;
 
   // Remove item with confirmation
-  const confirmRemove = (id: number) => {
+  const confirmRemove = (id: string) => {
     Alert.alert(
       'Remove Item',
       'Are you sure you want to remove this item?',
@@ -89,7 +100,17 @@ export default function CartScreen() {
               {cartItems.map((item) => (
                 <View key={item.id} style={styles.cartItem}>
                   <View style={styles.itemImageContainer}>
-                    <ThemedText style={styles.itemImage}>{item.image}</ThemedText>
+                    {(() => {
+                      const imageValue = String(item.image || '').trim();
+                      const isImageUrl = /^(https?:\/\/|file:\/\/|data:image\/)/i.test(imageValue);
+
+                      if (isImageUrl) {
+                        return <Image source={{ uri: imageValue }} style={styles.itemImage} resizeMode="cover" />;
+                      }
+
+                      const fallbackIcon = imageValue && imageValue.length <= 3 ? imageValue : '🛍️';
+                      return <ThemedText style={styles.itemImageFallback}>{fallbackIcon}</ThemedText>;
+                    })()}
                   </View>
 
                   <View style={styles.itemDetails}>
@@ -283,7 +304,12 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   itemImage: {
-    fontSize: 32,
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
+  },
+  itemImageFallback: {
+    fontSize: 28,
   },
   itemDetails: {
     flex: 1,

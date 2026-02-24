@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import {
     Alert,
+  Image,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -11,30 +12,52 @@ import {
 } from 'react-native';
 
 import useCart from '@/stores/cartStore';
+import useLocationStore from '@/stores/locationStore';
+import { createOrderApi } from '@/services/orderService';
 
 export default function CheckoutScreen() {
   const router = useRouter();
   const cartItems = useCart((s) => s.items);
   const clearCart = useCart((s) => s.clear);
+  const selectedLocation = useLocationStore((s) => s.selectedLocation);
 
   // Calculate totals
   const billTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const deliveryFee = 10;
   const totalPayable = billTotal + deliveryFee;
 
-  const handlePlaceOrder = () => {
-    // In real app: call API, process payment, then clear
-    clearCart();
-    Alert.alert(
-      'Order Placed! 🎉',
-      `Your order of ₹${totalPayable} has been placed successfully!\n\nDelivery Time: 30 minutes`,
-      [
-        {
-          text: 'View Orders',
-          onPress: () => router.push('/orders'),
-        },
-      ]
-    );
+  const handlePlaceOrder = async () => {
+    if (cartItems.length === 0) {
+      Alert.alert('Cart Empty', 'Please add items before placing order.');
+      return;
+    }
+
+    try {
+      const rawAddress = (selectedLocation.address || '').trim();
+      const street = rawAddress || 'Lakhanmajra';
+      const pinMatch = rawAddress.match(/\b\d{6}\b/);
+
+      await createOrderApi({
+        street,
+        city: 'Rohtak',
+        state: 'Haryana',
+        pincode: pinMatch?.[0] || '124001',
+      });
+
+      await clearCart();
+      Alert.alert(
+        'Order Placed! 🎉',
+        `Your order of ₹${totalPayable} has been placed successfully!`,
+        [
+          {
+            text: 'View Orders',
+            onPress: () => router.push('/orders'),
+          },
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert('Order Failed', error?.message || 'Unable to place order right now.');
+    }
   };
 
   return (
@@ -81,7 +104,17 @@ export default function CheckoutScreen() {
           {cartItems.map((item) => (
             <View key={item.id} style={styles.cartItem}>
               <View style={styles.itemImageContainer}>
-                <ThemedText style={styles.itemImage}>{item.image}</ThemedText>
+                {(() => {
+                  const imageValue = String(item.image || '').trim();
+                  const isImageUrl = /^(https?:\/\/|file:\/\/|data:image\/)/i.test(imageValue);
+
+                  if (isImageUrl) {
+                    return <Image source={{ uri: imageValue }} style={styles.itemImage} resizeMode="cover" />;
+                  }
+
+                  const fallbackIcon = imageValue && imageValue.length <= 3 ? imageValue : '🛍️';
+                  return <ThemedText style={styles.itemImageFallback}>{fallbackIcon}</ThemedText>;
+                })()}
               </View>
               <View style={styles.itemDetails}>
                 <ThemedText style={styles.itemName}>
@@ -246,6 +279,11 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
   },
   itemImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  itemImageFallback: {
     fontSize: 28,
   },
   itemDetails: {
@@ -325,11 +363,11 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   placeOrderButton: {
-    backgroundColor: '#FF6A00',
+    backgroundColor: '#0E7A3D',
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
-    shadowColor: '#FF6A00',
+    shadowColor: '#0E7A3D',
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

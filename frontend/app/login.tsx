@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { authService } from '@/services/authService';
+import useCart from '@/stores/cartStore';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function LoginScreen() {
       setLoading(false);
 
       if (token && user) {
+        await useCart.getState().syncFromServer();
         // Success - navigate to location page
         Alert.alert('Success', `Welcome back, ${user.name}!`, [
           {
