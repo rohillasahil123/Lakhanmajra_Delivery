@@ -7,12 +7,23 @@ type Product = {
   name: string;
   price: number;
   stock?: number;
+  unit?: string;
+  unitType?: string;
   images?: string[];
   isActive?: boolean;
 };
 
 type Category = { _id: string; name: string };
 type SortKey = 'name' | 'price' | 'stock' | null;
+
+const UNIT_VARIANTS: Record<string, string[]> = {
+  piece: ['1 pc', '2 pcs', '5 pcs', '10 pcs'],
+  kg: ['250 g', '500 g', '1 kg', '2 kg', '5 kg'],
+  g: ['50 g', '100 g', '200 g', '500 g'],
+  l: ['250 ml', '500 ml', '1 L', '2 L', '5 L'],
+  ml: ['100 ml', '200 ml', '500 ml', '750 ml'],
+  pack: ['1 pack', '2 pack', '5 pack', '10 pack'],
+};
 
 export default function Products() {
   const [items, setItems] = useState<Product[]>([]);
@@ -36,6 +47,8 @@ export default function Products() {
   const [price, setPrice] = useState('');
   const [mrp, setMrp] = useState('');
   const [stock, setStock] = useState('');
+  const [unit, setUnit] = useState<'piece' | 'kg' | 'g' | 'l' | 'ml' | 'pack'>('piece');
+  const [unitType, setUnitType] = useState('1 pc');
   const [catId, setCatId] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
@@ -136,6 +149,7 @@ export default function Products() {
 
   const resetForm = () => {
     setName(''); setPrice(''); setMrp(''); setStock('');
+    setUnit('piece'); setUnitType('1 pc');
     setCatId(''); setDescription(''); setTags('');
     setSelectedFiles([]); setPreviewUrls([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -195,6 +209,8 @@ export default function Products() {
       formData.append('categoryId', catId);
       if (mrp) formData.append('mrp', mrp);
       if (stock) formData.append('stock', stock);
+      formData.append('unit', unit);
+      if (unitType) formData.append('unitType', unitType);
       if (description) formData.append('description', description);
       if (tags) formData.append('tags', tags); // comma-separated, backend splits
 
@@ -324,6 +340,32 @@ export default function Products() {
               value={stock}
               onChange={(e) => setStock(e.target.value)}
             />
+            <select
+              className="border px-3 py-2 rounded"
+              value={unit}
+              onChange={(e) => {
+                const nextUnit = e.target.value as 'piece' | 'kg' | 'g' | 'l' | 'ml' | 'pack';
+                setUnit(nextUnit);
+                const defaults = UNIT_VARIANTS[nextUnit] || [];
+                setUnitType(defaults[0] || '');
+              }}
+            >
+              <option value="piece">Piece</option>
+              <option value="kg">KG</option>
+              <option value="g">Gram (g)</option>
+              <option value="l">Liter (L)</option>
+              <option value="ml">Milliliter (ml)</option>
+              <option value="pack">Pack</option>
+            </select>
+            <select
+              className="border px-3 py-2 rounded"
+              value={unitType}
+              onChange={(e) => setUnitType(e.target.value)}
+            >
+              {(UNIT_VARIANTS[unit] || []).map((variant) => (
+                <option key={variant} value={variant}>{variant}</option>
+              ))}
+            </select>
             <textarea
               className="border px-3 py-2 rounded col-span-2 h-20 resize-none"
               placeholder="Description (optional)"
@@ -430,6 +472,7 @@ export default function Products() {
                 </button>
               </th>
               <th className="p-3">MRP</th>
+              <th className="p-3">Variant</th>
               <th className="p-3">
                 <button className="inline-flex items-center gap-1" onClick={() => toggleSort('stock')}>
                   Stock <span className="text-slate-500">{getSortIndicator('stock')}</span>
@@ -441,7 +484,7 @@ export default function Products() {
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-slate-400">
+                <td colSpan={7} className="p-6 text-center text-slate-400">
                   No products found
                 </td>
               </tr>
@@ -515,6 +558,9 @@ export default function Products() {
                     ) : (
                       (p as any).mrp ? `₹${(p as any).mrp}` : '—'
                     )}
+                  </td>
+                  <td className="p-3 text-slate-600">
+                    {(p.unitType || p.unit || 'piece').toString()}
                   </td>
                   <td className="p-3">
                     {editingId === p._id ? (

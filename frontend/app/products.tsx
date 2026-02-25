@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -50,7 +51,7 @@ export default function ProductsScreen() {
 
   const addItem = useCart((s) => s.addItem);
   const cartCount = useCart((s) => s.items.length);
-  const [selectedSort, setSelectedSort] = useState('popular');
+  const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
 
   const categoryName = params.categoryName || 'All Products';
@@ -77,27 +78,18 @@ export default function ProductsScreen() {
     return () => { mounted = false; };
   }, [params.categoryId]);
 
-  const getSortedProducts = () => {
-    const sorted = [...products];
-    switch (selectedSort) {
-      case 'price-low':  return sorted.sort((a, b) => (a.price || 0) - (b.price || 0));
-      case 'price-high': return sorted.sort((a, b) => (b.price || 0) - (a.price || 0));
-      case 'discount':   return sorted.sort((a, b) => (b.discount || 0) - (a.discount || 0));
-      default:           return sorted.sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    }
-  };
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const visibleProducts = [...products]
+    .filter((product) => {
+      if (!normalizedQuery) return true;
+      return String(product?.name || '').toLowerCase().includes(normalizedQuery);
+    })
+    .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
 
   const handleProductPress = (product: any) => {
     const id = product._id || product.id;
     router.push({ pathname: '/product/[productId]', params: { productId: id } });
   };
-
-  const sortOptions = [
-    { key: 'popular',    label: 'Popular' },
-    { key: 'price-low',  label: 'Price: Low to High' },
-    { key: 'price-high', label: 'Price: High to Low' },
-    { key: 'discount',   label: 'Discount' },
-  ];
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -120,34 +112,26 @@ export default function ProductsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Sort Filter Bar */}
+      {/* Search Bar */}
       <View style={styles.filtersBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {sortOptions.map((opt) => (
-            <TouchableOpacity
-              key={opt.key}
-              style={[styles.filterChip, selectedSort === opt.key && styles.filterChipActive]}
-              onPress={() => setSelectedSort(opt.key)}
-            >
-              <ThemedText
-                style={[styles.filterText, selectedSort === opt.key && styles.filterTextActive]}
-              >
-                {opt.label}
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <TextInput
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search product"
+          placeholderTextColor="#9CA3AF"
+          style={styles.searchInput}
+        />
       </View>
 
       {/* Products Count */}
       <View style={styles.countContainer}>
-        <ThemedText style={styles.countText}>{products.length} products found</ThemedText>
+        <ThemedText style={styles.countText}>{visibleProducts.length} products found (A-Z)</ThemedText>
       </View>
 
       {/* Products Grid */}
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.productsGrid}>
-          {getSortedProducts().map((product) => (
+          {visibleProducts.map((product) => (
             <TouchableOpacity
               key={product._id || product.id}
               style={styles.productCard}
@@ -171,7 +155,7 @@ export default function ProductsScreen() {
                   {product.name}
                 </ThemedText>
                 <ThemedText style={styles.productUnit}>
-                  {product.unit || product.unitType || ''}
+                  {product.unitType || product.unit || ''}
                 </ThemedText>
 
                 <View style={styles.ratingContainer}>
@@ -194,7 +178,7 @@ export default function ProductsScreen() {
                           id: product._id || product.id,
                           name: product.name,
                           price: product.price,
-                          unit: product.unit || product.unitType || '',
+                          unit: product.unitType || product.unit || '',
                           image: resolveImageUrl(product.images?.[0] || product.image || ''),
                         },
                         1
@@ -225,10 +209,7 @@ const styles = StyleSheet.create({
   cartBadge:               { position: 'absolute', top: -4, right: -4, backgroundColor: '#FF6A00', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
   cartBadgeText:           { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
   filtersBar:              { backgroundColor: '#FFFFFF', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  filterChip:              { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', marginRight: 8 },
-  filterChipActive:        { backgroundColor: '#0E7A3D' },
-  filterText:              { fontSize: 13, fontWeight: '600', color: '#6B7280' },
-  filterTextActive:        { color: '#FFFFFF' },
+  searchInput:             { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827' },
   countContainer:          { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F9FAFB' },
   countText:               { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   container:               { flex: 1 },

@@ -25,6 +25,8 @@ export const createProduct = async (req: Request, res: Response) => {
       price: req.body.price ? Number(req.body.price) : undefined,
       mrp: req.body.mrp ? Number(req.body.mrp) : undefined,
       stock: req.body.stock ? Number(req.body.stock) : undefined,
+      unit: req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
+      unitType: req.body.unitType ? String(req.body.unitType).trim() : undefined,
       categoryId: req.body.categoryId ? String(req.body.categoryId).trim() : undefined,
       subcategoryId: req.body.subcategoryId ? String(req.body.subcategoryId).trim() : undefined,
       tags: req.body.tags
@@ -128,6 +130,8 @@ export const updateProduct = async (req: Request, res: Response) => {
       price: req.body.price ? Number(req.body.price) : undefined,
       mrp: req.body.mrp ? Number(req.body.mrp) : undefined,
       stock: req.body.stock ? Number(req.body.stock) : undefined,
+      unit: req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
+      unitType: req.body.unitType ? String(req.body.unitType).trim() : undefined,
       tags: req.body.tags
         ? typeof req.body.tags === "string"
           ? req.body.tags.split(",").map((t: string) => t.trim()).filter(Boolean)

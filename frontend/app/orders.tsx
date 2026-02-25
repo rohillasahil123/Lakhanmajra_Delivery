@@ -132,7 +132,7 @@ export default function OrdersScreen() {
                       : productObj?.image) || '';
                   const imageUrl = resolveImageUrl(rawImage);
 
-                  const unitText = productObj?.unit || productObj?.unitType || 'piece';
+                  const unitText = productObj?.unitType || productObj?.unit || 'piece';
                   const categoryText = productObj?.category || productObj?.categoryName || '';
                   const linePrice = (item.price || 0) * (item.quantity || 0);
 

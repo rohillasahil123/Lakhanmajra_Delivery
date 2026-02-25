@@ -10,6 +10,8 @@ export interface IProduct extends Document {
   price: number;
   mrp?: number;
   stock: number;
+  unit: string;
+  unitType?: string;
   tags: string[];
   isActive: boolean;
   isDeleted: boolean;
@@ -58,6 +60,17 @@ const productSchema = new Schema<IProduct>(
     stock: {
       type: Number,
       default: 0,
+    },
+    unit: {
+      type: String,
+      default: "piece",
+      trim: true,
+      lowercase: true,
+    },
+    unitType: {
+      type: String,
+      default: "",
+      trim: true,
     },
     tags: {
       type: [String],

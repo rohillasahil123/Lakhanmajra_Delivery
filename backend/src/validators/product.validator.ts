@@ -22,6 +22,8 @@ export const createProductSchema = Joi.object({
   price: Joi.number().min(0).required(),
   mrp: Joi.number().min(0).optional(),
   stock: Joi.number().integer().min(0).optional(),
+  unit: Joi.string().valid('kg', 'g', 'l', 'ml', 'piece', 'pack').optional(),
+  unitType: Joi.string().allow('').max(50).optional(),
   tags: Joi.alternatives().try(
     Joi.array().items(Joi.string()).optional(),
     Joi.string().allow("").optional()
@@ -40,6 +42,8 @@ export const updateProductSchema = Joi.object({
   price: Joi.number().min(0).optional(),
   mrp: Joi.number().min(0).optional(),
   stock: Joi.number().integer().min(0).optional(),
+  unit: Joi.string().valid('kg', 'g', 'l', 'ml', 'piece', 'pack').optional(),
+  unitType: Joi.string().allow('').max(50).optional(),
   tags: Joi.alternatives().try(
     Joi.array().items(Joi.string()).optional(),
     Joi.string().allow("").optional()
