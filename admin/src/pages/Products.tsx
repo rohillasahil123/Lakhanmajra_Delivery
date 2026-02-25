@@ -33,6 +33,7 @@ export default function Products() {
   const [limit] = useState(20);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState('');
+  const [stockFilter, setStockFilter] = useState<'all' | 'out'>('all');
   const [sortKey, setSortKey] = useState<SortKey>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -63,7 +64,13 @@ export default function Products() {
 
   const load = async (pageNum = 1) => {
     try {
-      const res = await api.get(`/products?page=${pageNum}&limit=${limit}${search ? `&q=${search}` : ''}`);
+      const query = new URLSearchParams();
+      query.set('page', String(pageNum));
+      query.set('limit', String(limit));
+      if (search.trim()) query.set('q', search.trim());
+      if (stockFilter === 'out') query.set('stockStatus', 'out');
+
+      const res = await api.get(`/products?${query.toString()}`);
       const data = res.data?.data ?? res.data;
       setItems(Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []);
       setTotal(data?.total ?? 0);
@@ -73,6 +80,10 @@ export default function Products() {
       setItems([]);
     }
   };
+
+  useEffect(() => {
+    load(1);
+  }, [stockFilter]);
 
   useEffect(() => {
     (async () => {
@@ -377,7 +388,7 @@ export default function Products() {
           {/* ── Image Upload ──────────────────────────────────────────────── */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-600 mb-2">
-              Product Images (max 5, each up to 5MB — JPEG/PNG/WEBP)
+              Product Images (max 5, each up to 5MB — JPEG/PNG/WEBP/SVG)
             </label>
             <div
               className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:border-sky-400 transition-colors"
@@ -386,7 +397,7 @@ export default function Products() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
                 multiple
                 className="hidden"
                 onChange={handleFileChange}
@@ -452,6 +463,18 @@ export default function Products() {
         />
         <button className="bg-slate-600 text-white px-4 py-2 rounded" onClick={() => load(1)}>
           Search
+        </button>
+        <button
+          className={`px-4 py-2 rounded border ${stockFilter === 'all' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-700 border-slate-300'}`}
+          onClick={() => setStockFilter('all')}
+        >
+          All
+        </button>
+        <button
+          className={`px-4 py-2 rounded border ${stockFilter === 'out' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-red-600 border-red-300'}`}
+          onClick={() => setStockFilter('out')}
+        >
+          Out of Stock
         </button>
       </div>
 

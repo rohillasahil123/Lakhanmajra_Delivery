@@ -9,6 +9,12 @@ const orderSchema = new Schema<IOrder>({
     price: { type: Number, required: true }
   }],
   totalAmount: { type: Number, required: true },
+  deliveryFee: { type: Number, default: 10 },
+  paymentMethod: {
+    type: String,
+    enum: ['cod', 'online'],
+    default: 'cod',
+  },
   status: { 
     type: String, 
     enum: ['pending', 'processing', 'confirmed', 'shipped', 'delivered', 'cancelled'],

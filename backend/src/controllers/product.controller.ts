@@ -5,6 +5,12 @@ import { success, fail } from "../utils/response";
 import { recordAudit } from "../services/audit.service";
 import { uploadToMinio, deleteFromMinio } from "../services/minio.service";
 
+const parseOptionalNumber = (value: any): number | undefined => {
+  if (value === undefined || value === null || value === "") return undefined;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
+
 // ─── Helper: upload all files from req.files to MinIO ────────────────────────
 const uploadProductImages = async (req: Request): Promise<string[]> => {
   const files = req.files as Express.Multer.File[] | undefined;
@@ -22,9 +28,9 @@ export const createProduct = async (req: Request, res: Response) => {
     // Parse body — when using multipart/form-data, numbers come as strings
     const bodyData = {
       ...req.body,
-      price: req.body.price ? Number(req.body.price) : undefined,
-      mrp: req.body.mrp ? Number(req.body.mrp) : undefined,
-      stock: req.body.stock ? Number(req.body.stock) : undefined,
+      price: parseOptionalNumber(req.body.price),
+      mrp: parseOptionalNumber(req.body.mrp),
+      stock: parseOptionalNumber(req.body.stock),
       unit: req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
       unitType: req.body.unitType ? String(req.body.unitType).trim() : undefined,
       categoryId: req.body.categoryId ? String(req.body.categoryId).trim() : undefined,
@@ -91,15 +97,17 @@ export const createProduct = async (req: Request, res: Response) => {
 // ─── Get Products ─────────────────────────────────────────────────────────────
 export const getProducts = async (req: Request, res: Response) => {
   try {
-    const { q, categoryId, page = "1", limit = "20", minPrice, maxPrice, tags } = req.query as any;
+    const { q, categoryId, page = "1", limit = "20", minPrice, maxPrice, tags, stockStatus, sortBy } = req.query as any;
     const filters: any = {};
     if (q) filters.q = q;
     if (categoryId) filters.categoryId = categoryId;
     if (minPrice) filters.minPrice = Number(minPrice);
     if (maxPrice) filters.maxPrice = Number(maxPrice);
     if (tags) filters.tags = (tags as string).split(",");
+    if (stockStatus === "out" || stockStatus === "in") filters.stockStatus = stockStatus;
 
-    const result = await service.getProducts(filters, Number(page), Number(limit));
+    const resolvedSort = sortBy === "demand" ? "demand" : "-createdAt";
+    const result = await service.getProducts(filters, Number(page), Number(limit), resolvedSort as any);
     return success(res, result, "Products fetched");
   } catch (err: any) {
     return fail(res, err.message || "Fetch failed", 500);
@@ -127,9 +135,9 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     const bodyData = {
       ...req.body,
-      price: req.body.price ? Number(req.body.price) : undefined,
-      mrp: req.body.mrp ? Number(req.body.mrp) : undefined,
-      stock: req.body.stock ? Number(req.body.stock) : undefined,
+      price: parseOptionalNumber(req.body.price),
+      mrp: parseOptionalNumber(req.body.mrp),
+      stock: parseOptionalNumber(req.body.stock),
       unit: req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
       unitType: req.body.unitType ? String(req.body.unitType).trim() : undefined,
       tags: req.body.tags

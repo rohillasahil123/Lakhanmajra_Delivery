@@ -1,16 +1,92 @@
 import { Response } from 'express';
 import { Request } from 'express';
+import { Types } from 'mongoose';
 import Order from '../models/order.model';
 import Cart from '../models/Cart.model';
+import { Product } from '../models/product.model';
 import { getChannel } from '../config/rabbitmq';
 import { OrderQueueMessage } from '../types';
 import User from '../models/user.model';
 import { recordAudit } from '../services/audit.service';
 
+const CANCELLATION_THRESHOLD = 3;
+const ADVANCE_CHARGE = 20;
+const COD_DELIVERY_FEE = 10;
+const ONLINE_DELIVERY_FEE = 8;
+
+const getOrderItemProductId = (item: any): string => {
+  const raw = item?.productId ?? item?.product;
+  if (!raw) return '';
+  if (typeof raw === 'string') return raw;
+  if (raw && typeof raw === 'object' && raw._id) return String(raw._id);
+  return String(raw);
+};
+
+const restoreStockForOrder = async (order: any): Promise<void> => {
+  const items = Array.isArray(order?.items) ? order.items : [];
+
+  for (const item of items) {
+    const productId = getOrderItemProductId(item);
+    const quantity = Number(item?.quantity || 0);
+    if (!productId || quantity <= 0) continue;
+    await Product.updateOne({ _id: productId }, { $inc: { stock: quantity } });
+  }
+};
+
+const getCancellationPolicy = async (userId: string) => {
+  const cancelledOrdersCount = await Order.countDocuments({ userId, status: 'cancelled' });
+  const requiresAdvancePayment = cancelledOrdersCount >= CANCELLATION_THRESHOLD;
+  const codAllowed = !requiresAdvancePayment;
+
+  return {
+    cancelledOrdersCount,
+    requiresAdvancePayment,
+    codAllowed,
+    advanceAmount: ADVANCE_CHARGE,
+  };
+};
+
+export const getOrderEligibility = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = String(req.user?.id || req.user?._id || '');
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+    const policy = await getCancellationPolicy(userId);
+    res.status(200).json({ success: true, data: policy });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+};
+
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user!.id;
-    const { shippingAddress } = req.body;
+    const userId = String(req.user?.id || req.user?._id || '');
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+    const { shippingAddress, paymentMethod = 'cod', advancePaid = false } = req.body;
+    const normalizedPaymentMethod = paymentMethod === 'online' ? 'online' : 'cod';
+
+    const policy = await getCancellationPolicy(userId);
+
+    if (!policy.codAllowed && normalizedPaymentMethod === 'cod') {
+      res.status(400).json({
+        message: `COD is disabled for your next order due to ${policy.cancelledOrdersCount} cancelled orders. Please pay ₹${policy.advanceAmount} advance.`,
+        data: policy,
+      });
+      return;
+    }
+
+    if (policy.requiresAdvancePayment && !advancePaid) {
+      res.status(400).json({
+        message: `Advance payment of ₹${policy.advanceAmount} is required before placing your next order.`,
+        data: policy,
+      });
+      return;
+    }
 
     // Validation
     if (!shippingAddress || !shippingAddress.street || !shippingAddress.city || 
@@ -26,24 +102,95 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    const stockIssues: string[] = [];
+
+    const getCartItemProductId = (item: any): string => getOrderItemProductId(item);
+
+    for (const item of cart.items) {
+      const productId = getCartItemProductId(item);
+      if (!productId) {
+        stockIssues.push(`${item.name || 'Product'} is invalid in cart`);
+        continue;
+      }
+
+      const product = await Product.findById(productId);
+
+      if (!product || !product.isActive) {
+        stockIssues.push(`${item.name || 'Product'} is not available`);
+        continue;
+      }
+
+      if ((product.stock || 0) <= 0) {
+        stockIssues.push(`${product.name} is out of stock`);
+        continue;
+      }
+
+      if ((product.stock || 0) < item.quantity) {
+        stockIssues.push(`Only ${product.stock} qty available for ${product.name}`);
+      }
+    }
+
+    if (stockIssues.length > 0) {
+      res.status(400).json({
+        message: 'Some cart items are out of stock',
+        errors: stockIssues,
+      });
+      return;
+    }
+
     // Calculate total
-    const totalAmount = cart.items.reduce((sum, item) => {
+    const subtotal = cart.items.reduce((sum, item) => {
       return sum + (item.price * item.quantity);
     }, 0);
+    const deliveryFee = normalizedPaymentMethod === 'online' ? ONLINE_DELIVERY_FEE : COD_DELIVERY_FEE;
+    const totalAmount = subtotal + deliveryFee;
 
     // Order create karo
     const order = new Order({
       userId,
       items: cart.items.map(item => ({
-        productId: item.product,
+        productId: getCartItemProductId(item),
         quantity: item.quantity,
         price: item.price
       })),
       totalAmount,
-      shippingAddress
+      deliveryFee,
+      paymentMethod: normalizedPaymentMethod,
+      shippingAddress,
+      paymentStatus: advancePaid ? 'paid' : 'pending',
     });
 
     await order.save();
+
+    const deductedItems: Array<{ productId: string; quantity: number }> = [];
+
+    for (const item of cart.items) {
+      const productId = getCartItemProductId(item);
+      if (!productId) continue;
+
+      const quantityToReduce = Number(item.quantity || 0);
+      if (quantityToReduce <= 0) continue;
+
+      const updated = await Product.findOneAndUpdate(
+        { _id: productId, stock: { $gte: quantityToReduce } },
+        { $inc: { stock: -quantityToReduce } },
+        { new: true }
+      );
+
+      if (!updated) {
+        for (const deducted of deductedItems) {
+          await Product.updateOne({ _id: deducted.productId }, { $inc: { stock: deducted.quantity } });
+        }
+        await Order.deleteOne({ _id: order._id });
+
+        res.status(409).json({
+          message: 'Stock changed during checkout. Please review cart and place order again.',
+        });
+        return;
+      }
+
+      deductedItems.push({ productId, quantity: quantityToReduce });
+    }
 
     // Cart clear karo
     cart.items = [];
@@ -71,9 +218,26 @@ export const getMyOrders = async (req: Request, res: Response): Promise<void> =>
   try {
     const orders = await Order.find({ userId: req.user!.id })
       .populate('items.productId')
+      .populate('assignedRiderId', 'name phone')
       .sort({ createdAt: -1 });
-    
-    res.json(orders);
+
+    const normalizedOrders = orders.map((order) => {
+      const plain = order.toObject();
+      const rider: any = (plain as any).assignedRiderId;
+      return {
+        ...plain,
+        assignedRiderId:
+          rider && typeof rider === 'object'
+            ? {
+                _id: rider._id,
+                name: rider.name || '',
+                phone: rider.phone || '',
+              }
+            : null,
+      };
+    });
+
+    res.json(normalizedOrders);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -121,22 +285,51 @@ export const adminGetOrderById = async (req: Request, res: Response): Promise<vo
 /* ================= ADMIN / STAFF: list & manage orders ================= */
 export const adminListOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page = '1', limit = '20', status, q } = req.query as any;
+    const { page = '1', limit = '20', status, paymentMethod, q, from, to, today } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
     const filters: any = {};
 
-    if (status) filters.status = status;
+    if (status && status !== 'all') filters.status = status;
+    if (paymentMethod && paymentMethod !== 'all') filters.paymentMethod = paymentMethod;
+
+    if (today === '1' || today === 'true') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      filters.createdAt = { $gte: start, $lte: end };
+    } else if (from || to) {
+      const dateRange: any = {};
+      if (from) {
+        const start = new Date(String(from));
+        start.setHours(0, 0, 0, 0);
+        dateRange.$gte = start;
+      }
+      if (to) {
+        const end = new Date(String(to));
+        end.setHours(23, 59, 59, 999);
+        dateRange.$lte = end;
+      }
+      if (Object.keys(dateRange).length > 0) filters.createdAt = dateRange;
+    }
+
     if (q) {
       // allow searching by customer name or order id
-      filters.$or = [
-        { _id: q },
-        { 'shippingAddress.street': new RegExp(q, 'i') }
-      ];
+      const queryText = String(q).trim();
+      const regex = new RegExp(queryText, 'i');
+      const or: any[] = [{ 'shippingAddress.street': regex }];
+
+      if (Types.ObjectId.isValid(queryText)) {
+        or.push({ _id: queryText });
+      }
+
+      filters.$or = or;
     }
 
     const orders = await Order.find(filters)
-      .populate('userId')
-      .populate('assignedRiderId')
+      .populate('userId', 'name email phone')
+      .populate('assignedRiderId', 'name email phone')
+      .populate('items.productId', 'name images price')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit));
@@ -201,6 +394,15 @@ export const adminUpdateOrderStatus = async (req: Request, res: Response): Promi
     }
 
     const before = await Order.findById(id);
+    if (!before) {
+      res.status(404).json({ message: 'Order not found' });
+      return;
+    }
+
+    if (status === 'cancelled' && before.status !== 'cancelled') {
+      await restoreStockForOrder(before);
+    }
+
     const order = await Order.findByIdAndUpdate(id, { status }, { new: true }).populate('userId').populate('assignedRiderId');
     if (!order) { res.status(404).json({ message: 'Order not found' }); return; }
 
@@ -215,6 +417,43 @@ export const adminUpdateOrderStatus = async (req: Request, res: Response): Promi
     }).catch(() => {}); // non‑blocking
 
     res.json({ message: 'Status updated', order });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+};
+
+export const cancelMyOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    let { id } = req.params;
+    if (Array.isArray(id)) id = id[0];
+
+    const userId = String(req.user?.id || req.user?._id || '');
+    if (!userId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const order = await Order.findOne({ _id: id, userId });
+    if (!order) {
+      res.status(404).json({ message: 'Order not found' });
+      return;
+    }
+
+    if (order.status === 'cancelled') {
+      res.status(200).json({ message: 'Order already cancelled', order });
+      return;
+    }
+
+    if (order.status === 'delivered' || order.status === 'shipped') {
+      res.status(400).json({ message: 'Delivered or shipped order cannot be cancelled' });
+      return;
+    }
+
+    await restoreStockForOrder(order);
+    order.status = 'cancelled';
+    await order.save();
+
+    res.status(200).json({ message: 'Order cancelled and stock restored', order });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }

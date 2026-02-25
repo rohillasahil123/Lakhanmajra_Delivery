@@ -21,11 +21,16 @@ const { width, height } = Dimensions.get('window');
 export default function LocationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const initialAddress = (params.address as string) || undefined;
-  const initialDeliveryInstructions = (params.deliveryInstructions as string) || '';
-  const initialLatitude = Number(params.latitude);
-  const initialLongitude = Number(params.longitude);
-  const rawReturnTo = typeof params.returnTo === 'string' ? params.returnTo : '/home';
+  const getParamText = (value: unknown) => {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+    return '';
+  };
+  const initialAddress = getParamText(params.address).trim() || undefined;
+  const initialDeliveryInstructions = getParamText(params.deliveryInstructions).trim();
+  const initialLatitude = Number(getParamText(params.latitude));
+  const initialLongitude = Number(getParamText(params.longitude));
+  const rawReturnTo = getParamText(params.returnTo) || '/home';
   const returnTo = rawReturnTo === '/profile' || rawReturnTo === '/checkout' || rawReturnTo === '/home'
     ? rawReturnTo
     : '/home';
@@ -42,6 +47,10 @@ export default function LocationScreen() {
   const [deliveryInstructions, setDeliveryInstructions] = useState(initialDeliveryInstructions);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+
+  const LOCATION_PROMPT = 'Tap on map or detect location';
+  const getPinnedFallbackAddress = (lat: number, lng: number) =>
+    `Pinned location (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
 
   // Helper: Better address formatting for India (use only known fields, fall back safely)
   const formatAddress = (addr: Location.LocationGeocodedAddress | null) => {
@@ -125,18 +134,20 @@ export default function LocationScreen() {
       latitude,
       longitude,
     }));
+    setAddress(getPinnedFallbackAddress(latitude, longitude));
     reverseGeocode(latitude, longitude);
   };
 
   // Confirm and navigate
   const confirmLocation = () => {
-    if (!address.trim()) {
-      Alert.alert('Location Required', 'Please select or detect a location.');
-      return;
-    }
+    const normalizedAddress = address.trim();
+    const safeAddress =
+      !normalizedAddress || normalizedAddress === LOCATION_PROMPT
+        ? getPinnedFallbackAddress(selectedLocation.latitude, selectedLocation.longitude)
+        : normalizedAddress;
 
     const payload = {
-      address: address.trim(),
+      address: safeAddress,
       deliveryInstructions: deliveryInstructions.trim(),
       latitude: selectedLocation.latitude,
       longitude: selectedLocation.longitude,
@@ -196,7 +207,7 @@ export default function LocationScreen() {
           Alert.alert('Geocode error', 'Could not convert address to location. Please select manually.');
         }
       } else if (!address) {
-        setAddress('Tap on map or detect location');
+        setAddress(LOCATION_PROMPT);
       }
     };
     loadInitial();
@@ -235,6 +246,7 @@ export default function LocationScreen() {
               onDragEnd={(e) => {
                 const { latitude, longitude } = e.nativeEvent.coordinate;
                 setSelectedLocation((prev) => ({ ...prev, latitude, longitude }));
+                setAddress(getPinnedFallbackAddress(latitude, longitude));
                 reverseGeocode(latitude, longitude);
               }}
             />

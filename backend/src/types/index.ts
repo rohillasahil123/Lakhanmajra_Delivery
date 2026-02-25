@@ -53,7 +53,9 @@ export interface IOrder extends Document {
   userId: IUser['_id'];
   items: IOrderItem[];
   totalAmount: number;
+  deliveryFee: number;
   status: 'pending' | 'processing' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled';
+  paymentMethod: 'cod' | 'online';
   assignedRiderId?: IUser['_id'] | null;
   etaMinutes?: number | null;
   shippingAddress: IShippingAddress;

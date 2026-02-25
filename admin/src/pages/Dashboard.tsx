@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { getPermissions } from '../auth';
 import {
@@ -23,6 +24,7 @@ type KPI = {
 };
 
 export default function Dashboard() {
+  const nav = useNavigate();
   const [metrics, setMetrics] = useState<any>(null);
   const [rangeDays, setRangeDays] = useState<number>(30); // default 30d per your choice
   const [permissions, setPermissions] = useState<string[]>([]);
@@ -35,12 +37,12 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchMetrics();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangeDays]);
+    if (hasPerm('reports:view')) {
+      fetchMetrics();
+    }
+  }, [rangeDays, permissions]);
 
   const fetchMetrics = async () => {
-    if (!hasPerm('reports:view')) return;
     setLoading(true);
     try {
       const res = await api.get(`/admin/metrics?range=${rangeDays}`);
@@ -53,17 +55,47 @@ export default function Dashboard() {
   };
 
   const formatCurrency = (v: number) => {
-    return Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v || 0);
+    return Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
   };
 
-  const kpis: KPI[] = [
-    { title: 'Total orders', value: metrics?.totalOrders ?? '-' },
-    { title: `Orders (last ${rangeDays}d)`, value: metrics?.ordersInRange ?? '-' },
-    { title: 'Revenue (range)', value: metrics ? formatCurrency(metrics.revenue) : '-' },
-    { title: 'Orders today', value: metrics?.ordersToday ?? '-' },
-    { title: 'Pending orders', value: metrics?.pendingOrders ?? '-' },
-    { title: 'Active users (range)', value: metrics?.activeUsers ?? '-' },
+  const kpis: Array<KPI & { key: string }> = [
+    { key: 'total-orders', title: 'Total orders', value: metrics?.totalOrders ?? '-' },
+    { key: 'orders-range', title: `Orders (last ${rangeDays}d)`, value: metrics?.ordersInRange ?? '-' },
+    { key: 'revenue-range', title: 'Revenue (range)', value: metrics ? formatCurrency(metrics.revenue) : '-' },
+    { key: 'orders-today', title: 'Orders today', value: metrics?.ordersToday ?? '-' },
+    { key: 'pending-orders', title: 'Pending orders', value: metrics?.pendingOrders ?? '-' },
+    { key: 'active-users', title: 'Active users (range)', value: metrics?.activeUsers ?? '-' },
   ];
+
+  const getRangeQuery = () => {
+    const end = new Date();
+    const start = new Date(end.getTime() - (rangeDays - 1) * 24 * 60 * 60 * 1000);
+    const from = start.toISOString().slice(0, 10);
+    const to = end.toISOString().slice(0, 10);
+    return `from=${from}&to=${to}`;
+  };
+
+  const onKpiClick = (key: string) => {
+    if (key === 'total-orders') {
+      nav('/orders');
+      return;
+    }
+    if (key === 'orders-range' || key === 'revenue-range') {
+      nav(`/orders?${getRangeQuery()}`);
+      return;
+    }
+    if (key === 'orders-today') {
+      nav('/orders?today=1');
+      return;
+    }
+    if (key === 'pending-orders') {
+      nav('/orders?status=pending');
+      return;
+    }
+    if (key === 'active-users') {
+      nav('/users');
+    }
+  };
 
   const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6'];
 
@@ -94,12 +126,16 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {kpis.map((k, i) => (
-          <div key={k.title} className="bg-white p-4 rounded shadow flex flex-col">
+        {kpis.map((k) => (
+          <button
+            key={k.title}
+            className="bg-white p-4 rounded shadow flex flex-col text-left hover:ring-2 hover:ring-indigo-200 transition"
+            onClick={() => onKpiClick(k.key)}
+          >
             <div className="text-sm text-slate-500">{k.title}</div>
             <div className="text-2xl font-bold mt-2">{k.value ?? '-'}</div>
             {k.hint && <div className="text-xs text-slate-400 mt-2">{k.hint}</div>}
-          </div>
+          </button>
         ))}
       </div>
 

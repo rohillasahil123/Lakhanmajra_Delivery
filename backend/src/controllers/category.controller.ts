@@ -3,11 +3,29 @@ import { Category } from "../models/category.model";
 import { createCategorySchema } from "../validators/category.validator";
 import { success, fail } from "../utils/response";
 import { recordAudit } from "../services/audit.service";
+import { uploadToMinio, deleteFromMinio } from "../services/minio.service";
+
+const uploadCategoryImage = async (req: Request): Promise<string | undefined> => {
+  const file = req.file as Express.Multer.File | undefined;
+  if (!file) return undefined;
+  return uploadToMinio(file.buffer, file.originalname, file.mimetype);
+};
 
 // ADMIN → Create category
 export const createCategory = async (req: Request, res: Response) => {
   try {
-    const { error, value } = createCategorySchema.validate(req.body);
+    const uploadedImageUrl = await uploadCategoryImage(req);
+
+    const bodyData = {
+      ...req.body,
+      icon: uploadedImageUrl || req.body.icon,
+      priority:
+        req.body.priority === undefined || req.body.priority === null || req.body.priority === ""
+          ? undefined
+          : Number(req.body.priority),
+    };
+
+    const { error, value } = createCategorySchema.validate(bodyData);
     if (error) return fail(res, "Validation failed", 400, error.details);
 
     const { name, icon, priority, parentCategory } = value as any;
@@ -42,7 +60,12 @@ export const createCategory = async (req: Request, res: Response) => {
 export const updateCategory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, icon, priority } = req.body;
+    const { name, icon } = req.body;
+    const uploadedImageUrl = await uploadCategoryImage(req);
+    const priority =
+      req.body.priority === undefined || req.body.priority === null || req.body.priority === ""
+        ? undefined
+        : Number(req.body.priority);
     const update: any = {};
 
     // Fetch existing doc first — reused for both slug check and audit log
@@ -64,10 +87,15 @@ export const updateCategory = async (req: Request, res: Response) => {
       }
     }
 
-    if (icon !== undefined) update.image = icon;
+    if (uploadedImageUrl) update.image = uploadedImageUrl;
+    else if (icon !== undefined) update.image = icon;
     if (priority !== undefined) update.priority = priority;
 
     const category = await Category.findByIdAndUpdate(id, update, { new: true });
+
+    if (uploadedImageUrl && before.image && before.image !== uploadedImageUrl) {
+      deleteFromMinio(before.image).catch(() => {});
+    }
 
     recordAudit({
       actorId: (req as any).user?.id,

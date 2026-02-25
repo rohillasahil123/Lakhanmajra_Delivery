@@ -2,6 +2,7 @@ import { ThemedText } from '@/components/themed-text';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { fetchCategories } from '@/services/catalogService';
+import { resolveImageUrl } from '@/config/api';
 
 // Categories will be loaded from backend
 
@@ -60,10 +62,14 @@ export default function CategoriesScreen() {
         {/* Categories Grid */}
         <View style={styles.categoriesGrid}>
           {categories.map((category: any) => (
+            (() => {
+              const imageUrl = resolveImageUrl(category.image);
+
+              return (
             <TouchableOpacity
               key={category._id || category.id}
               style={styles.categoryCard}
-              onPress={() => handleCategoryPress({ id: category._id, name: category.name })}
+              onPress={() => handleCategoryPress({ id: category._id || category.id, name: category.name })}
             >
               <View
                 style={[
@@ -71,7 +77,15 @@ export default function CategoriesScreen() {
                   { backgroundColor: (category.color || '#F3F4F6') + '20' },
                 ]}
               >
-                <ThemedText style={styles.categoryIcon}>{category.icon || category.emoji || '📦'}</ThemedText>
+                {imageUrl ? (
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.categoryImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <ThemedText style={styles.categoryIcon}>{category.icon || category.emoji || '📦'}</ThemedText>
+                )}
               </View>
               <View style={styles.categoryInfo}>
                 <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
@@ -81,6 +95,8 @@ export default function CategoriesScreen() {
               </View>
               <ThemedText style={styles.arrowIcon}>→</ThemedText>
             </TouchableOpacity>
+              );
+            })()
           ))}
         </View>
 
@@ -159,6 +175,11 @@ const styles = StyleSheet.create({
   },
   categoryIcon: {
     fontSize: 32,
+  },
+  categoryImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
   },
   categoryInfo: {
     flex: 1,

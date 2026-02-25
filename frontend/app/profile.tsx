@@ -9,9 +9,10 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-type ProfileTab = 'overview' | 'success';
+type ProfileTab = 'overview' | 'success' | 'cancelled';
 
 const SUCCESS_STATUSES = new Set(['delivered']);
+const CANCELLED_STATUSES = new Set(['cancelled']);
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -112,6 +113,11 @@ export default function ProfileScreen() {
         }))
       ),
     [successfulOrders]
+  );
+
+  const cancelledOrders = useMemo(
+    () => orders.filter((order) => CANCELLED_STATUSES.has(String(order.status || '').toLowerCase())),
+    [orders]
   );
 
   const handleLogout = () => {
@@ -338,6 +344,15 @@ export default function ProfileScreen() {
                   Success
                 </ThemedText>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.tabButton, activeTab === 'cancelled' && styles.tabButtonActive]}
+                onPress={() => setActiveTab('cancelled')}
+              >
+                <ThemedText style={[styles.tabText, activeTab === 'cancelled' && styles.tabTextActive]}>
+                  Cancelled
+                </ThemedText>
+              </TouchableOpacity>
             </View>
 
             {activeTab === 'overview' ? (
@@ -369,7 +384,7 @@ export default function ProfileScreen() {
                   <ThemedText style={styles.statValue}>{successfulOrderedProductCount}</ThemedText>
                 </TouchableOpacity>
               </View>
-            ) : (
+            ) : activeTab === 'success' ? (
               <View style={styles.successCard}>
                 <ThemedText style={styles.successTitle}>Successful Purchased Products</ThemedText>
 
@@ -385,6 +400,24 @@ export default function ProfileScreen() {
                       </ThemedText>
                       <ThemedText style={styles.successMetaSmall}>
                         {item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}
+                      </ThemedText>
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : (
+              <View style={styles.successCard}>
+                <ThemedText style={styles.successTitle}>Cancelled Orders</ThemedText>
+
+                {cancelledOrders.length === 0 ? (
+                  <ThemedText style={styles.subtitle}>No cancelled orders.</ThemedText>
+                ) : (
+                  cancelledOrders.map((order, idx) => (
+                    <View key={`${order._id}-${idx}`} style={styles.successRow}>
+                      <ThemedText style={styles.successName}>Order #{order._id.slice(-8).toUpperCase()}</ThemedText>
+                      <ThemedText style={styles.successMeta}>Amount: ₹{order.totalAmount || 0}</ThemedText>
+                      <ThemedText style={styles.successMetaSmall}>
+                        {order.createdAt ? new Date(order.createdAt).toLocaleString() : ''}
                       </ThemedText>
                     </View>
                   ))

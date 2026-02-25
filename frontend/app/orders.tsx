@@ -1,9 +1,9 @@
 import { ThemedText } from '@/components/themed-text';
 import { resolveImageUrl } from '@/config/api';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
-import { getMyOrdersApi, OrderRow } from '@/services/orderService';
+import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { cancelMyOrderApi, getMyOrdersApi, OrderRow } from '@/services/orderService';
 
 const getStatusTone = (status: string) => {
   const normalized = String(status || '').toLowerCase();
@@ -16,10 +16,53 @@ const getStatusTone = (status: string) => {
 };
 
 export default function OrdersScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ filter?: string }>();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const filter = String(params.filter || 'all').toLowerCase();
+
+  const normalizeStatus = (value: string) => String(value || '').trim().toLowerCase();
+
+  const canCancelOrder = (status: string) => {
+    const normalized = normalizeStatus(status);
+    return normalized === 'pending' || normalized === 'processing' || normalized === 'confirmed';
+  };
+
+  const isActiveDeliveryOrder = (status: string) => {
+    const normalized = normalizeStatus(status);
+    return normalized === 'processing' || normalized === 'confirmed' || normalized === 'shipped';
+  };
+
+  const hasAssignedRider = (order: OrderRow) => {
+    const rider = order.assignedRiderId as any;
+    return !!(rider && typeof rider === 'object' && (rider.name || rider.phone));
+  };
+
+  const handleCancelOrder = (orderId: string) => {
+    Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, Cancel',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setCancellingOrderId(orderId);
+            const updated = await cancelMyOrderApi(orderId);
+            setOrders((prev) =>
+              prev.map((row) => (row._id === orderId ? { ...row, ...updated, status: 'cancelled' } : row))
+            );
+            Alert.alert('Order Cancelled', 'Order cancelled successfully and stock restored.');
+          } catch (error: any) {
+            Alert.alert('Cancel Failed', error?.message || 'Unable to cancel this order.');
+          } finally {
+            setCancellingOrderId(null);
+          }
+        },
+      },
+    ]);
+  };
 
   useEffect(() => {
     (async () => {
@@ -53,8 +96,8 @@ export default function OrdersScreen() {
 
   const visibleOrders =
     filter === 'delivered'
-      ? orders.filter((order) => String(order.status || '').toLowerCase() === 'delivered')
-      : orders;
+      ? orders.filter((order) => normalizeStatus(order.status) === 'delivered')
+      : orders.filter((order) => normalizeStatus(order.status) !== 'cancelled');
 
   const pageTitle = filter === 'delivered' ? 'Delivered Products' : 'My Orders';
   const totalProducts = visibleOrders.reduce(
@@ -75,8 +118,16 @@ export default function OrdersScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ThemedText style={styles.backIcon}>←</ThemedText>
+          </TouchableOpacity>
+          <ThemedText style={styles.pageHeaderTitle}>{pageTitle}</ThemedText>
+          <View style={styles.headerSpacer} />
+        </View>
+
         <View style={styles.heroCard}>
-          <ThemedText style={styles.title}>{pageTitle}</ThemedText>
+          <ThemedText style={styles.title}>Order Summary</ThemedText>
           <ThemedText style={styles.subtitle}>Track your order history and purchased products</ThemedText>
 
           <View style={styles.summaryRow}>
@@ -97,7 +148,7 @@ export default function OrdersScreen() {
 
         {visibleOrders.map((order) => {
           const tone = getStatusTone(order.status);
-
+          const rider = (order.assignedRiderId || null) as { name?: string; phone?: string } | null;
           return (
             <View key={order._id} style={styles.card}>
               <View style={styles.orderTopRow}>
@@ -115,10 +166,45 @@ export default function OrdersScreen() {
                 </View>
               </View>
 
+              {canCancelOrder(order.status) ? (
+                <View style={styles.orderActionRow}>
+                  <TouchableOpacity
+                    style={[styles.cancelButton, cancellingOrderId === order._id && styles.cancelButtonDisabled]}
+                    onPress={() => handleCancelOrder(order._id)}
+                    disabled={cancellingOrderId === order._id}
+                  >
+                    <ThemedText style={styles.cancelButtonText}>
+                      {cancellingOrderId === order._id ? 'Cancelling...' : 'Cancel Order'}
+                    </ThemedText>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
               <View style={styles.amountRow}>
                 <ThemedText style={styles.amountLabel}>Total Amount</ThemedText>
                 <ThemedText style={styles.amountValue}>₹{order.totalAmount}</ThemedText>
               </View>
+
+              <View style={styles.paymentMetaRow}>
+                <ThemedText style={styles.paymentMetaText}>
+                  Payment: {String(order.paymentMethod || 'cod').toUpperCase()}
+                </ThemedText>
+                <ThemedText style={styles.paymentMetaText}>Delivery: ₹{Number(order.deliveryFee ?? 0)}</ThemedText>
+              </View>
+
+              {(isActiveDeliveryOrder(order.status) || hasAssignedRider(order)) ? (
+                <View style={styles.riderCard}>
+                  <ThemedText style={styles.riderTitle}>Rider Information</ThemedText>
+                  {hasAssignedRider(order) ? (
+                    <>
+                      <ThemedText style={styles.riderMeta}>Name: {rider?.name || 'Not available'}</ThemedText>
+                      <ThemedText style={styles.riderMeta}>Phone: {rider?.phone || 'Not available'}</ThemedText>
+                    </>
+                  ) : (
+                    <ThemedText style={styles.riderMeta}>Rider abhi assign nahi hua.</ThemedText>
+                  )}
+                </View>
+              ) : null}
 
               <View style={styles.itemsBlock}>
                 <ThemedText style={styles.itemsTitle}>Products</ThemedText>
@@ -170,12 +256,39 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F4F6F8' },
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 },
   list: { flex: 1, backgroundColor: '#F4F6F8' },
-  listContent: { padding: 14, paddingBottom: 26 },
+  listContent: { padding: 14, paddingTop: 6, paddingBottom: 26 },
+  headerRow: {
+    marginTop: 0,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  backIcon: { fontSize: 24, color: '#111827', fontWeight: '700' },
+  pageHeaderTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  headerSpacer: {
+    width: 40,
+    height: 40,
+  },
   heroCard: {
     backgroundColor: '#0E7A3D',
     borderRadius: 16,
     padding: 14,
-    marginTop: 40,
+    marginTop: 0,
     marginBottom: 12,
   },
   title: { fontSize: 22, fontWeight: '800', color: '#FFFFFF', marginBottom: 4 },
@@ -210,6 +323,26 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   statusText: { fontSize: 11, fontWeight: '800' },
+  orderActionRow: {
+    marginTop: 10,
+    alignItems: 'flex-start',
+  },
+  cancelButton: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  cancelButtonDisabled: {
+    opacity: 0.6,
+  },
+  cancelButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B91C1C',
+  },
   amountRow: {
     marginTop: 10,
     paddingTop: 10,
@@ -221,6 +354,36 @@ const styles = StyleSheet.create({
   },
   amountLabel: { fontSize: 12, color: '#6B7280' },
   amountValue: { fontSize: 18, color: '#0E7A3D', fontWeight: '800' },
+  paymentMetaRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentMetaText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  riderCard: {
+    marginTop: 8,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    borderRadius: 10,
+    padding: 10,
+  },
+  riderTitle: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#1E3A8A',
+    marginBottom: 4,
+  },
+  riderMeta: {
+    fontSize: 12,
+    color: '#1E40AF',
+    marginBottom: 2,
+  },
   itemsBlock: { marginTop: 10, borderTopWidth: 1, borderTopColor: '#EDF2F7', paddingTop: 10 },
   itemsTitle: { fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 4 },
   productRow: {

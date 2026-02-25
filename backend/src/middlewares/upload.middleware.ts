@@ -5,11 +5,11 @@ import { Request, Response, NextFunction } from "express";
 const storage = multer.memoryStorage();
 
 const fileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"];
   if (allowed.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("Only JPEG, PNG, WEBP, GIF images are allowed"));
+    cb(new Error("Only JPEG, PNG, WEBP, GIF, SVG images are allowed"));
   }
 };
 
@@ -33,7 +33,7 @@ export const handleUploadError = (err: any, _req: Request, res: Response, next: 
     }
     return res.status(400).json({ success: false, message: err.message });
   }
-  if (err?.message?.includes("Only JPEG")) {
+  if (err?.message?.includes("images are allowed")) {
     return res.status(400).json({ success: false, message: err.message });
   }
   next(err);

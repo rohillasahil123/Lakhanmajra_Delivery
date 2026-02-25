@@ -251,9 +251,9 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
       // pending / processing
       Order.countDocuments({ status: { $in: ['pending', 'processing'] } }),
 
-      // revenue in range (paid orders)
+      // revenue in range (all non-cancelled orders)
       Order.aggregate([
-        { $match: { paymentStatus: 'paid', createdAt: { $gte: start, $lte: end } } },
+        { $match: { status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lte: end } } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } },
       ]),
 
@@ -280,7 +280,7 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
 
       // revenue by day
       Order.aggregate([
-        { $match: { paymentStatus: 'paid', createdAt: { $gte: start, $lte: end } } },
+        { $match: { status: { $ne: 'cancelled' }, createdAt: { $gte: start, $lte: end } } },
         { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } }, total: { $sum: '$totalAmount' } } },
         { $sort: { _id: 1 } },
       ]),

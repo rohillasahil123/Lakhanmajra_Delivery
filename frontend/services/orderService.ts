@@ -8,6 +8,13 @@ export type ShippingAddress = {
   pincode: string;
 };
 
+export type OrderEligibility = {
+  cancelledOrdersCount: number;
+  requiresAdvancePayment: boolean;
+  codAllowed: boolean;
+  advanceAmount: number;
+};
+
 export type OrderItem = {
   productId?: any;
   quantity: number;
@@ -17,9 +24,17 @@ export type OrderItem = {
 export type OrderRow = {
   _id: string;
   totalAmount: number;
+  deliveryFee?: number;
+  paymentMethod?: 'cod' | 'online';
+  paymentStatus?: 'pending' | 'paid' | 'failed';
   status: string;
   createdAt?: string;
   items?: OrderItem[];
+  assignedRiderId?: {
+    _id?: string;
+    name?: string;
+    phone?: string;
+  } | null;
 };
 
 async function authHeaders(): Promise<Record<string, string>> {
@@ -48,12 +63,28 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   return json as T;
 }
 
-export async function createOrderApi(shippingAddress: ShippingAddress): Promise<OrderRow> {
+export async function createOrderApi(payload: {
+  shippingAddress: ShippingAddress;
+  paymentMethod?: 'cod' | 'online';
+  advancePaid?: boolean;
+}): Promise<OrderRow> {
   const result = await request<{ order?: OrderRow; data?: OrderRow }>('/api/orders', {
     method: 'POST',
-    body: JSON.stringify({ shippingAddress }),
+    body: JSON.stringify(payload),
   });
   return (result.order || result.data) as OrderRow;
+}
+
+export async function getOrderEligibilityApi(): Promise<OrderEligibility> {
+  const result = await request<{ data?: OrderEligibility }>('/api/orders/eligibility', { method: 'GET' });
+  return (
+    result?.data || {
+      cancelledOrdersCount: 0,
+      requiresAdvancePayment: false,
+      codAllowed: true,
+      advanceAmount: 20,
+    }
+  );
 }
 
 export async function getMyOrdersApi(): Promise<OrderRow[]> {
@@ -62,4 +93,11 @@ export async function getMyOrdersApi(): Promise<OrderRow[]> {
   if (Array.isArray(result?.data)) return result.data as OrderRow[];
   if (Array.isArray(result?.orders)) return result.orders as OrderRow[];
   return [];
+}
+
+export async function cancelMyOrderApi(orderId: string): Promise<OrderRow> {
+  const result = await request<{ order?: OrderRow; data?: OrderRow }>(`/api/orders/${orderId}/cancel`, {
+    method: 'PATCH',
+  });
+  return (result.order || result.data) as OrderRow;
 }

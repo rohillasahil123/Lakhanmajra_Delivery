@@ -49,6 +49,13 @@ export function resolveImageUrl(rawUrl?: string | null): string {
 
   try {
     const parsed = new URL(trimmed);
+    const minioParsed = new URL(MINIO_BASE_URL);
+    const isProductBucketPath = /\/products\//i.test(parsed.pathname);
+
+    if (isProductBucketPath && parsed.hostname !== minioParsed.hostname) {
+      return `${MINIO_BASE_URL.replace(/\/$/, '')}${parsed.pathname}${parsed.search}`;
+    }
+
     const shouldSwapHost =
       parsed.hostname === 'localhost' ||
       parsed.hostname === '127.0.0.1' ||

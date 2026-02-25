@@ -83,8 +83,7 @@ export default function ProductsScreen() {
     .filter((product) => {
       if (!normalizedQuery) return true;
       return String(product?.name || '').toLowerCase().includes(normalizedQuery);
-    })
-    .sort((a, b) => String(a?.name || '').localeCompare(String(b?.name || '')));
+    });
 
   const handleProductPress = (product: any) => {
     const id = product._id || product.id;
@@ -125,13 +124,18 @@ export default function ProductsScreen() {
 
       {/* Products Count */}
       <View style={styles.countContainer}>
-        <ThemedText style={styles.countText}>{visibleProducts.length} products found (A-Z)</ThemedText>
+        <ThemedText style={styles.countText}>{visibleProducts.length} products found</ThemedText>
       </View>
 
       {/* Products Grid */}
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.productsGrid}>
           {visibleProducts.map((product) => (
+            (() => {
+              const productStock = Number(product?.stock ?? 0);
+              const isOutOfStock = productStock <= 0;
+
+              return (
             <TouchableOpacity
               key={product._id || product.id}
               style={styles.productCard}
@@ -169,9 +173,12 @@ export default function ProductsScreen() {
                     {product.mrp && product.mrp > product.price && (
                       <ThemedText style={styles.originalPrice}>₹{product.mrp}</ThemedText>
                     )}
+                    {isOutOfStock && (
+                      <ThemedText style={styles.outOfStockText}>Out of stock</ThemedText>
+                    )}
                   </View>
                   <TouchableOpacity
-                    style={styles.addButton}
+                    style={[styles.addButton, isOutOfStock && styles.addButtonDisabled]}
                     onPress={() =>
                       addItem(
                         {
@@ -180,16 +187,20 @@ export default function ProductsScreen() {
                           price: product.price,
                           unit: product.unitType || product.unit || '',
                           image: resolveImageUrl(product.images?.[0] || product.image || ''),
+                          stock: productStock,
                         },
                         1
                       )
                     }
+                    disabled={isOutOfStock}
                   >
-                    <ThemedText style={styles.addButtonText}>+</ThemedText>
+                    <ThemedText style={styles.addButtonText}>{isOutOfStock ? '×' : '+'}</ThemedText>
                   </TouchableOpacity>
                 </View>
               </View>
             </TouchableOpacity>
+              );
+            })()
           ))}
         </View>
         <View style={{ height: 40 }} />
@@ -230,6 +241,8 @@ const styles = StyleSheet.create({
   productFooter:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
   productPrice:            { fontSize: 16, fontWeight: '700', color: '#0E7A3D' },
   originalPrice:           { fontSize: 11, color: '#9CA3AF', textDecorationLine: 'line-through' },
+  outOfStockText:          { fontSize: 11, color: '#EF4444', fontWeight: '600', marginTop: 2 },
   addButton:               { backgroundColor: '#0E7A3D', width: 28, height: 28, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  addButtonDisabled:       { backgroundColor: '#9CA3AF' },
   addButtonText:           { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
 });

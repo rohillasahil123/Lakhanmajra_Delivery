@@ -7,6 +7,7 @@ type ProductFilters = {
   minPrice?: number;
   maxPrice?: number;
   tags?: string[];
+  stockStatus?: "in" | "out";
 };
 
 export const createProduct = async (payload: Partial<IProduct>) => {
@@ -41,8 +42,44 @@ export const getProducts = async (
     if (filters.maxPrice !== undefined) query.price.$lte = filters.maxPrice;
   }
   if (filters.tags && filters.tags.length) query.tags = { $in: filters.tags };
+  if (filters.stockStatus === "out") query.stock = { $lte: 0 };
+  if (filters.stockStatus === "in") query.stock = { $gt: 0 };
 
   const skip = (page - 1) * limit;
+
+  if (sort === "demand") {
+    const [data, total] = await Promise.all([
+      Product.aggregate([
+        { $match: query },
+        {
+          $lookup: {
+            from: "orders",
+            let: { productId: "$_id" },
+            pipeline: [
+              { $match: { status: { $ne: "cancelled" } } },
+              { $unwind: "$items" },
+              { $match: { $expr: { $eq: ["$items.productId", "$$productId"] } } },
+              { $group: { _id: null, soldQty: { $sum: "$items.quantity" } } },
+            ],
+            as: "demandStats",
+          },
+        },
+        {
+          $addFields: {
+            soldQty: { $ifNull: [{ $arrayElemAt: ["$demandStats.soldQty", 0] }, 0] },
+          },
+        },
+        { $project: { demandStats: 0 } },
+        { $sort: { soldQty: -1, createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      Product.countDocuments(query),
+    ]);
+
+    return { data, total, page, limit };
+  }
+
   const [data, total] = await Promise.all([
     Product.find(query).sort(sort).skip(skip).limit(limit),
     Product.countDocuments(query),

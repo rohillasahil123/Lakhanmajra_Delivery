@@ -61,6 +61,13 @@ export default function CartScreen() {
       Alert.alert('Empty Cart', 'Please add items to your cart first.');
       return;
     }
+
+    const invalidItems = cartItems.filter((item) => Number(item.stock ?? 0) <= 0 || item.quantity > Number(item.stock ?? 0));
+    if (invalidItems.length > 0) {
+      Alert.alert('Out of Stock', 'Some items are out of stock. Please remove them before checkout.');
+      return;
+    }
+
     router.push('/checkout');
   };
 
@@ -98,6 +105,12 @@ export default function CartScreen() {
             {/* Cart Items */}
             <View style={styles.itemsSection}>
               {cartItems.map((item) => (
+                (() => {
+                  const availableStock = Number(item.stock ?? 0);
+                  const isOutOfStock = availableStock <= 0;
+                  const canIncrease = !isOutOfStock && item.quantity < availableStock;
+
+                  return (
                 <View key={item.cartItemId || item.id} style={styles.cartItem}>
                   <View style={styles.itemImageContainer}>
                     {(() => {
@@ -117,6 +130,7 @@ export default function CartScreen() {
                     <ThemedText style={styles.itemName}>{item.name}</ThemedText>
                     <ThemedText style={styles.itemUnit}>{item.unit}</ThemedText>
                     <ThemedText style={styles.itemPrice}>₹{item.price}</ThemedText>
+                    {isOutOfStock && <ThemedText style={styles.stockText}>Out of stock</ThemedText>}
                   </View>
 
                   <View style={styles.itemActions}>
@@ -130,8 +144,9 @@ export default function CartScreen() {
                       </TouchableOpacity>
                       <ThemedText style={styles.quantityText}>{item.quantity}</ThemedText>
                       <TouchableOpacity
-                        style={styles.quantityButton}
+                        style={[styles.quantityButton, !canIncrease && styles.quantityButtonDisabled]}
                         onPress={() => increaseQuantity(item.id)}
+                        disabled={!canIncrease}
                       >
                         <ThemedText style={styles.quantityButtonText}>+</ThemedText>
                       </TouchableOpacity>
@@ -146,6 +161,8 @@ export default function CartScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
+                  );
+                })()
               ))}
             </View>
 
@@ -330,6 +347,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0E7A3D',
   },
+  stockText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '600',
+    marginTop: 2,
+  },
   itemActions: {
     alignItems: 'center',
   },
@@ -345,6 +368,9 @@ const styles = StyleSheet.create({
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  quantityButtonDisabled: {
+    opacity: 0.4,
   },
   quantityButtonText: {
     fontSize: 20,

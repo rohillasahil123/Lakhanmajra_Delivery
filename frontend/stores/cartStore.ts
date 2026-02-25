@@ -34,6 +34,7 @@ export type CartItem = {
   unit?: string;
   image?: string;
   quantity: number;
+  stock?: number;
 };
 
 type CartState = {
@@ -80,6 +81,7 @@ const normalizeItem = (item: any): CartItem => {
     unit: item?.unit || product?.unit || productIdObj?.unit || 'piece',
     image: item?.image || imageFromProduct || imageFromProductId || '',
     quantity: Number(item?.quantity || 1),
+    stock: Number(item?.stock ?? product?.stock ?? productIdObj?.stock ?? 0),
   };
 };
 
@@ -134,7 +136,12 @@ const useCart = create<CartState>((set, get) => ({
   addItem: async (item, qty = 1) => {
     const productId = String(item.id);
     const quantityToAdd = Number(qty) > 0 ? Number(qty) : 1;
+    const availableStock = Number((item as any)?.stock ?? 0);
+    if (availableStock <= 0) return;
+
     const existing = get().items.find((row) => row.id === productId);
+    if (existing && existing.quantity + quantityToAdd > availableStock) return;
+    if (!existing && quantityToAdd > availableStock) return;
 
     try {
       const cart = existing?.cartItemId
@@ -154,6 +161,8 @@ const useCart = create<CartState>((set, get) => ({
     const prev = get().items;
     const row = prev.find((it) => it.id === productId);
     if (!row?.cartItemId) return;
+    const availableStock = Number(row.stock ?? 0);
+    if (availableStock <= 0 || row.quantity >= availableStock) return;
 
     try {
       const updated = await updateCartQuantityApi(row.cartItemId, row.quantity + 1);

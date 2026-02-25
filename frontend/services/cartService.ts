@@ -7,11 +7,13 @@ const GUEST_SESSION_KEY = '@lakhanmajra_guest_session_id';
 export type ServerCartItem = {
   _id?: string;
   product?: string;
+  productId?: any;
   name: string;
   image?: string;
   price: number;
   quantity: number;
   unit?: string;
+  stock?: number;
 };
 
 export type ServerCart = {

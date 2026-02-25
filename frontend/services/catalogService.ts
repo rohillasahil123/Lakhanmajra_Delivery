@@ -1,10 +1,12 @@
 import { getEndpoint, API_ENDPOINTS } from '@/config/api';
 
-async function safeGet(url: string) {
+async function safeGet(url: string, options?: { silentNotFound?: boolean }) {
   try {
     const res = await fetch(url);
     if (!res.ok) {
-      console.warn('[catalogService] non-ok response', res.status, url);
+      if (!(options?.silentNotFound && res.status === 404)) {
+        console.warn('[catalogService] non-ok response', res.status, url);
+      }
       return null;
     }
     return await res.json();
@@ -26,6 +28,7 @@ export async function fetchCategories(): Promise<any[]> {
 export async function fetchProducts(params?: { limit?: number; categoryId?: string }): Promise<any[]> {
   let url = getEndpoint(API_ENDPOINTS.PRODUCTS as string);
   const query: string[] = [];
+  query.push('sortBy=demand');
   if (params?.limit) query.push(`limit=${params.limit}`);
   if (params?.categoryId) query.push(`categoryId=${encodeURIComponent(params.categoryId)}`);
   if (query.length) {
@@ -45,7 +48,7 @@ export async function fetchProducts(params?: { limit?: number; categoryId?: stri
 export async function fetchOffers(): Promise<any[]> {
   // Try offers endpoint first, fall back to products with discounts
   const offersUrl = getEndpoint('/api/offers');
-  const offersResponse = await safeGet(offersUrl);
+  const offersResponse = await safeGet(offersUrl, { silentNotFound: true });
   if (offersResponse) {
     const data = offersResponse.data || offersResponse.offers || [];
     return Array.isArray(data) ? data : [];

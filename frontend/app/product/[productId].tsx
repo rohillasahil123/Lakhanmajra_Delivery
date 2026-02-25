@@ -85,6 +85,7 @@ export default function ProductDetailDynamic() {
       price: product.price,
       unit: product.unit || product.unitType || '',
       image: images[0] || '',
+      stock: Number(product?.stock ?? 0),
     }, quantity);
     router.push('/cart');
   };
@@ -209,7 +210,11 @@ export default function ProductDetailDynamic() {
             <ThemedText style={styles.quantityButtonText}>−</ThemedText>
           </TouchableOpacity>
           <ThemedText style={styles.quantityText}>{quantity}</ThemedText>
-          <TouchableOpacity style={styles.quantityButton} onPress={() => setQuantity(q => q + 1)}>
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={() => setQuantity(q => Math.min(Number(product?.stock || 1), q + 1))}
+            disabled={Number(product?.stock || 0) <= quantity}
+          >
             <ThemedText style={styles.quantityButtonText}>+</ThemedText>
           </TouchableOpacity>
         </View>

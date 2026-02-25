@@ -4,6 +4,7 @@ import useLocationStore from '@/stores/locationStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Image,
   ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -83,11 +84,17 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [latestOrder, setLatestOrder] = useState<OrderRow | null>(null);
 
+  const getParamText = (value: unknown) => {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
+    return '';
+  };
+
   useEffect(() => {
-    const addressParam = typeof params.address === 'string' ? params.address.trim() : '';
-    const instructionsParam = typeof params.deliveryInstructions === 'string' ? params.deliveryInstructions.trim() : '';
-    const latitudeParam = typeof params.latitude === 'string' ? Number(params.latitude) : NaN;
-    const longitudeParam = typeof params.longitude === 'string' ? Number(params.longitude) : NaN;
+    const addressParam = getParamText(params.address).trim();
+    const instructionsParam = getParamText(params.deliveryInstructions).trim();
+    const latitudeParam = Number(getParamText(params.latitude));
+    const longitudeParam = Number(getParamText(params.longitude));
 
     if (!addressParam) {
       return;
@@ -99,7 +106,7 @@ export default function HomeScreen() {
       latitude: Number.isFinite(latitudeParam) ? latitudeParam : selectedLocation.latitude,
       longitude: Number.isFinite(longitudeParam) ? longitudeParam : selectedLocation.longitude,
     });
-  }, [params.address, params.deliveryInstructions, params.latitude, params.longitude]);
+  }, [params.address, params.deliveryInstructions, params.latitude, params.longitude, selectedLocation.latitude, selectedLocation.longitude, setSelectedLocation]);
 
   // Load remote catalog data
   useEffect(() => {
@@ -478,10 +485,15 @@ export default function HomeScreen() {
                       { backgroundColor: getCategoryColor(item.name), width: cardSize, height: cardSize, marginRight: gap, transform: [{ scale: pressed ? 0.96 : 1 }] },
                     ]}
                   >
-                    <ThemedText style={styles.categoryIcon}>{item.icon || '🥬'}</ThemedText>
-                    <ThemedText style={styles.categoryTitle} numberOfLines={2} ellipsizeMode="tail">
-                      {item.name || item.title}
-                    </ThemedText>
+                    {item.image ? (
+                      <Image
+                        source={{ uri: resolveImageUrl(item.image) }}
+                        style={styles.categoryImage}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <ThemedText style={styles.categoryIcon}>{item.icon || '🥬'}</ThemedText>
+                    )}
                   </Pressable>
                 )}
                 ListEmptyComponent={<View style={{ height: 8 }} />}
@@ -500,6 +512,11 @@ export default function HomeScreen() {
 
         <View style={styles.productGrid}>
           {filteredProducts.map((product) => (
+            (() => {
+              const productStock = Number(product?.stock ?? 0);
+              const isOutOfStock = productStock <= 0;
+
+              return (
             <TouchableOpacity key={product.id || product._id} style={styles.productCard}>
               <View style={styles.productImg}>
                 {/* Show MinIO image if available, else fallback to emoji or placeholder */}
@@ -534,9 +551,10 @@ export default function HomeScreen() {
                   <View>
                     <ThemedText style={styles.price}>₹{product.price}</ThemedText>
                     {product.mrp && <ThemedText style={styles.priceOld}>₹{product.mrp}</ThemedText>}
+                    {isOutOfStock && <ThemedText style={styles.stockWarning}>Out of stock</ThemedText>}
                   </View>
                   <TouchableOpacity
-                    style={styles.addBtn}
+                    style={[styles.addBtn, isOutOfStock && styles.addBtnDisabled]}
                     onPress={() =>
                       addItem(
                         {
@@ -547,16 +565,20 @@ export default function HomeScreen() {
                           image: (Array.isArray(product.images) && product.images[0])
                             ? resolveImageUrl(product.images[0])
                             : (product.emoji || product.image || '🛍️'),
+                          stock: productStock,
                         },
                         1,
                       )
                     }
+                    disabled={isOutOfStock}
                   >
-                    <ThemedText style={styles.addBtnText}>ADD</ThemedText>
+                    <ThemedText style={styles.addBtnText}>{isOutOfStock ? 'OUT' : 'ADD'}</ThemedText>
                   </TouchableOpacity>
                 </View>
               </View>
             </TouchableOpacity>
+              );
+            })()
           ))}
         </View>
 
@@ -956,6 +978,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: COLORS.text,
   },
+  categoryImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginBottom: 8,
+  },
   categoryTitle: {
     fontSize: 12,
     fontWeight: '600',
@@ -1076,10 +1104,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
+  addBtnDisabled: {
+    borderColor: '#9CA3AF',
+    backgroundColor: '#F3F4F6',
+  },
   addBtnText: {
     fontWeight: '800',
     color: COLORS.accent,
     fontSize: 11,
+  },
+  stockWarning: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '600',
   },
   dealsRow: {
     flexDirection: 'row',
