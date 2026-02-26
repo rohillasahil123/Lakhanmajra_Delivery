@@ -191,10 +191,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
     paddingHorizontal: 12,
+    marginTop: 25,
+   
   },
   centered: {
     flex: 1,
     alignItems: 'center',
+    marginTop: 20,
     justifyContent: 'center',
   },
   header: {

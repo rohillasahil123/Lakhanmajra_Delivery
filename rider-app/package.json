@@ -8,8 +8,6 @@
     "ios": "expo run:ios",
     "start": "expo start",
     "start:expo": "expo start",
-    "start:expo:emulator": "env-cmd -f .env.android expo start --clear",
-    "start:expo:device": "env-cmd -f .env.device expo start --clear",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -36,7 +34,6 @@
     "@types/react": "~19.1.10",
     "@types/react-test-renderer": "^18.0.7",
     "babel-preset-expo": "~54.0.10",
-    "env-cmd": "^10.1.0",
     "eslint": "^8.57.0",
     "prettier": "2.8.8",
     "typescript": "~5.9.2"
