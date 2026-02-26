@@ -12,6 +12,7 @@ export interface IUser extends Document {
   password: string;
   roleId: Types.ObjectId; // reference to Role
   isActive: boolean;
+  isOnline: boolean;
   createdAt: Date;
 }
 
@@ -34,6 +35,10 @@ const UserSchema = new Schema<IUser>(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isOnline: {
+      type: Boolean,
+      default: false,
     },
   },
   { timestamps: true }

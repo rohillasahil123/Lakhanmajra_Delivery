@@ -9,6 +9,7 @@ interface RiderLoginResponse {
     name: string;
     phone: string;
     role: string;
+    online?: boolean;
   };
 }
 
@@ -40,7 +41,7 @@ export const authService = {
         name: response.data.rider.name,
         phone: response.data.rider.phone,
         role: 'rider',
-        online: false,
+        online: Boolean(response.data.rider.online),
       },
     };
 
@@ -72,7 +73,7 @@ export const authService = {
         name: response.data.rider.name,
         phone: response.data.rider.phone,
         role: 'rider',
-        online: session.rider.online,
+        online: Boolean(response.data.rider.online),
       },
     };
 

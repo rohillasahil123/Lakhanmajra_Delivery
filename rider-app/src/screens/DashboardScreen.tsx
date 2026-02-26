@@ -34,6 +34,7 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
   const [onlineUpdating, setOnlineUpdating] = useState(false);
   const [transitionLoadingOrderId, setTransitionLoadingOrderId] = useState<string | null>(null);
   const [newOrderModal, setNewOrderModal] = useState<RiderOrder | null>(null);
+  const knownAssignedOrderIdsRef = React.useRef<Set<string>>(new Set());
 
   const online = session?.rider.online ?? false;
   const token = session?.accessToken ?? null;
@@ -54,6 +55,46 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
   React.useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  React.useEffect(() => {
+    const assignedIds = orders
+      .filter((order) => order.status === 'Assigned')
+      .map((order) => order.id);
+    knownAssignedOrderIdsRef.current = new Set(assignedIds);
+  }, [orders]);
+
+  React.useEffect(() => {
+    if (!online) {
+      return;
+    }
+
+    const poll = async () => {
+      try {
+        const fetched = await riderService.getOrders();
+
+        const previous = knownAssignedOrderIdsRef.current;
+        const assignedNow = fetched.filter((order) => order.status === 'Assigned');
+        const freshAssigned = assignedNow.find((order) => !previous.has(order.id));
+
+        knownAssignedOrderIdsRef.current = new Set(assignedNow.map((order) => order.id));
+        setOrders(fetched);
+
+        if (freshAssigned) {
+          setNewOrderModal(freshAssigned);
+        }
+      } catch {
+        // non-blocking background polling
+      }
+    };
+
+    const interval = setInterval(() => {
+      poll().catch(() => {});
+    }, 8000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [online]);
 
   useSocketConnection({
     enabled: online,

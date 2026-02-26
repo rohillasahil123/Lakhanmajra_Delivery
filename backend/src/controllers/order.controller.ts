@@ -158,6 +158,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       paymentMethod: normalizedPaymentMethod,
       shippingAddress,
       paymentStatus: advancePaid ? 'paid' : 'pending',
+      riderStatus: 'Assigned',
+      rejectedByRiderIds: [],
     });
 
     await order.save();
@@ -360,7 +362,7 @@ export const assignOrderToRider = async (req: Request, res: Response): Promise<v
     const before = await Order.findById(id);
     const order = await Order.findByIdAndUpdate(
       id,
-      { assignedRiderId: riderId, status: 'processing' },
+      { assignedRiderId: riderId, status: 'processing', riderStatus: 'Assigned', rejectedByRiderIds: [] },
       { new: true }
     ).populate('userId').populate('assignedRiderId');
 

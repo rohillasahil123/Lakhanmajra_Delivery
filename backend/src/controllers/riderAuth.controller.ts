@@ -5,6 +5,8 @@ import {Types} from 'mongoose';
 import User from '../models/user.model';
 import Order from '../models/order.model';
 
+type RiderFlowStatus = 'Assigned' | 'Accepted' | 'Picked' | 'OutForDelivery' | 'Delivered' | 'Rejected';
+
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
 if (!JWT_SECRET) {
@@ -14,6 +16,64 @@ if (!JWT_SECRET) {
 const getRoleName = (user: any): string => {
   const role = user?.role || user?.roleName || user?.roleId?.name || user?.roleId;
   return String(role || '').toLowerCase();
+};
+
+const backendToRiderFallback = (status: string): RiderFlowStatus => {
+  if (status === 'processing' || status === 'pending') return 'Assigned';
+  if (status === 'confirmed') return 'Accepted';
+  if (status === 'shipped') return 'OutForDelivery';
+  if (status === 'delivered') return 'Delivered';
+  if (status === 'cancelled') return 'Rejected';
+  return 'Assigned';
+};
+
+const currentRiderStatus = (order: any): RiderFlowStatus => {
+  if (order?.riderStatus) {
+    return order.riderStatus as RiderFlowStatus;
+  }
+  return backendToRiderFallback(String(order?.status || 'processing'));
+};
+
+const normalizeRiderOrder = (orderDoc: any) => {
+  const order = orderDoc?.toObject ? orderDoc.toObject() : orderDoc;
+  const user = order?.userId && typeof order.userId === 'object' ? order.userId : null;
+
+  return {
+    id: String(order?._id || order?.id),
+    riderId: String(order?.assignedRiderId || ''),
+    status: currentRiderStatus(order),
+    paymentType: order?.paymentMethod === 'online' ? 'PREPAID' : 'COD',
+    amount: Number(order?.totalAmount || 0),
+    customer: {
+      name: user?.name || 'Customer',
+      phone: user?.phone || '',
+    },
+    deliveryAddress: {
+      line1: order?.shippingAddress?.street || '',
+      city: order?.shippingAddress?.city || '',
+      state: order?.shippingAddress?.state || '',
+      postalCode: order?.shippingAddress?.pincode || '',
+    },
+    assignedAt: new Date(order?.createdAt || Date.now()).toISOString(),
+    updatedAt: new Date(order?.updatedAt || Date.now()).toISOString(),
+  };
+};
+
+const allowedTransitions: Record<RiderFlowStatus, RiderFlowStatus[]> = {
+  Assigned: ['Accepted', 'Rejected'],
+  Accepted: ['Picked'],
+  Picked: ['OutForDelivery'],
+  OutForDelivery: ['Delivered'],
+  Delivered: [],
+  Rejected: [],
+};
+
+const riderToBackendStatus = (status: RiderFlowStatus): 'processing' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' => {
+  if (status === 'Accepted') return 'confirmed';
+  if (status === 'Picked' || status === 'OutForDelivery') return 'shipped';
+  if (status === 'Delivered') return 'delivered';
+  if (status === 'Rejected') return 'cancelled';
+  return 'processing';
 };
 
 export const riderLogin = async (req: Request, res: Response): Promise<void> => {
@@ -69,6 +129,7 @@ export const riderLogin = async (req: Request, res: Response): Promise<void> => 
         name: rider.name,
         phone: rider.phone,
         role: 'rider',
+        online: Boolean((rider as any).isOnline),
       },
     });
   } catch (error) {
@@ -97,6 +158,7 @@ export const getRiderMe = async (req: Request, res: Response): Promise<void> => 
         name: (user as any).name,
         phone: (user as any).phone,
         role: 'rider',
+        online: Boolean((user as any).isOnline),
       },
     });
   } catch (error) {
@@ -113,12 +175,200 @@ export const getRiderOrders = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const orders = await Order.find({assignedRiderId: riderId})
+    const orders = await Order.find({
+      $or: [
+        {assignedRiderId: riderId},
+        {
+          assignedRiderId: null,
+          $or: [
+            {riderStatus: 'Assigned'},
+            {riderStatus: null, status: {$in: ['pending', 'processing', 'confirmed']}},
+          ],
+          rejectedByRiderIds: {$ne: new Types.ObjectId(riderId)},
+        },
+      ],
+    })
       .populate('userId', 'name phone')
       .sort({createdAt: -1});
 
-    res.status(200).json({orders});
+    res.status(200).json({orders: orders.map(normalizeRiderOrder)});
   } catch (error) {
     res.status(500).json({message: 'Unable to fetch rider orders'});
+  }
+};
+
+export const getRiderOrderById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const {orderId} = req.params;
+    const order = await Order.findOne({_id: orderId, assignedRiderId: riderId}).populate('userId', 'name phone');
+
+    if (!order) {
+      res.status(404).json({message: 'Order not found'});
+      return;
+    }
+
+    res.status(200).json({order: normalizeRiderOrder(order)});
+  } catch (error) {
+    res.status(500).json({message: 'Unable to fetch rider order'});
+  }
+};
+
+export const updateRiderOrderStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const {orderId} = req.params;
+    const {status} = req.body as {status?: RiderFlowStatus};
+
+    if (!status) {
+      res.status(400).json({message: 'status is required'});
+      return;
+    }
+
+    const order = await Order.findOne({
+      _id: orderId,
+      $or: [
+        {assignedRiderId: riderId},
+        {
+          assignedRiderId: null,
+          $or: [
+            {riderStatus: 'Assigned'},
+            {riderStatus: null, status: {$in: ['pending', 'processing', 'confirmed']}},
+          ],
+          rejectedByRiderIds: {$ne: new Types.ObjectId(riderId)},
+        },
+      ],
+    }).populate('userId', 'name phone');
+    if (!order) {
+      res.status(404).json({message: 'Order not found'});
+      return;
+    }
+
+    const current = currentRiderStatus(order);
+    if (!allowedTransitions[current].includes(status)) {
+      res.status(400).json({message: `Invalid rider status transition from ${current} to ${status}`});
+      return;
+    }
+
+    let updated: any = null;
+
+    if (status === 'Accepted') {
+      updated = await Order.findOneAndUpdate(
+        {
+          _id: orderId,
+          assignedRiderId: null,
+          $or: [
+            {riderStatus: 'Assigned'},
+            {riderStatus: null, status: {$in: ['pending', 'processing', 'confirmed']}},
+          ],
+        },
+        {
+          assignedRiderId: riderId,
+          riderStatus: 'Accepted',
+          status: riderToBackendStatus('Accepted'),
+          $set: {rejectedByRiderIds: []},
+        },
+        {new: true}
+      ).populate('userId', 'name phone');
+
+      if (!updated) {
+        res.status(409).json({message: 'Order already accepted by another rider'});
+        return;
+      }
+    } else if (status === 'Rejected') {
+      if (String((order as any).assignedRiderId || '') === riderId) {
+        updated = await Order.findByIdAndUpdate(
+          orderId,
+          {
+            assignedRiderId: null,
+            riderStatus: 'Assigned',
+            status: 'processing',
+            $addToSet: {rejectedByRiderIds: new Types.ObjectId(riderId)},
+          },
+          {new: true}
+        ).populate('userId', 'name phone');
+      } else {
+        updated = await Order.findByIdAndUpdate(
+          orderId,
+          {
+            $addToSet: {rejectedByRiderIds: new Types.ObjectId(riderId)},
+          },
+          {new: true}
+        ).populate('userId', 'name phone');
+      }
+    } else {
+      if (String((order as any).assignedRiderId || '') !== riderId) {
+        res.status(409).json({message: 'Order is not assigned to this rider'});
+        return;
+      }
+
+      updated = await Order.findByIdAndUpdate(
+        orderId,
+        {
+          riderStatus: status,
+          status: riderToBackendStatus(status),
+        },
+        {new: true}
+      ).populate('userId', 'name phone');
+    }
+
+    if (!updated) {
+      res.status(404).json({message: 'Order not found'});
+      return;
+    }
+
+    res.status(200).json({order: normalizeRiderOrder(updated)});
+  } catch (error) {
+    res.status(500).json({message: 'Unable to update rider order status'});
+  }
+};
+
+export const updateRiderOnlineStatus = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const {online} = req.body as {online?: boolean};
+    if (typeof online !== 'boolean') {
+      res.status(400).json({message: 'online must be a boolean'});
+      return;
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      riderId,
+      {isOnline: online},
+      {new: true}
+    ).select('_id name phone isOnline roleId');
+
+    if (!updated) {
+      res.status(404).json({message: 'Rider not found'});
+      return;
+    }
+
+    res.status(200).json({
+      message: 'Rider status updated',
+      rider: {
+        id: String(updated._id),
+        name: updated.name,
+        phone: updated.phone,
+        role: 'rider',
+        online: Boolean((updated as any).isOnline),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({message: 'Unable to update rider online status'});
   }
 };

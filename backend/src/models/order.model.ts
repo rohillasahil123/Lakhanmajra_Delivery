@@ -20,6 +20,12 @@ const orderSchema = new Schema<IOrder>({
     enum: ['pending', 'processing', 'confirmed', 'shipped', 'delivered', 'cancelled'],
     default: 'pending' 
   },
+  riderStatus: {
+    type: String,
+    enum: ['Assigned', 'Accepted', 'Picked', 'OutForDelivery', 'Delivered', 'Rejected'],
+    default: null,
+  },
+  rejectedByRiderIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   assignedRiderId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   etaMinutes: { type: Number, default: null },
   shippingAddress: {
