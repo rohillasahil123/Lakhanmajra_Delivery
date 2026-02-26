@@ -1,0 +1,47 @@
+{
+  "name": "rider-app",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "start": "expo start",
+    "start:expo": "expo start",
+    "start:expo:emulator": "env-cmd -f .env.android expo start --clear",
+    "start:expo:device": "env-cmd -f .env.device expo start --clear",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/native-stack": "^6.11.0",
+    "axios": "^1.8.4",
+    "expo": "^54.0.0",
+    "expo-constants": "~18.0.13",
+    "expo-location": "~19.0.8",
+    "expo-secure-store": "~15.0.8",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-url-polyfill": "^2.0.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2",
+    "@babel/runtime": "^7.25.0",
+    "@react-native/eslint-config": "0.76.5",
+    "@types/react": "~19.1.10",
+    "@types/react-test-renderer": "^18.0.7",
+    "babel-preset-expo": "~54.0.10",
+    "env-cmd": "^10.1.0",
+    "eslint": "^8.57.0",
+    "prettier": "2.8.8",
+    "typescript": "~5.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

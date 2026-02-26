@@ -10,6 +10,7 @@ import productRoutes from "./routes/product.routes";
 import adminRoutes from "./routes/admin.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
+import riderRoutes from "./routes/rider.routes";
 import { connectRabbitMQ } from "./config/rabbitmq";
 import { initMinio } from "./services/minio.service";
 
@@ -83,6 +84,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/rider", riderRoutes);
 
 // 404 handler
 app.use((_req, res) => {

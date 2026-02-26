@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Rider App",
+    "slug": "rider-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "riderapp",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "android": {
+      "package": "com.lakhanmajra.riderapp"
+    },
+    "ios": {
+      "bundleIdentifier": "com.lakhanmajra.riderapp"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow Rider App to access your location for live delivery tracking."
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}
