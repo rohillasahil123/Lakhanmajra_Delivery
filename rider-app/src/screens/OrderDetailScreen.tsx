@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {ActivityIndicator, Linking, SafeAreaView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, Linking, SafeAreaView, StyleSheet, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AppButton} from '../components/AppButton';
 import {RootStackParamList} from '../navigation/types';
@@ -97,11 +97,50 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
         <Text style={styles.label}>Order ID</Text>
         <Text style={styles.value}>{order.id}</Text>
 
+        {order.productPreview?.name ? (
+          <>
+            <Text style={styles.label}>Product</Text>
+            <Text style={styles.value}>{order.productPreview.name}</Text>
+          </>
+        ) : null}
+
+        {order.productPreview?.image ? (
+          <Image
+            source={{uri: order.productPreview.image}}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+        ) : null}
+
         <Text style={styles.label}>Status</Text>
         <Text style={styles.value}>{order.status}</Text>
 
         <Text style={styles.label}>Payment Type</Text>
         <Text style={styles.value}>{order.paymentType}</Text>
+
+        <Text style={styles.label}>Total Amount</Text>
+        <Text style={styles.value}>₹{order.amount.toFixed(2)}</Text>
+
+        <Text style={styles.label}>Payment to Collect</Text>
+        <Text style={styles.value}>
+          {order.paymentType === 'COD' ? `₹${order.amount.toFixed(2)}` : '₹0.00 (already paid online)'}
+        </Text>
+
+        <Text style={styles.label}>Order Items</Text>
+        {order.items.length > 0 ? (
+          <View style={styles.itemsList}>
+            {order.items.map((item) => (
+              <View key={`${item.productId}-${item.name}`} style={styles.itemRow}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemMeta}>
+                  {item.quantity} × ₹{item.price.toFixed(2)} = ₹{item.total.toFixed(2)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.value}>Items unavailable</Text>
+        )}
 
         <Text style={styles.label}>Customer Phone</Text>
         <Text style={styles.value}>{order.customer.phone}</Text>
@@ -164,8 +203,37 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
+  productImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: palette.border,
+    backgroundColor: palette.card,
+    marginTop: 6,
+    marginBottom: 4,
+  },
   error: {
     color: palette.danger,
+  },
+  itemsList: {
+    gap: 8,
+    marginBottom: 6,
+  },
+  itemRow: {
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: palette.border,
+  },
+  itemName: {
+    color: palette.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  itemMeta: {
+    color: palette.textSecondary,
+    fontSize: 13,
+    marginTop: 2,
   },
   spacedTop: {
     marginTop: 8,

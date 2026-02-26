@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Image, StyleSheet, Text, View} from 'react-native';
 import {RiderOrder} from '../types/rider';
 import {palette} from '../constants/theme';
 import {AppButton} from './AppButton';
@@ -26,8 +26,17 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   return (
     <View style={styles.card}>
       <Text style={styles.title}>Order #{order.id.slice(-6).toUpperCase()}</Text>
+      {order.productPreview?.image ? (
+        <Image source={{uri: order.productPreview.image}} style={styles.productImage} resizeMode="cover" />
+      ) : null}
+      {order.productPreview?.name ? (
+        <Text style={styles.subtitle}>Product: {order.productPreview.name}</Text>
+      ) : null}
       <Text style={styles.subtitle}>Status: {order.status}</Text>
       <Text style={styles.subtitle}>Payment: {order.paymentType}</Text>
+      <Text style={styles.subtitle}>
+        {order.paymentType === 'COD' ? `Collect: ₹${order.amount.toFixed(2)}` : `Paid Online: ₹${order.amount.toFixed(2)}`}
+      </Text>
       <Text style={styles.subtitle}>Customer: {order.customer.name}</Text>
       <Text style={styles.subtitle}>Phone: {order.customer.phone}</Text>
       <Text style={styles.address}>
@@ -77,6 +86,16 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: palette.textSecondary,
+  },
+  productImage: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: palette.border,
+    marginTop: 2,
+    marginBottom: 2,
+    backgroundColor: palette.card,
   },
   address: {
     fontSize: 14,

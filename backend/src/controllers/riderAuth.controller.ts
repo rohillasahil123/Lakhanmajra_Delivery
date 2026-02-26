@@ -34,9 +34,45 @@ const currentRiderStatus = (order: any): RiderFlowStatus => {
   return backendToRiderFallback(String(order?.status || 'processing'));
 };
 
+const getOrderProductPreview = (order: any): {name: string; image: string} | null => {
+  const firstItem = Array.isArray(order?.items) ? order.items[0] : null;
+  const product = firstItem?.productId && typeof firstItem.productId === 'object' ? firstItem.productId : null;
+
+  if (!product) {
+    return null;
+  }
+
+  const image = Array.isArray(product.images) && product.images.length > 0 ? String(product.images[0]) : '';
+  const name = product.name ? String(product.name) : 'Product';
+
+  if (!image && !name) {
+    return null;
+  }
+
+  return {name, image};
+};
+
 const normalizeRiderOrder = (orderDoc: any) => {
   const order = orderDoc?.toObject ? orderDoc.toObject() : orderDoc;
   const user = order?.userId && typeof order.userId === 'object' ? order.userId : null;
+  const productPreview = getOrderProductPreview(order);
+  const items = Array.isArray(order?.items)
+    ? order.items.map((item: any) => {
+        const product = item?.productId && typeof item.productId === 'object' ? item.productId : null;
+        const quantity = Number(item?.quantity || 0);
+        const price = Number(item?.price || 0);
+        const image = Array.isArray(product?.images) && product.images.length > 0 ? String(product.images[0]) : '';
+
+        return {
+          productId: String(product?._id || item?.productId || ''),
+          name: product?.name ? String(product.name) : 'Product',
+          quantity,
+          price,
+          total: quantity * price,
+          image,
+        };
+      })
+    : [];
 
   return {
     id: String(order?._id || order?.id),
@@ -44,6 +80,7 @@ const normalizeRiderOrder = (orderDoc: any) => {
     status: currentRiderStatus(order),
     paymentType: order?.paymentMethod === 'online' ? 'PREPAID' : 'COD',
     amount: Number(order?.totalAmount || 0),
+    items,
     customer: {
       name: user?.name || 'Customer',
       phone: user?.phone || '',
@@ -54,6 +91,7 @@ const normalizeRiderOrder = (orderDoc: any) => {
       state: order?.shippingAddress?.state || '',
       postalCode: order?.shippingAddress?.pincode || '',
     },
+    productPreview,
     assignedAt: new Date(order?.createdAt || Date.now()).toISOString(),
     updatedAt: new Date(order?.updatedAt || Date.now()).toISOString(),
   };
@@ -189,6 +227,7 @@ export const getRiderOrders = async (req: Request, res: Response): Promise<void>
       ],
     })
       .populate('userId', 'name phone')
+      .populate('items.productId', 'name images')
       .sort({createdAt: -1});
 
     res.status(200).json({orders: orders.map(normalizeRiderOrder)});
@@ -206,7 +245,22 @@ export const getRiderOrderById = async (req: Request, res: Response): Promise<vo
     }
 
     const {orderId} = req.params;
-    const order = await Order.findOne({_id: orderId, assignedRiderId: riderId}).populate('userId', 'name phone');
+    const order = await Order.findOne({
+      _id: orderId,
+      $or: [
+        {assignedRiderId: riderId},
+        {
+          assignedRiderId: null,
+          $or: [
+            {riderStatus: 'Assigned'},
+            {riderStatus: null, status: {$in: ['pending', 'processing', 'confirmed']}},
+          ],
+          rejectedByRiderIds: {$ne: new Types.ObjectId(riderId)},
+        },
+      ],
+    })
+      .populate('userId', 'name phone')
+      .populate('items.productId', 'name images');
 
     if (!order) {
       res.status(404).json({message: 'Order not found'});
@@ -248,7 +302,9 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
           rejectedByRiderIds: {$ne: new Types.ObjectId(riderId)},
         },
       ],
-    }).populate('userId', 'name phone');
+    })
+      .populate('userId', 'name phone')
+      .populate('items.productId', 'name images');
     if (!order) {
       res.status(404).json({message: 'Order not found'});
       return;
@@ -279,7 +335,9 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
           $set: {rejectedByRiderIds: []},
         },
         {new: true}
-      ).populate('userId', 'name phone');
+      )
+        .populate('userId', 'name phone')
+        .populate('items.productId', 'name images');
 
       if (!updated) {
         res.status(409).json({message: 'Order already accepted by another rider'});
@@ -296,7 +354,9 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
             $addToSet: {rejectedByRiderIds: new Types.ObjectId(riderId)},
           },
           {new: true}
-        ).populate('userId', 'name phone');
+        )
+          .populate('userId', 'name phone')
+          .populate('items.productId', 'name images');
       } else {
         updated = await Order.findByIdAndUpdate(
           orderId,
@@ -304,7 +364,9 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
             $addToSet: {rejectedByRiderIds: new Types.ObjectId(riderId)},
           },
           {new: true}
-        ).populate('userId', 'name phone');
+        )
+          .populate('userId', 'name phone')
+          .populate('items.productId', 'name images');
       }
     } else {
       if (String((order as any).assignedRiderId || '') !== riderId) {
@@ -319,7 +381,9 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
           status: riderToBackendStatus(status),
         },
         {new: true}
-      ).populate('userId', 'name phone');
+      )
+        .populate('userId', 'name phone')
+        .populate('items.productId', 'name images');
     }
 
     if (!updated) {

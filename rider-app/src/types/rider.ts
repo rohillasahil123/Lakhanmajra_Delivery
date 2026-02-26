@@ -23,12 +23,26 @@ export interface DeliveryAddress {
   longitude?: number;
 }
 
+export interface RiderOrderItem {
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  total: number;
+  image?: string;
+}
+
 export interface RiderOrder {
   id: string;
   riderId: string;
   status: OrderStatus;
   paymentType: PaymentType;
   amount: number;
+  items: RiderOrderItem[];
+  productPreview?: {
+    name: string;
+    image: string;
+  } | null;
   customer: Customer;
   deliveryAddress: DeliveryAddress;
   assignedAt: string;

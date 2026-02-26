@@ -118,6 +118,13 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
     () => orders.filter((order) => ONGOING_STATUSES.includes(order.status)),
     [orders]
   );
+  const completedOrOtherOrders = useMemo(
+    () =>
+      orders.filter(
+        (order) => order.status !== 'Assigned' && !ONGOING_STATUSES.includes(order.status)
+      ),
+    [orders]
+  );
 
   const handleOnlineToggle = async (value: boolean) => {
     try {
@@ -206,6 +213,22 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
             />
           );
         }}
+      />
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Completed / Other Orders</Text>
+      </View>
+      <FlatList
+        data={completedOrOtherOrders}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContainer}
+        ListEmptyComponent={<Text style={styles.emptyText}>No completed orders</Text>}
+        renderItem={({item}) => (
+          <OrderCard
+            order={item}
+            onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
+          />
+        )}
       />
 
       <View style={styles.footerActions}>
