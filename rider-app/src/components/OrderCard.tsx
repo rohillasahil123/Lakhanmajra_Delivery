@@ -11,6 +11,7 @@ interface OrderCardProps {
   onPrimaryAction?: () => void;
   onSecondaryAction?: () => void;
   onOpenDetail: () => void;
+  onOpenLocation?: () => void;
   actionLoading?: boolean;
 }
 
@@ -21,6 +22,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   onPrimaryAction,
   onSecondaryAction,
   onOpenDetail,
+  onOpenLocation,
   actionLoading,
 }) => {
   return (
@@ -45,6 +47,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
 
       <View style={styles.buttonRow}>
         <AppButton title="Details" onPress={onOpenDetail} variant="secondary" />
+        {onOpenLocation ? <AppButton title="Location" onPress={onOpenLocation} variant="secondary" /> : null}
       </View>
 
       {primaryActionLabel && onPrimaryAction ? (

@@ -6,6 +6,8 @@ export type ShippingAddress = {
   city: string;
   state: string;
   pincode: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type OrderEligibility = {

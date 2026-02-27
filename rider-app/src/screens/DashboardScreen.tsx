@@ -2,6 +2,7 @@ import React, {useCallback, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Linking,
   Modal,
   SafeAreaView,
   StyleSheet,
@@ -151,6 +152,22 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
     }
   };
 
+  const openOrderLocation = async (order: RiderOrder) => {
+    const address = `${order.deliveryAddress.line1}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.postalCode}`;
+    const hasCoords = typeof order.deliveryAddress.latitude === 'number' && typeof order.deliveryAddress.longitude === 'number';
+    const mapUrl = hasCoords
+      ? `https://www.google.com/maps/dir/?api=1&destination=${order.deliveryAddress.latitude},${order.deliveryAddress.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+
+    const canOpen = await Linking.canOpenURL(mapUrl);
+    if (!canOpen) {
+      setError('Unable to open map navigation');
+      return;
+    }
+
+    await Linking.openURL(mapUrl);
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centered}>
@@ -187,6 +204,7 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
             secondaryActionLabel="Reject"
             onPrimaryAction={() => applyTransition(item, 'Accepted')}
             onSecondaryAction={() => applyTransition(item, 'Rejected')}
+            onOpenLocation={() => openOrderLocation(item)}
             onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
             actionLoading={transitionLoadingOrderId === item.id}
           />
@@ -208,6 +226,7 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
               order={item}
               primaryActionLabel={next ?? undefined}
               onPrimaryAction={next ? () => applyTransition(item, next) : undefined}
+              onOpenLocation={() => openOrderLocation(item)}
               onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
               actionLoading={transitionLoadingOrderId === item.id}
             />
@@ -226,6 +245,7 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
         renderItem={({item}) => (
           <OrderCard
             order={item}
+            onOpenLocation={() => openOrderLocation(item)}
             onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
           />
         )}
@@ -242,6 +262,12 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
             <Text style={styles.modalTitle}>New Order Assigned</Text>
             <Text style={styles.modalText}>Order ID: {newOrderModal?.id}</Text>
             <Text style={styles.modalText}>Customer: {newOrderModal?.customer.name}</Text>
+            <Text style={styles.modalText}>
+              Address: {newOrderModal?.deliveryAddress.line1}, {newOrderModal?.deliveryAddress.city}
+            </Text>
+            {newOrderModal ? (
+              <AppButton title="Open Location" onPress={() => openOrderLocation(newOrderModal)} variant="secondary" />
+            ) : null}
             <AppButton title="Dismiss" onPress={() => setNewOrderModal(null)} />
           </View>
         </View>

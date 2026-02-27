@@ -32,7 +32,9 @@ const orderSchema = new Schema<IOrder>({
     street: { type: String, required: true },
     city: { type: String, required: true },
     state: { type: String, required: true },
-    pincode: { type: String, required: true }
+    pincode: { type: String, required: true },
+    latitude: { type: Number, required: false },
+    longitude: { type: Number, required: false }
   },
   paymentStatus: {
     type: String,

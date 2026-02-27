@@ -95,6 +95,18 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    const latitude = Number(shippingAddress.latitude);
+    const longitude = Number(shippingAddress.longitude);
+
+    const normalizedShippingAddress = {
+      street: String(shippingAddress.street),
+      city: String(shippingAddress.city),
+      state: String(shippingAddress.state),
+      pincode: String(shippingAddress.pincode),
+      ...(Number.isFinite(latitude) ? { latitude } : {}),
+      ...(Number.isFinite(longitude) ? { longitude } : {}),
+    };
+
     // Cart se items fetch karo
     const cart = await Cart.findOne({ user: userId });
     if (!cart || cart.items.length === 0) {
@@ -156,7 +168,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       totalAmount,
       deliveryFee,
       paymentMethod: normalizedPaymentMethod,
-      shippingAddress,
+      shippingAddress: normalizedShippingAddress,
       paymentStatus: advancePaid ? 'paid' : 'pending',
       riderStatus: 'Assigned',
       rejectedByRiderIds: [],

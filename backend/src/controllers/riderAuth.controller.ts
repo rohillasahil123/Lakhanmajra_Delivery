@@ -90,6 +90,8 @@ const normalizeRiderOrder = (orderDoc: any) => {
       city: order?.shippingAddress?.city || '',
       state: order?.shippingAddress?.state || '',
       postalCode: order?.shippingAddress?.pincode || '',
+      latitude: typeof order?.shippingAddress?.latitude === 'number' ? order.shippingAddress.latitude : undefined,
+      longitude: typeof order?.shippingAddress?.longitude === 'number' ? order.shippingAddress.longitude : undefined,
     },
     productPreview,
     assignedAt: new Date(order?.createdAt || Date.now()).toISOString(),

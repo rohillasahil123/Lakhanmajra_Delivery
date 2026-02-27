@@ -129,6 +129,8 @@ export default function CheckoutScreen() {
           city: 'Rohtak',
           state: 'Haryana',
           pincode: pinMatch?.[0] || '124001',
+          ...(Number.isFinite(selectedLocation.latitude) ? { latitude: selectedLocation.latitude } : {}),
+          ...(Number.isFinite(selectedLocation.longitude) ? { longitude: selectedLocation.longitude } : {}),
         },
         paymentMethod: effectivePaymentMethod,
         advancePaid: eligibility?.requiresAdvancePayment ? payAdvance : false,
