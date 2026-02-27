@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import api from '../api/client';
 import { getPermissions } from '../auth';
 
@@ -52,6 +53,24 @@ export default function Orders() {
 
   const hasPerm = (p: string) => permissions.includes(p);
 
+  const upsertOrderRow = (incoming: Order) => {
+    setItems((prev) => {
+      const index = prev.findIndex((row) => row._id === incoming._id);
+      if (index === -1) {
+        return [incoming, ...prev];
+      }
+
+      const next = [...prev];
+      next[index] = { ...next[index], ...incoming };
+      return next;
+    });
+
+    setDetail((prev) => {
+      if (!prev || prev._id !== incoming._id) return prev;
+      return { ...prev, ...incoming };
+    });
+  };
+
   const load = async (pageNum = 1) => {
     try {
       const query = new URLSearchParams();
@@ -100,6 +119,32 @@ export default function Orders() {
         console.error(err);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
+    const socketBase = apiBase.replace(/\/api\/?$/, '');
+
+    const socket = io(socketBase, {
+      transports: ['websocket'],
+      auth: { token },
+    });
+
+    const handleOrderUpdate = (payload: { order?: Order }) => {
+      const incoming = payload?.order;
+      if (!incoming || !incoming._id) return;
+      upsertOrderRow(incoming);
+    };
+
+    socket.on('admin:orderUpdated', handleOrderUpdate);
+
+    return () => {
+      socket.off('admin:orderUpdated', handleOrderUpdate);
+      socket.disconnect();
+    };
   }, []);
 
   useEffect(() => {

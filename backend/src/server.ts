@@ -2,8 +2,10 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import app from "./app";
+import { createServer } from "http";
 import net from "net";
 import { exec } from "child_process";
+import { initRealtime } from "./services/realtime.service";
 
 const PORT = Number(process.env.PORT || 5000);
 
@@ -30,7 +32,10 @@ async function isPortFree(port: number): Promise<boolean> {
     process.exit(1);
   }
 
-  app.listen(PORT, () => {
+  const server = createServer(app);
+  initRealtime(server);
+
+  server.listen(PORT, () => {
     console.log(`🚀 Server started on http://localhost:${PORT}`);
   }).on("error", (e: any) => {
     if (e.code === "EADDRINUSE") {

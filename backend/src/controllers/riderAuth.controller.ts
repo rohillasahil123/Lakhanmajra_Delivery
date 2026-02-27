@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import {Types} from 'mongoose';
 import User from '../models/user.model';
 import Order from '../models/order.model';
+import { emitOrderRealtime } from '../services/realtime.service';
 
 type RiderFlowStatus = 'Assigned' | 'Accepted' | 'Picked' | 'OutForDelivery' | 'Delivered' | 'Rejected';
 
@@ -394,6 +395,7 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
     }
 
     res.status(200).json({order: normalizeRiderOrder(updated)});
+    void emitOrderRealtime(String(updated._id), { event: 'updated' });
   } catch (error) {
     res.status(500).json({message: 'Unable to update rider order status'});
   }

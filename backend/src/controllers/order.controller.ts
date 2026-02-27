@@ -8,6 +8,7 @@ import { getChannel } from '../config/rabbitmq';
 import { OrderQueueMessage } from '../types';
 import User from '../models/user.model';
 import { recordAudit } from '../services/audit.service';
+import { emitOrderRealtime } from '../services/realtime.service';
 
 const CANCELLATION_THRESHOLD = 3;
 const ADVANCE_CHARGE = 20;
@@ -223,6 +224,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       message: 'Order placed successfully', 
       order 
     });
+
+    void emitOrderRealtime(String(order._id), { event: 'created' });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -391,6 +394,7 @@ export const assignOrderToRider = async (req: Request, res: Response): Promise<v
     }).catch(() => {}); // non‑blocking
 
     res.json({ message: 'Rider assigned', order });
+    void emitOrderRealtime(String(order._id), { event: 'assigned' });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -431,6 +435,7 @@ export const adminUpdateOrderStatus = async (req: Request, res: Response): Promi
     }).catch(() => {}); // non‑blocking
 
     res.json({ message: 'Status updated', order });
+    void emitOrderRealtime(String(order._id), { event: 'status' });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
@@ -468,6 +473,7 @@ export const cancelMyOrder = async (req: Request, res: Response): Promise<void> 
     await order.save();
 
     res.status(200).json({ message: 'Order cancelled and stock restored', order });
+    void emitOrderRealtime(String(order._id), { event: 'cancelled' });
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
