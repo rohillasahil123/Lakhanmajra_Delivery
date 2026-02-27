@@ -61,6 +61,12 @@ export interface IOrder extends Document {
   rejectedByRiderIds?: IUser['_id'][];
   paymentMethod: 'cod' | 'online';
   assignedRiderId?: IUser['_id'] | null;
+  riderLocation?: {
+    latitude?: number;
+    longitude?: number;
+    accuracy?: number;
+    timestamp?: Date;
+  };
   etaMinutes?: number | null;
   shippingAddress: IShippingAddress;
   paymentStatus: 'pending' | 'paid' | 'failed';

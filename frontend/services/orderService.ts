@@ -37,6 +37,12 @@ export type OrderRow = {
     name?: string;
     phone?: string;
   } | null;
+  riderLocation?: {
+    latitude?: number;
+    longitude?: number;
+    accuracy?: number;
+    timestamp?: string;
+  } | null;
 };
 
 async function authHeaders(): Promise<Record<string, string>> {

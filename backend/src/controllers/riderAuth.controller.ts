@@ -440,3 +440,70 @@ export const updateRiderOnlineStatus = async (req: Request, res: Response): Prom
     res.status(500).json({message: 'Unable to update rider online status'});
   }
 };
+
+export const updateRiderLocation = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({ message: 'Unauthorized' });
+      return;
+    }
+
+    const { latitude, longitude, accuracy, timestamp } = req.body as {
+      latitude?: number;
+      longitude?: number;
+      accuracy?: number;
+      timestamp?: string;
+    };
+
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    const acc = Number(accuracy ?? 0);
+    const ts = timestamp ? new Date(timestamp) : new Date();
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      res.status(400).json({ message: 'Valid latitude and longitude are required' });
+      return;
+    }
+
+    await User.findByIdAndUpdate(riderId, {
+      latitude: lat,
+      longitude: lng,
+      isOnline: true,
+    });
+
+    const activeOrders = await Order.find({
+      assignedRiderId: riderId,
+      status: { $in: ['processing', 'confirmed', 'shipped'] },
+    }).select('_id');
+
+    if (activeOrders.length > 0) {
+      await Order.updateMany(
+        {
+          _id: { $in: activeOrders.map((order) => order._id) },
+        },
+        {
+          $set: {
+            riderLocation: {
+              latitude: lat,
+              longitude: lng,
+              accuracy: Number.isFinite(acc) ? acc : 0,
+              timestamp: Number.isNaN(ts.getTime()) ? new Date() : ts,
+            },
+          },
+        }
+      );
+
+      for (const order of activeOrders) {
+        void emitOrderRealtime(String(order._id), { event: 'updated' });
+      }
+    }
+
+    res.status(200).json({
+      message: 'Location updated',
+      updatedOrders: activeOrders.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Unable to update rider location' });
+  }
+};

@@ -27,6 +27,12 @@ const orderSchema = new Schema<IOrder>({
   },
   rejectedByRiderIds: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   assignedRiderId: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  riderLocation: {
+    latitude: { type: Number, required: false },
+    longitude: { type: Number, required: false },
+    accuracy: { type: Number, required: false },
+    timestamp: { type: Date, required: false },
+  },
   etaMinutes: { type: Number, default: null },
   shippingAddress: {
     street: { type: String, required: true },

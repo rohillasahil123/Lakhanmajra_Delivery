@@ -155,6 +155,10 @@ export const initRealtime = (server: HttpServer): Server => {
       socket.join(`rider:${userId}`);
     }
 
+    if (role === "user" && userId) {
+      socket.join(`user:${userId}`);
+    }
+
     socket.emit("socket:ready", { socketId: socket.id, role, userId });
   });
 
@@ -187,6 +191,19 @@ export const emitOrderRealtime = async (
 
   const riderPayload = mapToRiderOrder(fullOrder);
   const assignedRiderId = riderPayload?.riderId;
+  const customerId = plainOrder?.userId?._id
+    ? String(plainOrder.userId._id)
+    : plainOrder?.userId
+    ? String(plainOrder.userId)
+    : "";
+
+  if (customerId) {
+    socket.to(`user:${customerId}`).emit("user:orderUpdated", {
+      event: eventType,
+      order: plainOrder,
+      socketEventId: `${Date.now()}_${orderId}`,
+    });
+  }
 
   if (assignedRiderId) {
     const riderEvent = eventType === "assigned" ? "rider:orderAssigned" : "rider:orderUpdated";

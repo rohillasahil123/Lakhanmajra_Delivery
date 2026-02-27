@@ -20,6 +20,20 @@ type Order = {
   status: string;
   userId?: { _id?: string; name?: string; email?: string; phone?: string };
   assignedRiderId?: { _id?: string; name?: string };
+  shippingAddress?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  riderLocation?: {
+    latitude?: number;
+    longitude?: number;
+    accuracy?: number;
+    timestamp?: string;
+  };
   items?: OrderItem[];
   createdAt?: string;
 };
@@ -45,6 +59,8 @@ export default function Orders() {
   const [showDetail, setShowDetail] = useState(false);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [mapRefreshTick, setMapRefreshTick] = useState(0);
+  const [mapRefreshCountdown, setMapRefreshCountdown] = useState(10);
 
   const [editStatus, setEditStatus] = useState('');
   const [editRider, setEditRider] = useState('');
@@ -52,6 +68,67 @@ export default function Orders() {
   const [updating, setUpdating] = useState(false);
 
   const hasPerm = (p: string) => permissions.includes(p);
+
+  const hasValidCoords = (latitude?: number, longitude?: number): boolean => {
+    return Number.isFinite(latitude) && Number.isFinite(longitude);
+  };
+
+  const toRadians = (value: number): number => (value * Math.PI) / 180;
+
+  const getDistanceKm = (
+    fromLat: number,
+    fromLng: number,
+    toLat: number,
+    toLng: number
+  ): number => {
+    const earthRadiusKm = 6371;
+    const deltaLat = toRadians(toLat - fromLat);
+    const deltaLng = toRadians(toLng - fromLng);
+    const a =
+      Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+      Math.cos(toRadians(fromLat)) *
+        Math.cos(toRadians(toLat)) *
+        Math.sin(deltaLng / 2) *
+        Math.sin(deltaLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  };
+
+  const buildOsmEmbedUrl = (latitude: number, longitude: number, refreshTick: number): string => {
+    const delta = 0.01;
+    const left = longitude - delta;
+    const right = longitude + delta;
+    const top = latitude + delta;
+    const bottom = latitude - delta;
+    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${latitude}%2C${longitude}&refresh=${refreshTick}`;
+  };
+
+  useEffect(() => {
+    if (!showDetail) return;
+
+    const riderLat = detail?.riderLocation?.latitude;
+    const riderLng = detail?.riderLocation?.longitude;
+    const hasRiderCoords = hasValidCoords(riderLat, riderLng);
+    if (!hasRiderCoords) return;
+
+    setMapRefreshCountdown(10);
+
+    const countdownTimer = setInterval(() => {
+      setMapRefreshCountdown((prev) => {
+        if (prev <= 1) return 10;
+        return prev - 1;
+      });
+    }, 1000);
+
+    const refreshTimer = setInterval(() => {
+      setMapRefreshTick((prev) => prev + 1);
+    }, 10000);
+
+    return () => {
+      clearInterval(countdownTimer);
+      clearInterval(refreshTimer);
+    };
+  }, [showDetail, detail?.riderLocation?.latitude, detail?.riderLocation?.longitude]);
 
   const upsertOrderRow = (incoming: Order) => {
     setItems((prev) => {
@@ -535,6 +612,74 @@ export default function Orders() {
                       </button>
                     </div>
                     {detail.assignedRiderId && <div className="text-xs text-slate-600 mt-2">Current: {detail.assignedRiderId.name}</div>}
+
+                    {typeof detail.riderLocation?.latitude === 'number' && typeof detail.riderLocation?.longitude === 'number' ? (
+                      <div className="text-xs text-slate-700 mt-2 space-y-1">
+                        <div>
+                          Rider Location: {Number(detail.riderLocation.latitude).toFixed(5)}, {Number(detail.riderLocation.longitude).toFixed(5)}
+                        </div>
+                        <div>
+                          Updated At:{' '}
+                          {detail.riderLocation.timestamp
+                            ? new Date(detail.riderLocation.timestamp).toLocaleString()
+                            : 'just now'}
+                        </div>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${detail.riderLocation.latitude},${detail.riderLocation.longitude}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-indigo-600 underline"
+                        >
+                          Open Live Location in Maps
+                        </a>
+
+                        {hasValidCoords(detail.riderLocation?.latitude, detail.riderLocation?.longitude) && (
+                          <div className="mt-3 rounded border border-slate-200 overflow-hidden bg-white">
+                            <div className="px-3 py-2 border-b bg-slate-50 flex items-center justify-between text-xs">
+                              <span className="font-medium text-green-700">● Live map auto-refresh</span>
+                              <span className="text-slate-600">Refreshing in {mapRefreshCountdown}s</span>
+                            </div>
+                            <iframe
+                              title="Rider Live Map"
+                              src={buildOsmEmbedUrl(
+                                Number(detail.riderLocation.latitude),
+                                Number(detail.riderLocation.longitude),
+                                mapRefreshTick
+                              )}
+                              className="w-full h-56"
+                              loading="lazy"
+                            />
+                          </div>
+                        )}
+
+                        {hasValidCoords(detail.riderLocation?.latitude, detail.riderLocation?.longitude) &&
+                        hasValidCoords(detail.shippingAddress?.latitude, detail.shippingAddress?.longitude) ? (
+                          <>
+                            <div className="text-xs text-slate-700">
+                              Rider → Customer Distance:{' '}
+                              <strong>
+                                {getDistanceKm(
+                                  Number(detail.riderLocation.latitude),
+                                  Number(detail.riderLocation.longitude),
+                                  Number(detail.shippingAddress.latitude),
+                                  Number(detail.shippingAddress.longitude)
+                                ).toFixed(2)} km
+                              </strong>
+                            </div>
+                            <a
+                              href={`https://www.google.com/maps/dir/?api=1&origin=${detail.riderLocation?.latitude},${detail.riderLocation?.longitude}&destination=${detail.shippingAddress?.latitude},${detail.shippingAddress?.longitude}&travelmode=driving`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-indigo-600 underline"
+                            >
+                              Open Rider → Customer Route
+                            </a>
+                          </>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500 mt-2">Live rider location not available yet.</div>
+                    )}
                   </div>
                 )}
 

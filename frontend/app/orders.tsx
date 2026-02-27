@@ -3,6 +3,9 @@ import { resolveImageUrl } from '@/config/api';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { io } from 'socket.io-client';
+import { API_BASE_URL } from '@/config/api';
+import { tokenManager } from '@/utils/tokenManager';
 import { cancelMyOrderApi, getMyOrdersApi, OrderRow } from '@/services/orderService';
 
 const getStatusTone = (status: string) => {
@@ -13,6 +16,25 @@ const getStatusTone = (status: string) => {
     return { bg: '#DBEAFE', text: '#1E40AF' };
   }
   return { bg: '#FEF3C7', text: '#92400E' };
+};
+
+const ORDER_TRACK_STAGES = ['pending', 'processing', 'confirmed', 'shipped', 'delivered'] as const;
+
+const getStageIndex = (status: string): number => {
+  const normalized = String(status || '').toLowerCase();
+  const index = ORDER_TRACK_STAGES.indexOf(normalized as (typeof ORDER_TRACK_STAGES)[number]);
+  return index >= 0 ? index : 0;
+};
+
+const prettyStatus = (value: string): string => {
+  const normalized = String(value || '').toLowerCase();
+  if (normalized === 'pending') return 'Order Placed';
+  if (normalized === 'processing') return 'Processing';
+  if (normalized === 'confirmed') return 'Confirmed';
+  if (normalized === 'shipped') return 'Out For Delivery';
+  if (normalized === 'delivered') return 'Delivered';
+  if (normalized === 'cancelled') return 'Cancelled';
+  return value || 'Pending';
 };
 
 export default function OrdersScreen() {
@@ -75,6 +97,46 @@ export default function OrdersScreen() {
         setLoading(false);
       }
     })();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    let socket: ReturnType<typeof io> | null = null;
+
+    (async () => {
+      const token = await tokenManager.getToken();
+      if (!token || !mounted) return;
+
+      const socketBase = API_BASE_URL.replace(/\/api\/?$/, '');
+      socket = io(socketBase, {
+        transports: ['websocket'],
+        auth: { token },
+      });
+
+      socket.on('user:orderUpdated', (payload: { order?: OrderRow }) => {
+        const incoming = payload?.order;
+        if (!incoming?._id) return;
+
+        setOrders((prev) => {
+          const index = prev.findIndex((row) => row._id === incoming._id);
+          if (index === -1) {
+            return [incoming, ...prev];
+          }
+
+          const next = [...prev];
+          next[index] = { ...next[index], ...incoming };
+          return next;
+        });
+      });
+    })();
+
+    return () => {
+      mounted = false;
+      if (socket) {
+        socket.off('user:orderUpdated');
+        socket.disconnect();
+      }
+    };
   }, []);
 
   if (loading) {
@@ -185,6 +247,25 @@ export default function OrdersScreen() {
                 <ThemedText style={styles.amountValue}>₹{order.totalAmount}</ThemedText>
               </View>
 
+              {normalizeStatus(order.status) !== 'cancelled' ? (
+                <View style={styles.trackingBlock}>
+                  <ThemedText style={styles.trackingTitle}>Tracking Progress</ThemedText>
+                  <View style={styles.trackingRow}>
+                    {ORDER_TRACK_STAGES.map((stage, index) => {
+                      const active = index <= getStageIndex(order.status);
+                      return (
+                        <View key={`${order._id}-${stage}`} style={styles.trackingStepWrap}>
+                          <View style={[styles.trackingDot, active && styles.trackingDotActive]} />
+                          <ThemedText style={[styles.trackingLabel, active && styles.trackingLabelActive]}>
+                            {prettyStatus(stage)}
+                          </ThemedText>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+
               <View style={styles.paymentMetaRow}>
                 <ThemedText style={styles.paymentMetaText}>
                   Payment: {String(order.paymentMethod || 'cod').toUpperCase()}
@@ -203,6 +284,17 @@ export default function OrdersScreen() {
                   ) : (
                     <ThemedText style={styles.riderMeta}>Rider abhi assign nahi hua.</ThemedText>
                   )}
+
+                  {typeof order.riderLocation?.latitude === 'number' && typeof order.riderLocation?.longitude === 'number' ? (
+                    <>
+                      <ThemedText style={styles.riderMeta}>
+                        Live Location: {Number(order.riderLocation.latitude).toFixed(5)}, {Number(order.riderLocation.longitude).toFixed(5)}
+                      </ThemedText>
+                      <ThemedText style={styles.riderMeta}>
+                        Updated: {order.riderLocation.timestamp ? new Date(order.riderLocation.timestamp).toLocaleTimeString() : 'just now'}
+                      </ThemedText>
+                    </>
+                  ) : null}
                 </View>
               ) : null}
 
@@ -317,6 +409,49 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   orderTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  trackingBlock: {
+    marginTop: 10,
+    marginBottom: 4,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 10,
+  },
+  trackingTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1E293B',
+    marginBottom: 8,
+  },
+  trackingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  trackingStepWrap: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  trackingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#CBD5E1',
+    marginBottom: 4,
+  },
+  trackingDotActive: {
+    backgroundColor: '#0E7A3D',
+  },
+  trackingLabel: {
+    fontSize: 10,
+    textAlign: 'center',
+    color: '#64748B',
+  },
+  trackingLabelActive: {
+    color: '#0F172A',
+    fontWeight: '600',
+  },
   statusBadge: {
     borderRadius: 999,
     paddingHorizontal: 10,
