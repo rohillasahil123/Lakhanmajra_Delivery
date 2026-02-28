@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { getPermissions } from '../auth';
@@ -23,12 +23,15 @@ type KPI = {
   hint?: string;
 };
 
+const AUTO_REFRESH_MS = 15000;
+
 export default function Dashboard() {
   const nav = useNavigate();
   const [metrics, setMetrics] = useState<any>(null);
   const [rangeDays, setRangeDays] = useState<number>(30); // default 30d per your choice
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
 
   const hasPerm = (p: string) => permissions.includes(p);
 
@@ -36,23 +39,30 @@ export default function Dashboard() {
     (async () => setPermissions(await getPermissions()))();
   }, []);
 
-  useEffect(() => {
-    if (hasPerm('reports:view')) {
-      fetchMetrics();
-    }
-  }, [rangeDays, permissions]);
-
-  const fetchMetrics = async () => {
-    setLoading(true);
+  const fetchMetrics = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
     try {
       const res = await api.get(`/admin/metrics?range=${rangeDays}`);
       setMetrics(res.data?.data ?? res.data);
+      setLastUpdatedAt(new Date());
     } catch (err) {
       console.error('Metrics fetch failed', err);
     } finally {
-      setLoading(false);
+      if (showLoader) setLoading(false);
     }
-  };
+  }, [rangeDays]);
+
+  useEffect(() => {
+    if (!hasPerm('reports:view')) return;
+
+    fetchMetrics(true);
+
+    const intervalId = setInterval(() => {
+      fetchMetrics(false);
+    }, AUTO_REFRESH_MS);
+
+    return () => clearInterval(intervalId);
+  }, [permissions, rangeDays, fetchMetrics]);
 
   const formatCurrency = (v: number) => {
     return Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
@@ -112,16 +122,21 @@ export default function Dashboard() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-semibold">Dashboard</h2>
-        <div className="flex gap-2">
-          {[7, 30, 90].map((d) => (
-            <button
-              key={d}
-              onClick={() => setRangeDays(d)}
-              className={`px-3 py-1 rounded ${rangeDays === d ? 'bg-indigo-600 text-white' : 'bg-white border'}`}
-            >
-              {d}d
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">
+            Auto-refresh: 15s{lastUpdatedAt ? ` • Updated ${lastUpdatedAt.toLocaleTimeString()}` : ''}
+          </span>
+          <div className="flex gap-2">
+            {[7, 30, 90].map((d) => (
+              <button
+                key={d}
+                onClick={() => setRangeDays(d)}
+                className={`px-3 py-1 rounded ${rangeDays === d ? 'bg-indigo-600 text-white' : 'bg-white border'}`}
+              >
+                {d}d
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

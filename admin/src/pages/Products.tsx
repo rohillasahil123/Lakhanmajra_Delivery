@@ -11,6 +11,8 @@ type Product = {
   unitType?: string;
   images?: string[];
   isActive?: boolean;
+  categoryId?: string | { _id?: string; name?: string } | null;
+  subcategoryId?: string | { _id?: string; name?: string } | null;
 };
 
 type Category = {
@@ -29,6 +31,8 @@ const UNIT_VARIANTS: Record<string, string[]> = {
   pack: ['1 pack', '2 pack', '5 pack', '10 pack'],
 };
 
+const AUTO_REFRESH_MS = 10000;
+
 export default function Products() {
   const [items, setItems] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -45,7 +49,11 @@ export default function Products() {
   const [editPrice, setEditPrice] = useState('');
   const [editMrp, setEditMrp] = useState('');
   const [editStock, setEditStock] = useState('');
+  const [editCatId, setEditCatId] = useState('');
+  const [editSubcategoryId, setEditSubcategoryId] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Create form fields
   const [name, setName] = useState('');
@@ -72,6 +80,7 @@ export default function Products() {
       const query = new URLSearchParams();
       query.set('page', String(pageNum));
       query.set('limit', String(limit));
+      query.set('_ts', String(Date.now()));
       if (search.trim()) query.set('q', search.trim());
       if (stockFilter === 'out') query.set('stockStatus', 'out');
 
@@ -80,15 +89,36 @@ export default function Products() {
       setItems(Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []);
       setTotal(data?.total ?? 0);
       setPage(pageNum);
+      setLastRefreshedAt(new Date());
     } catch (err) {
       console.error(err);
       setItems([]);
     }
   };
 
+  const handleManualRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await load(page);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
     load(1);
   }, [stockFilter]);
+
+  useEffect(() => {
+    const isBusy = !!editingId || creating || importing || updating;
+    if (isBusy) return;
+
+    const intervalId = setInterval(() => {
+      load(page);
+    }, AUTO_REFRESH_MS);
+
+    return () => clearInterval(intervalId);
+  }, [page, search, stockFilter, editingId, creating, importing, updating]);
 
   useEffect(() => {
     (async () => {
@@ -118,6 +148,35 @@ export default function Products() {
   const getSortIndicator = (key: Exclude<SortKey, null>) => {
     if (sortKey !== key) return '↕';
     return sortOrder === 'asc' ? '↑' : '↓';
+  };
+
+  const getRefId = (ref: string | { _id?: string; name?: string } | null | undefined): string => {
+    if (!ref) return '';
+    if (typeof ref === 'string') return ref;
+    return ref._id || '';
+  };
+
+  const getRefName = (ref: string | { _id?: string; name?: string } | null | undefined): string => {
+    if (!ref) return '';
+    if (typeof ref === 'object' && ref.name) return ref.name;
+    return '';
+  };
+
+  const getCategoryNameById = (id: string): string => {
+    if (!id) return '—';
+    return categories.find((category) => category._id === id)?.name || '—';
+  };
+
+  const getCategoryLabel = (product: Product): string => {
+    const directName = getRefName(product.categoryId);
+    if (directName) return directName;
+    return getCategoryNameById(getRefId(product.categoryId));
+  };
+
+  const getSubCategoryLabel = (product: Product): string => {
+    const directName = getRefName(product.subcategoryId);
+    if (directName) return directName;
+    return getCategoryNameById(getRefId(product.subcategoryId));
   };
 
   const sortedItems = [...items].sort((a, b) => {
@@ -179,6 +238,7 @@ export default function Products() {
 
   const parentCategories = categories.filter((category) => !getParentCategoryId(category));
   const subCategories = categories.filter((category) => getParentCategoryId(category) === catId);
+  const editSubCategories = categories.filter((category) => getParentCategoryId(category) === editCatId);
 
   const startEdit = (product: Product) => {
     setEditingId(product._id);
@@ -186,6 +246,10 @@ export default function Products() {
     setEditPrice(String(product.price ?? ''));
     setEditMrp(String((product as any).mrp ?? ''));
     setEditStock(String(product.stock ?? ''));
+    const categoryRefId = getRefId(product.categoryId);
+    const subcategoryRefId = getRefId(product.subcategoryId);
+    setEditCatId(categoryRefId);
+    setEditSubcategoryId(subcategoryRefId);
   };
 
   const cancelEdit = () => {
@@ -194,6 +258,8 @@ export default function Products() {
     setEditPrice('');
     setEditMrp('');
     setEditStock('');
+    setEditCatId('');
+    setEditSubcategoryId('');
   };
 
   const saveEdit = async () => {
@@ -210,6 +276,8 @@ export default function Products() {
 
       if (editMrp.trim() !== '') payload.mrp = Number(editMrp);
       if (editStock.trim() !== '') payload.stock = Number(editStock);
+      if (editCatId) payload.categoryId = editCatId;
+      payload.subcategoryId = editSubcategoryId;
 
       await api.patch(`/products/${editingId}`, payload);
       cancelEdit();
@@ -314,7 +382,22 @@ export default function Products() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-semibold">Products</h2>
-        <span className="text-sm text-slate-500">Total: {total}</span>
+        <div className="flex items-center gap-3">
+          <button
+            className="px-3 py-1.5 border rounded text-sm bg-white hover:bg-slate-50"
+            onClick={handleManualRefresh}
+            title="Refresh products"
+            disabled={refreshing}
+          >
+            {refreshing ? 'Refreshing...' : '↻ Refresh'}
+          </button>
+          <div className="text-right">
+          <div className="text-sm text-slate-500">Total: {total}</div>
+          <div className="text-xs text-slate-400">
+            Auto-refresh: 10s{lastRefreshedAt ? ` • Updated ${lastRefreshedAt.toLocaleTimeString()}` : ''}
+          </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Create Product Form ─────────────────────────────────────────────── */}
@@ -530,6 +613,8 @@ export default function Products() {
                 </button>
               </th>
               <th className="p-3">MRP</th>
+              <th className="p-3">Category</th>
+              <th className="p-3">Sub-category</th>
               <th className="p-3">Variant</th>
               <th className="p-3">
                 <button className="inline-flex items-center gap-1" onClick={() => toggleSort('stock')}>
@@ -542,7 +627,7 @@ export default function Products() {
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-slate-400">
+                <td colSpan={9} className="p-6 text-center text-slate-400">
                   No products found
                 </td>
               </tr>
@@ -615,6 +700,42 @@ export default function Products() {
                       />
                     ) : (
                       (p as any).mrp ? `₹${(p as any).mrp}` : '—'
+                    )}
+                  </td>
+                  <td className="p-3 text-slate-600">
+                    {editingId === p._id ? (
+                      <select
+                        className="border px-2 py-1 rounded min-w-[170px]"
+                        value={editCatId}
+                        onChange={(e) => {
+                          setEditCatId(e.target.value);
+                          setEditSubcategoryId('');
+                        }}
+                      >
+                        <option value="">Select category</option>
+                        {parentCategories.map((category) => (
+                          <option key={category._id} value={category._id}>{category.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      getCategoryLabel(p)
+                    )}
+                  </td>
+                  <td className="p-3 text-slate-600">
+                    {editingId === p._id ? (
+                      <select
+                        className="border px-2 py-1 rounded min-w-[170px]"
+                        value={editSubcategoryId}
+                        onChange={(e) => setEditSubcategoryId(e.target.value)}
+                        disabled={!editCatId || editSubCategories.length === 0}
+                      >
+                        <option value="">No sub-category</option>
+                        {editSubCategories.map((subCategory) => (
+                          <option key={subCategory._id} value={subCategory._id}>{subCategory.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      getSubCategoryLabel(p)
                     )}
                   </td>
                   <td className="p-3 text-slate-600">

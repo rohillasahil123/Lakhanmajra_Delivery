@@ -48,6 +48,12 @@ const getCategoryColor = (categoryName: string) => {
   return CATEGORY_COLORS[slug] || '#F3F4F6';
 };
 
+const getParentCategoryId = (category: any): string => {
+  if (!category?.parentCategory) return '';
+  if (typeof category.parentCategory === 'string') return category.parentCategory;
+  return category.parentCategory?._id || '';
+};
+
 // Color Scheme
 const COLORS = {
   primary: '#F8C200',
@@ -120,7 +126,8 @@ export default function HomeScreen() {
           fetchOffers(),
         ]);
         if (!mounted) return;
-        setCategories(cats || []);
+        const mainCategories = (cats || []).filter((category: any) => !getParentCategoryId(category));
+        setCategories(mainCategories);
         setProducts(prods || []);
         // Attach local images as fallbacks for offers. Prefer remote offers if available.
         const localImgs = [shamImg, msaleImg, teaImg, oneImg];
@@ -135,8 +142,8 @@ export default function HomeScreen() {
         }
         setOffers(finalOffers);
         // Set first category as selected
-        if (cats && cats.length > 0) {
-          setSelectedCategory(cats[0]._id);
+        if (mainCategories.length > 0) {
+          setSelectedCategory(mainCategories[0]._id);
         }
       } finally {
         if (mounted) setLoading(false);

@@ -98,6 +98,8 @@ export default function CheckoutScreen() {
     })();
   }, []);
 
+  
+
   useEffect(() => {
     if (eligibility?.requiresAdvancePayment) {
       setPaymentMethod('online');

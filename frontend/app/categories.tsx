@@ -19,6 +19,14 @@ export default function CategoriesScreen() {
 
   const [categories, setCategories] = useState<any[]>([]);
 
+  const getParentCategoryId = (category: any): string => {
+    if (!category?.parentCategory) return '';
+    if (typeof category.parentCategory === 'string') return category.parentCategory;
+    return category.parentCategory?._id || '';
+  };
+
+  const mainCategories = categories.filter((category) => !getParentCategoryId(category));
+
   useEffect(() => {
     let mounted = true;
     async function load() {
@@ -35,14 +43,19 @@ export default function CategoriesScreen() {
     return () => { mounted = false; };
   }, []);
 
-  const handleCategoryPress = (category: any) => {
+  const openProductsByCategory = (categoryId: string, categoryName: string) => {
     router.push({
       pathname: '/products',
       params: {
-        categoryId: category.id,
-        categoryName: category.name,
+        categoryId,
+        categoryName,
       },
     });
+  };
+
+  const handleCategoryPress = (category: any) => {
+    const categoryId = category._id || category.id;
+    openProductsByCategory(categoryId, category.name);
   };
 
   return (
@@ -61,40 +74,42 @@ export default function CategoriesScreen() {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Categories Grid */}
         <View style={styles.categoriesGrid}>
-          {categories.map((category: any) => (
+          {mainCategories.map((category: any) => (
             (() => {
               const imageUrl = resolveImageUrl(category.image);
+              const categoryId = category._id || category.id;
 
               return (
-            <TouchableOpacity
-              key={category._id || category.id}
-              style={styles.categoryCard}
-              onPress={() => handleCategoryPress({ id: category._id || category.id, name: category.name })}
-            >
-              <View
-                style={[
-                  styles.categoryIconContainer,
-                  { backgroundColor: (category.color || '#F3F4F6') + '20' },
-                ]}
+            <View key={categoryId}>
+              <TouchableOpacity
+                style={styles.categoryCard}
+                onPress={() => handleCategoryPress(category)}
               >
-                {imageUrl ? (
-                  <Image
-                    source={{ uri: imageUrl }}
-                    style={styles.categoryImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <ThemedText style={styles.categoryIcon}>{category.icon || category.emoji || '📦'}</ThemedText>
-                )}
-              </View>
-              <View style={styles.categoryInfo}>
-                <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
-                <ThemedText style={styles.categoryCount}>
-                  {category.itemCount || ''}
-                </ThemedText>
-              </View>
-              <ThemedText style={styles.arrowIcon}>→</ThemedText>
-            </TouchableOpacity>
+                <View
+                  style={[
+                    styles.categoryIconContainer,
+                    { backgroundColor: (category.color || '#F3F4F6') + '20' },
+                  ]}
+                >
+                  {imageUrl ? (
+                    <Image
+                      source={{ uri: imageUrl }}
+                      style={styles.categoryImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <ThemedText style={styles.categoryIcon}>{category.icon || category.emoji || '📦'}</ThemedText>
+                  )}
+                </View>
+                <View style={styles.categoryInfo}>
+                  <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
+                  <ThemedText style={styles.categoryCount}>
+                    {category.itemCount || ''}
+                  </ThemedText>
+                </View>
+                <ThemedText style={styles.arrowIcon}>→</ThemedText>
+              </TouchableOpacity>
+            </View>
               );
             })()
           ))}
@@ -194,28 +209,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 8,
-  },
-  subcategoriesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    alignItems: 'center',
-  },
-  subcategoryTag: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  subcategoryText: {
-    fontSize: 11,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  moreText: {
-    fontSize: 11,
-    color: '#6B7280',
-    fontStyle: 'italic',
   },
   arrowIcon: {
     fontSize: 20,

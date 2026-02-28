@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { Request } from 'express';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 import Order from '../models/order.model';
 import Cart from '../models/Cart.model';
 import { Product } from '../models/product.model';
@@ -62,6 +62,7 @@ export const getOrderEligibility = async (req: Request, res: Response): Promise<
 };
 
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
+  let session: mongoose.ClientSession | null = null;
   try {
     const userId = String(req.user?.id || req.user?._id || '');
     if (!userId) {
@@ -108,9 +109,15 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       ...(Number.isFinite(longitude) ? { longitude } : {}),
     };
 
-    // Cart se items fetch karo
-    const cart = await Cart.findOne({ user: userId });
+    session = await mongoose.startSession();
+    session.startTransaction();
+
+    // Cart se items fetch karo (only active cart)
+    const cart = await Cart.findOne({ user: userId, status: 'active' }).session(session);
     if (!cart || cart.items.length === 0) {
+      await session.abortTransaction();
+      session.endSession();
+      session = null;
       res.status(400).json({ message: 'Cart is empty' });
       return;
     }
@@ -126,7 +133,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         continue;
       }
 
-      const product = await Product.findById(productId);
+      const product = await Product.findById(productId).session(session);
 
       if (!product || !product.isActive) {
         stockIssues.push(`${item.name || 'Product'} is not available`);
@@ -144,6 +151,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     if (stockIssues.length > 0) {
+      await session.abortTransaction();
+      session.endSession();
+      session = null;
       res.status(400).json({
         message: 'Some cart items are out of stock',
         errors: stockIssues,
@@ -159,7 +169,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     const totalAmount = subtotal + deliveryFee;
 
     // Order create karo
-    const order = new Order({
+    const orderPayload = {
       userId,
       items: cart.items.map(item => ({
         productId: getCartItemProductId(item),
@@ -173,43 +183,45 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       paymentStatus: advancePaid ? 'paid' : 'pending',
       riderStatus: 'Assigned',
       rejectedByRiderIds: [],
-    });
+    };
 
-    await order.save();
+    const [order] = await Order.create([orderPayload], { session });
 
-    const deductedItems: Array<{ productId: string; quantity: number }> = [];
-
+    const quantityByProduct = new Map<string, number>();
     for (const item of cart.items) {
       const productId = getCartItemProductId(item);
-      if (!productId) continue;
-
       const quantityToReduce = Number(item.quantity || 0);
-      if (quantityToReduce <= 0) continue;
+      if (!productId || quantityToReduce <= 0) continue;
+      quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantityToReduce);
+    }
 
-      const updated = await Product.findOneAndUpdate(
-        { _id: productId, stock: { $gte: quantityToReduce } },
-        { $inc: { stock: -quantityToReduce } },
-        { new: true }
-      );
+    const stockOps = Array.from(quantityByProduct.entries()).map(([productId, quantity]) => ({
+      updateOne: {
+        filter: { _id: productId, isActive: true, isDeleted: false, stock: { $gte: quantity } },
+        update: { $inc: { stock: -quantity } },
+      },
+    }));
 
-      if (!updated) {
-        for (const deducted of deductedItems) {
-          await Product.updateOne({ _id: deducted.productId }, { $inc: { stock: deducted.quantity } });
-        }
-        await Order.deleteOne({ _id: order._id });
-
+    if (stockOps.length > 0) {
+      const stockResult = await Product.bulkWrite(stockOps, { session });
+      if (stockResult.modifiedCount !== stockOps.length) {
+        await session.abortTransaction();
+        session.endSession();
+        session = null;
         res.status(409).json({
           message: 'Stock changed during checkout. Please review cart and place order again.',
         });
         return;
       }
-
-      deductedItems.push({ productId, quantity: quantityToReduce });
     }
 
     // Cart clear karo
     cart.items = [];
-    await cart.save();
+    await cart.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+    session = null;
 
     // RabbitMQ me message send karo
     const channel = getChannel();
@@ -227,6 +239,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     void emitOrderRealtime(String(order._id), { event: 'created' });
   } catch (error) {
+    if (session) {
+      await session.abortTransaction();
+      session.endSession();
+    }
     res.status(500).json({ error: (error as Error).message });
   }
 };

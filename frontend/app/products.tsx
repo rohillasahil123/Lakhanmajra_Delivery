@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { fetchProducts } from '@/services/catalogService';
+import { fetchCategories, fetchProducts } from '@/services/catalogService';
 import { resolveImageUrl } from '@/config/api';
 
 // ── Helper: render product image from MinIO URL or fallback ──────────────────
@@ -47,39 +47,92 @@ export default function ProductsScreen() {
   const params = useLocalSearchParams<{
     categoryId?: string;
     categoryName?: string;
+    subcategoryId?: string;
   }>();
 
   const addItem = useCart((s) => s.addItem);
   const cartCount = useCart((s) => s.items.length);
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string>('all');
 
   const categoryName = params.categoryName || 'All Products';
+
+  const getId = (value: any): string => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    return String(value?._id || value?.id || '');
+  };
+
+  const getParentCategoryId = (category: any): string => {
+    if (!category?.parentCategory) return '';
+    if (typeof category.parentCategory === 'string') return category.parentCategory;
+    return category.parentCategory?._id || '';
+  };
 
   useEffect(() => {
     let mounted = true;
     async function load() {
       try {
-        // ✅ Fix: catId is now correctly string | undefined
+        // ✅ catId is correctly string | undefined
         const catId: string | undefined =
           typeof params.categoryId === 'string' ? params.categoryId : undefined;
 
-        const fetchParams: { limit: number; categoryId?: string } = { limit: 100 };
-        if (catId) fetchParams.categoryId = catId;
+        const incomingSubCategoryId =
+          typeof params.subcategoryId === 'string' ? params.subcategoryId : 'all';
 
-        const prods = await fetchProducts(fetchParams);
+        const cats = await fetchCategories();
+        const allProducts = await fetchProducts({ limit: 300 });
+
+        const categoryList = Array.isArray(cats) ? cats : [];
+        let prods = Array.isArray(allProducts) ? allProducts : [];
+
+        if (catId) {
+          const relatedCategoryIds = new Set<string>([catId]);
+
+          categoryList.forEach((category: any) => {
+            const parentId = getParentCategoryId(category);
+            const categoryId = getId(category?._id || category?.id);
+            if (parentId === catId && categoryId) {
+              relatedCategoryIds.add(categoryId);
+            }
+          });
+
+          prods = prods.filter((product: any) => {
+            const productCategoryId = getId(product?.categoryId);
+            const productSubCategoryId = getId(product?.subcategoryId);
+            return relatedCategoryIds.has(productCategoryId) || relatedCategoryIds.has(productSubCategoryId);
+          });
+        }
+
         if (!mounted) return;
         setProducts(prods || []);
+        setCategories(categoryList);
+        setSelectedSubCategoryId(incomingSubCategoryId || 'all');
       } catch (e) {
-        if (mounted) setProducts([]);
+        if (mounted) {
+          setProducts([]);
+          setCategories([]);
+          setSelectedSubCategoryId('all');
+        }
       }
     }
     load();
     return () => { mounted = false; };
-  }, [params.categoryId]);
+  }, [params.categoryId, params.subcategoryId]);
+
+  const selectedCategoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
+  const subCategories = selectedCategoryId
+    ? categories.filter((category) => getParentCategoryId(category) === selectedCategoryId)
+    : [];
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const visibleProducts = [...products]
+    .filter((product) => {
+      if (selectedSubCategoryId === 'all') return true;
+      return getId(product?.subcategoryId) === selectedSubCategoryId || getId(product?.categoryId) === selectedSubCategoryId;
+    })
     .filter((product) => {
       if (!normalizedQuery) return true;
       return String(product?.name || '').toLowerCase().includes(normalizedQuery);
@@ -121,6 +174,32 @@ export default function ProductsScreen() {
           style={styles.searchInput}
         />
       </View>
+
+      {subCategories.length > 0 && (
+        <View style={styles.subCategoryStripWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subCategoryStripContent}>
+            <TouchableOpacity
+              style={[styles.subCategoryChip, selectedSubCategoryId === 'all' && styles.subCategoryChipActive]}
+              onPress={() => setSelectedSubCategoryId('all')}
+            >
+              <ThemedText style={[styles.subCategoryChipText, selectedSubCategoryId === 'all' && styles.subCategoryChipTextActive]}>All</ThemedText>
+            </TouchableOpacity>
+            {subCategories.map((subCategory: any) => {
+              const subCategoryId = subCategory._id || subCategory.id;
+              const isActive = selectedSubCategoryId === subCategoryId;
+              return (
+                <TouchableOpacity
+                  key={subCategoryId}
+                  style={[styles.subCategoryChip, isActive && styles.subCategoryChipActive]}
+                  onPress={() => setSelectedSubCategoryId(subCategoryId)}
+                >
+                  <ThemedText style={[styles.subCategoryChipText, isActive && styles.subCategoryChipTextActive]}>{subCategory.name}</ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Products Count */}
       <View style={styles.countContainer}>
@@ -221,6 +300,12 @@ const styles = StyleSheet.create({
   cartBadgeText:           { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
   filtersBar:              { backgroundColor: '#FFFFFF', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
   searchInput:             { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827' },
+  subCategoryStripWrap:    { backgroundColor: '#FFFFFF', paddingTop: 8, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  subCategoryStripContent: { paddingHorizontal: 12, gap: 8 },
+  subCategoryChip:         { backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
+  subCategoryChipActive:   { backgroundColor: '#0E7A3D' },
+  subCategoryChipText:     { fontSize: 12, color: '#374151', fontWeight: '600' },
+  subCategoryChipTextActive: { color: '#FFFFFF' },
   countContainer:          { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F9FAFB' },
   countText:               { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   container:               { flex: 1 },
