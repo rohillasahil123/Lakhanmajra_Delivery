@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {ActivityIndicator, Image, Linking, SafeAreaView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View} from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AppButton} from '../components/AppButton';
 import {RootStackParamList} from '../navigation/types';
@@ -57,17 +57,12 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
     }
 
     const address = `${order.deliveryAddress.line1}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.postalCode}`;
-    const mapUrl = order.deliveryAddress.latitude && order.deliveryAddress.longitude
-      ? `https://www.google.com/maps/dir/?api=1&destination=${order.deliveryAddress.latitude},${order.deliveryAddress.longitude}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-
-    const canOpen = await Linking.canOpenURL(mapUrl);
-    if (!canOpen) {
-      setError('Unable to open map navigation');
-      return;
-    }
-
-    await Linking.openURL(mapUrl);
+    navigation.navigate('InAppMap', {
+      orderId: order.id,
+      destinationLat: order.deliveryAddress.latitude,
+      destinationLng: order.deliveryAddress.longitude,
+      address,
+    });
   };
 
   if (loading) {
@@ -152,7 +147,7 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
         </Text>
       </View>
 
-      <AppButton title="Open in Google Maps" onPress={openNavigation} />
+      <AppButton title="Open In-App Map" onPress={openNavigation} />
       {next ? (
         <View style={styles.spacedTop}>
           <AppButton

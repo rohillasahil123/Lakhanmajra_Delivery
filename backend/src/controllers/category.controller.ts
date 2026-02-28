@@ -61,6 +61,7 @@ export const updateCategory = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { name, icon } = req.body;
+    const parentCategory = req.body.parentCategory;
     const uploadedImageUrl = await uploadCategoryImage(req);
     const priority =
       req.body.priority === undefined || req.body.priority === null || req.body.priority === ""
@@ -90,6 +91,13 @@ export const updateCategory = async (req: Request, res: Response) => {
     if (uploadedImageUrl) update.image = uploadedImageUrl;
     else if (icon !== undefined) update.image = icon;
     if (priority !== undefined) update.priority = priority;
+    if (parentCategory !== undefined) {
+      const normalizedParent = String(parentCategory).trim();
+      if (normalizedParent && normalizedParent === id) {
+        return fail(res, "Category cannot be its own parent", 400);
+      }
+      update.parentCategory = normalizedParent || null;
+    }
 
     const category = await Category.findByIdAndUpdate(id, update, { new: true });
 

@@ -5,6 +5,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useRiderAuth} from '../context/RiderAuthContext';
 import {DashboardScreen} from '../screens/DashboardScreen';
 import {EarningsScreen} from '../screens/EarningsScreen';
+import {InAppMapScreen} from '../screens/InAppMapScreen';
 import {LoginScreen} from '../screens/LoginScreen';
 import {OrderDetailScreen} from '../screens/OrderDetailScreen';
 import {RootStackParamList} from './types';
@@ -32,6 +33,7 @@ export const AppNavigator: React.FC = () => {
           <>
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
+            <Stack.Screen name="InAppMap" component={InAppMapScreen} />
             <Stack.Screen name="Earnings" component={EarningsScreen} />
           </>
         ) : (

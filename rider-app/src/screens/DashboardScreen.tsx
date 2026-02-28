@@ -2,7 +2,6 @@ import React, {useCallback, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Linking,
   Modal,
   SafeAreaView,
   StyleSheet,
@@ -154,18 +153,12 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
 
   const openOrderLocation = async (order: RiderOrder) => {
     const address = `${order.deliveryAddress.line1}, ${order.deliveryAddress.city}, ${order.deliveryAddress.state}, ${order.deliveryAddress.postalCode}`;
-    const hasCoords = typeof order.deliveryAddress.latitude === 'number' && typeof order.deliveryAddress.longitude === 'number';
-    const mapUrl = hasCoords
-      ? `https://www.google.com/maps/dir/?api=1&destination=${order.deliveryAddress.latitude},${order.deliveryAddress.longitude}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-
-    const canOpen = await Linking.canOpenURL(mapUrl);
-    if (!canOpen) {
-      setError('Unable to open map navigation');
-      return;
-    }
-
-    await Linking.openURL(mapUrl);
+    navigation.navigate('InAppMap', {
+      orderId: order.id,
+      destinationLat: order.deliveryAddress.latitude,
+      destinationLng: order.deliveryAddress.longitude,
+      address,
+    });
   };
 
   if (loading) {

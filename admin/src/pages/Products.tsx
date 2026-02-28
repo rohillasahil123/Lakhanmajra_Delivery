@@ -13,7 +13,11 @@ type Product = {
   isActive?: boolean;
 };
 
-type Category = { _id: string; name: string };
+type Category = {
+  _id: string;
+  name: string;
+  parentCategory?: string | { _id?: string } | null;
+};
 type SortKey = 'name' | 'price' | 'stock' | null;
 
 const UNIT_VARIANTS: Record<string, string[]> = {
@@ -51,6 +55,7 @@ export default function Products() {
   const [unit, setUnit] = useState<'piece' | 'kg' | 'g' | 'l' | 'ml' | 'pack'>('piece');
   const [unitType, setUnitType] = useState('1 pc');
   const [catId, setCatId] = useState('');
+  const [subcategoryId, setSubcategoryId] = useState('');
   const [description, setDescription] = useState('');
   const [tags, setTags] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -161,10 +166,19 @@ export default function Products() {
   const resetForm = () => {
     setName(''); setPrice(''); setMrp(''); setStock('');
     setUnit('piece'); setUnitType('1 pc');
-    setCatId(''); setDescription(''); setTags('');
+    setCatId(''); setSubcategoryId(''); setDescription(''); setTags('');
     setSelectedFiles([]); setPreviewUrls([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
+
+  const getParentCategoryId = (category: Category): string | null => {
+    if (!category.parentCategory) return null;
+    if (typeof category.parentCategory === 'string') return category.parentCategory;
+    return category.parentCategory._id || null;
+  };
+
+  const parentCategories = categories.filter((category) => !getParentCategoryId(category));
+  const subCategories = categories.filter((category) => getParentCategoryId(category) === catId);
 
   const startEdit = (product: Product) => {
     setEditingId(product._id);
@@ -218,6 +232,7 @@ export default function Products() {
       formData.append('name', name);
       formData.append('price', price);
       formData.append('categoryId', catId);
+      if (subcategoryId) formData.append('subcategoryId', subcategoryId);
       if (mrp) formData.append('mrp', mrp);
       if (stock) formData.append('stock', stock);
       formData.append('unit', unit);
@@ -317,11 +332,31 @@ export default function Products() {
             <select
               className="border px-3 py-2 rounded"
               value={catId}
-              onChange={(e) => setCatId(e.target.value)}
+              onChange={(e) => {
+                setCatId(e.target.value);
+                setSubcategoryId('');
+              }}
             >
               <option value="">Select category *</option>
-              {categories.map((c) => (
+              {parentCategories.map((c) => (
                 <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </select>
+            <select
+              className="border px-3 py-2 rounded"
+              value={subcategoryId}
+              onChange={(e) => setSubcategoryId(e.target.value)}
+              disabled={!catId || subCategories.length === 0}
+            >
+              <option value="">
+                {!catId
+                  ? 'Select sub-category (optional)'
+                  : subCategories.length === 0
+                    ? 'No sub-categories'
+                    : 'Select sub-category (optional)'}
+              </option>
+              {subCategories.map((subCategory) => (
+                <option key={subCategory._id} value={subCategory._id}>{subCategory.name}</option>
               ))}
             </select>
             <input

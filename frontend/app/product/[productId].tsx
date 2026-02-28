@@ -11,8 +11,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { fetchProducts } from '@/services/catalogService';
+import { fetchCategories } from '@/services/catalogService';
 import { resolveImageUrl } from '@/config/api';
+
+type CategoryItem = {
+  _id: string;
+  name: string;
+  parentCategory?: string | { _id?: string } | null;
+};
 
 export default function ProductDetailDynamic() {
   const router = useRouter();
@@ -23,6 +29,7 @@ export default function ProductDetailDynamic() {
   const cartCount = useCart((s) => s.items.length);
 
   const [product, setProduct] = useState<any>(null);
+  const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
@@ -34,12 +41,17 @@ export default function ProductDetailDynamic() {
     async function load() {
       try {
         setLoading(true);
-        const res = await fetch(
-          `${require('@/config/api').API_BASE_URL}/api/products/${productId}`
-        );
-        const json = await res.json();
+        const [productRes, categoriesRes] = await Promise.all([
+          fetch(`${require('@/config/api').API_BASE_URL}/api/products/${productId}`),
+          fetchCategories(),
+        ]);
+
+        const json = await productRes.json();
         const p = json?.data || json;
-        if (mounted) setProduct(p);
+        if (mounted) {
+          setProduct(p);
+          setCategories(Array.isArray(categoriesRes) ? categoriesRes : []);
+        }
       } catch (e) {
         console.warn('Product fetch error', e);
       } finally {
@@ -77,6 +89,28 @@ export default function ProductDetailDynamic() {
     ? product.images.map((img: string) => resolveImageUrl(img)).filter(Boolean)
     : [];
   const currentImage = images[activeImage] || null;
+
+  const getId = (value: any): string => {
+    if (!value) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'object') return String(value._id || value.id || '');
+    return '';
+  };
+
+  const getParentId = (category: CategoryItem): string => {
+    const parent = category.parentCategory;
+    if (!parent) return '';
+    if (typeof parent === 'string') return parent;
+    return String(parent._id || '');
+  };
+
+  const categoryId = getId(product?.categoryId);
+  const subcategoryId = getId(product?.subcategoryId);
+  const mainCategory = categories.find((category) => category._id === categoryId) || null;
+  const selectedSubcategory = categories.find((category) => category._id === subcategoryId) || null;
+  const subcategoriesForMain = mainCategory
+    ? categories.filter((category) => getParentId(category) === mainCategory._id)
+    : [];
 
   const handleAddToCart = () => {
     addItem({
@@ -148,9 +182,19 @@ export default function ProductDetailDynamic() {
         <View style={styles.infoSection}>
           <View style={styles.categoryBadge}>
             <ThemedText style={styles.categoryText}>
-              {product.category || product.categoryId || 'Product'}
+              {mainCategory?.name || product.category || product.categoryId || 'Product'}
             </ThemedText>
           </View>
+
+          {(mainCategory?.name || selectedSubcategory?.name) && (
+            <View style={styles.subcategoryMetaRow}>
+              <ThemedText style={styles.subcategoryMetaLabel}>Category:</ThemedText>
+              <ThemedText style={styles.subcategoryMetaText}>
+                {mainCategory?.name || 'General'}
+                {selectedSubcategory?.name ? ` → ${selectedSubcategory.name}` : ''}
+              </ThemedText>
+            </View>
+          )}
 
           <ThemedText style={styles.productName}>{product.name}</ThemedText>
 
@@ -196,6 +240,27 @@ export default function ProductDetailDynamic() {
                   <ThemedText style={styles.tagText}>{tag}</ThemedText>
                 </View>
               ))}
+            </View>
+          )}
+
+          {subcategoriesForMain.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle}>Sub-categories</ThemedText>
+              <View style={styles.subCategoryRow}>
+                {subcategoriesForMain.map((subCategory) => {
+                  const isActive = selectedSubcategory?._id === subCategory._id;
+                  return (
+                    <View
+                      key={subCategory._id}
+                      style={[styles.subCategoryChip, isActive && styles.subCategoryChipActive]}
+                    >
+                      <ThemedText style={[styles.subCategoryChipText, isActive && styles.subCategoryChipTextActive]}>
+                        {subCategory.name}
+                      </ThemedText>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
           )}
 
@@ -266,6 +331,14 @@ const styles = StyleSheet.create({
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   tag: { backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   tagText: { fontSize: 12, color: '#3B82F6', fontWeight: '500' },
+  subcategoryMetaRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 6 },
+  subcategoryMetaLabel: { fontSize: 13, color: '#6B7280', fontWeight: '600' },
+  subcategoryMetaText: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  subCategoryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  subCategoryChip: { backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14 },
+  subCategoryChipActive: { backgroundColor: '#DCFCE7' },
+  subCategoryChipText: { fontSize: 12, color: '#4B5563', fontWeight: '500' },
+  subCategoryChipTextActive: { color: '#166534', fontWeight: '700' },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#E5E7EB', flexDirection: 'row', gap: 12, elevation: 8, paddingBottom: 30 },
   quantityContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 8 },
   quantityButton: { width: 36, height: 36, justifyContent: 'center', alignItems: 'center' },
