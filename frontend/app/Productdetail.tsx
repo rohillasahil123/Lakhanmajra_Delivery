@@ -55,7 +55,7 @@ export default function ProductDetailScreen() {
 
   const handleAddToCart = () => {
     // Add to global cart
-    addItem({ id: PRODUCT_DETAIL.id, name: PRODUCT_DETAIL.name, price: selectedVariant.price, unit: selectedVariant.size, image: PRODUCT_DETAIL.image }, quantity);
+    addItem({ id: String(PRODUCT_DETAIL.id), name: PRODUCT_DETAIL.name, price: selectedVariant.price, unit: selectedVariant.size, image: PRODUCT_DETAIL.image }, quantity);
 
     Alert.alert(
       'Added to Cart! 🛒',

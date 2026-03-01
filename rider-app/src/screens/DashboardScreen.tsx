@@ -23,6 +23,7 @@ import {assertValidTransition, getAllowedTransitions} from '../utils/orderStateM
 import {palette} from '../constants/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
+type DashboardTab = 'latest' | 'delivered';
 
 const ONGOING_STATUSES: OrderStatus[] = ['Accepted', 'Picked', 'OutForDelivery'];
 
@@ -34,6 +35,7 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
   const [onlineUpdating, setOnlineUpdating] = useState(false);
   const [transitionLoadingOrderId, setTransitionLoadingOrderId] = useState<string | null>(null);
   const [newOrderModal, setNewOrderModal] = useState<RiderOrder | null>(null);
+  const [activeTab, setActiveTab] = useState<DashboardTab>('latest');
   const knownAssignedOrderIdsRef = React.useRef<Set<string>>(new Set());
 
   const online = session?.rider.online ?? false;
@@ -96,16 +98,20 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
     };
   }, [online]);
 
+  const handleOrderAssigned = useCallback((order: RiderOrder) => {
+    setOrders((prev) => [order, ...prev.filter((item) => item.id !== order.id)]);
+    setNewOrderModal(order);
+  }, []);
+
+  const handleOrderUpdated = useCallback((order: RiderOrder) => {
+    setOrders((prev) => prev.map((item) => (item.id === order.id ? order : item)));
+  }, []);
+
   useSocketConnection({
     enabled: online,
     token,
-    onOrderAssigned: (order) => {
-      setOrders((prev) => [order, ...prev.filter((item) => item.id !== order.id)]);
-      setNewOrderModal(order);
-    },
-    onOrderUpdated: (order) => {
-      setOrders((prev) => prev.map((item) => (item.id === order.id ? order : item)));
-    },
+    onOrderAssigned: handleOrderAssigned,
+    onOrderUpdated: handleOrderUpdated,
   });
 
   const {locationError} = useBackgroundLocation(online);
@@ -118,13 +124,14 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
     () => orders.filter((order) => ONGOING_STATUSES.includes(order.status)),
     [orders]
   );
-  const completedOrOtherOrders = useMemo(
+  const deliveredOrders = useMemo(
     () =>
-      orders.filter(
-        (order) => order.status !== 'Assigned' && !ONGOING_STATUSES.includes(order.status)
-      ),
+      orders
+        .filter((order) => order.status === 'Delivered')
+        .sort((first, second) => Date.parse(second.updatedAt) - Date.parse(first.updatedAt)),
     [orders]
   );
+  const activeCount = assignedOrders.length + ongoingOrders.length;
 
   const handleOnlineToggle = async (value: boolean) => {
     try {
@@ -172,7 +179,10 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Rider Dashboard</Text>
+        <View>
+          <Text style={styles.title}>Rider Dashboard</Text>
+          <Text style={styles.subtitle}>Manage your live and delivered orders</Text>
+        </View>
         <View style={styles.onlineRow}>
           <Text style={styles.onlineLabel}>{online ? 'Online' : 'Offline'}</Text>
           <Switch value={online} onValueChange={handleOnlineToggle} disabled={onlineUpdating} />
@@ -182,67 +192,101 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {locationError ? <Text style={styles.error}>{locationError}</Text> : null}
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>New Assigned Orders</Text>
-      </View>
-      <FlatList
-        data={assignedOrders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={<Text style={styles.emptyText}>No assigned orders</Text>}
-        renderItem={({item}) => (
-          <OrderCard
-            order={item}
-            primaryActionLabel="Accept"
-            secondaryActionLabel="Reject"
-            onPrimaryAction={() => applyTransition(item, 'Accepted')}
-            onSecondaryAction={() => applyTransition(item, 'Rejected')}
-            onOpenLocation={() => openOrderLocation(item)}
-            onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
-            actionLoading={transitionLoadingOrderId === item.id}
+      <View style={styles.tabsRow}>
+        <View style={styles.tabButton}>
+          <AppButton
+            title="Latest Orders"
+            variant={activeTab === 'latest' ? 'primary' : 'secondary'}
+            onPress={() => setActiveTab('latest')}
           />
-        )}
-      />
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Ongoing Orders</Text>
-      </View>
-      <FlatList
-        data={ongoingOrders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={<Text style={styles.emptyText}>No ongoing orders</Text>}
-        renderItem={({item}) => {
-          const [next] = getAllowedTransitions(item.status);
-          return (
-            <OrderCard
-              order={item}
-              primaryActionLabel={next ?? undefined}
-              onPrimaryAction={next ? () => applyTransition(item, next) : undefined}
-              onOpenLocation={() => openOrderLocation(item)}
-              onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
-              actionLoading={transitionLoadingOrderId === item.id}
-            />
-          );
-        }}
-      />
-
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Completed / Other Orders</Text>
-      </View>
-      <FlatList
-        data={completedOrOtherOrders}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-        ListEmptyComponent={<Text style={styles.emptyText}>No completed orders</Text>}
-        renderItem={({item}) => (
-          <OrderCard
-            order={item}
-            onOpenLocation={() => openOrderLocation(item)}
-            onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
+        </View>
+        <View style={styles.tabButton}>
+          <AppButton
+            title="Delivered Orders"
+            variant={activeTab === 'delivered' ? 'primary' : 'secondary'}
+            onPress={() => setActiveTab('delivered')}
           />
-        )}
-      />
+        </View>
+      </View>
+
+      <View style={styles.summaryRow}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Active</Text>
+          <Text style={styles.summaryValue}>{activeCount}</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryLabel}>Delivered</Text>
+          <Text style={styles.summaryValue}>{deliveredOrders.length}</Text>
+        </View>
+      </View>
+
+      {activeTab === 'latest' ? (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>New Assigned Orders</Text>
+          </View>
+          <FlatList
+            data={assignedOrders}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContainer}
+            ListEmptyComponent={<Text style={styles.emptyText}>No new assigned orders</Text>}
+            renderItem={({item}) => (
+              <OrderCard
+                order={item}
+                primaryActionLabel="Accept"
+                secondaryActionLabel="Reject"
+                onPrimaryAction={() => applyTransition(item, 'Accepted')}
+                onSecondaryAction={() => applyTransition(item, 'Rejected')}
+                onOpenLocation={() => openOrderLocation(item)}
+                onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
+                actionLoading={transitionLoadingOrderId === item.id}
+              />
+            )}
+          />
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Ongoing Orders</Text>
+          </View>
+          <FlatList
+            data={ongoingOrders}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContainer}
+            ListEmptyComponent={<Text style={styles.emptyText}>No ongoing orders</Text>}
+            renderItem={({item}) => {
+              const [next] = getAllowedTransitions(item.status);
+              return (
+                <OrderCard
+                  order={item}
+                  primaryActionLabel={next ?? undefined}
+                  onPrimaryAction={next ? () => applyTransition(item, next) : undefined}
+                  onOpenLocation={() => openOrderLocation(item)}
+                  onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
+                  actionLoading={transitionLoadingOrderId === item.id}
+                />
+              );
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Delivered Orders</Text>
+          </View>
+          <FlatList
+            data={deliveredOrders}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContainer}
+            ListEmptyComponent={<Text style={styles.emptyText}>No delivered orders</Text>}
+            renderItem={({item}) => (
+              <OrderCard
+                order={item}
+                onOpenLocation={() => openOrderLocation(item)}
+                onOpenDetail={() => navigation.navigate('OrderDetail', {orderId: item.id})}
+              />
+            )}
+          />
+        </>
+      )}
 
       <View style={styles.footerActions}>
         <AppButton title="Earnings" onPress={() => navigation.navigate('Earnings')} />
@@ -275,7 +319,6 @@ const styles = StyleSheet.create({
     backgroundColor: palette.background,
     paddingHorizontal: 12,
     marginTop: 25,
-   
   },
   centered: {
     flex: 1,
@@ -295,6 +338,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: palette.textPrimary,
   },
+  subtitle: {
+    color: palette.textSecondary,
+    marginTop: 2,
+    fontSize: 13,
+  },
   onlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -303,6 +351,40 @@ const styles = StyleSheet.create({
   onlineLabel: {
     color: palette.textSecondary,
     fontWeight: '600',
+  },
+  tabsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  tabButton: {
+    flex: 1,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: palette.card,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: palette.textSecondary,
+    fontWeight: '600',
+  },
+  summaryValue: {
+    marginTop: 2,
+    color: palette.textPrimary,
+    fontWeight: '800',
+    fontSize: 20,
   },
   sectionHeader: {
     marginTop: 6,
@@ -314,14 +396,15 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
   },
   listContainer: {
-    paddingBottom: 10,
+    paddingBottom: 6,
   },
   emptyText: {
     color: palette.textSecondary,
     marginBottom: 8,
   },
   footerActions: {
-    marginVertical: 10,
+    marginTop: 8,
+    marginBottom: 10,
     gap: 8,
   },
   error: {
@@ -336,7 +419,9 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     backgroundColor: palette.card,
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: palette.border,
     padding: 16,
     gap: 8,
   },

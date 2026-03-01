@@ -1,17 +1,55 @@
 import {Platform} from 'react-native';
 import Constants from 'expo-constants';
 
-const resolveExpoHost = (): string | null => {
-  const hostUri =
-    (Constants as any)?.expoConfig?.hostUri ||
-    (Constants as any)?.manifest2?.extra?.expoClient?.hostUri ||
-    (Constants as any)?.manifest?.debuggerHost;
-
-  if (!hostUri || typeof hostUri !== 'string') {
+const parseHostFromUri = (raw: string): string | null => {
+  const input = raw.trim();
+  if (!input) {
     return null;
   }
 
-  return hostUri.split(':')[0] || null;
+  const normalized = input
+    .replace(/^exp:\/\//i, 'http://')
+    .replace(/^exps:\/\//i, 'https://');
+
+  const withoutProtocol = normalized.replace(/^[a-z]+:\/\//i, '');
+  const withoutPath = withoutProtocol.split('/')[0];
+  const candidate = withoutPath.replace(/:\d+$/, '').trim();
+
+  if (!candidate || candidate.toLowerCase() === 'exp') {
+    return null;
+  }
+
+  return candidate;
+};
+
+const resolveExpoHost = (): string | null => {
+  const constantsAny = Constants as unknown as {
+    expoConfig?: {hostUri?: string};
+    expoGoConfig?: {debuggerHost?: string; developer?: {tool?: string}};
+    manifest2?: {extra?: {expoClient?: {hostUri?: string}}};
+    manifest?: {debuggerHost?: string; hostUri?: string};
+  };
+
+  const hostCandidates = [
+    constantsAny.expoConfig?.hostUri,
+    constantsAny.expoGoConfig?.debuggerHost,
+    constantsAny.manifest2?.extra?.expoClient?.hostUri,
+    constantsAny.manifest?.debuggerHost,
+    constantsAny.manifest?.hostUri,
+  ];
+
+  for (const candidate of hostCandidates) {
+    if (!candidate || typeof candidate !== 'string') {
+      continue;
+    }
+
+    const host = parseHostFromUri(candidate);
+    if (host) {
+      return host;
+    }
+  }
+
+  return null;
 };
 
 const expoHost = resolveExpoHost();

@@ -11,10 +11,12 @@ import adminRoutes from "./routes/admin.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
 import riderRoutes from "./routes/rider.routes";
+import { apiLimiter } from "./middlewares/rateLimiter.middleware";
 import { connectRabbitMQ } from "./config/rabbitmq";
 import { initMinio } from "./services/minio.service";
 
 const app: Application = express();
+app.set("trust proxy", 1);
 
 // Security middleware
 app.use(helmet());
@@ -78,6 +80,7 @@ app.get("/", (_req, res) => {
 });
 
 // Routes
+app.use("/api", apiLimiter);
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);

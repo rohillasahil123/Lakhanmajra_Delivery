@@ -35,11 +35,13 @@ export const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.card}>
         <Text style={styles.title}>Rider Login</Text>
+        <Text style={styles.subtitle}>Welcome back, sign in to continue deliveries</Text>
         <TextInput
           placeholder="Rider ID"
           autoCapitalize="none"
           value={riderId}
           onChangeText={setRiderId}
+          placeholderTextColor={palette.textSecondary}
           style={styles.input}
         />
         <TextInput
@@ -47,6 +49,7 @@ export const LoginScreen: React.FC = () => {
           secureTextEntry
           value={password}
           onChangeText={setPassword}
+          placeholderTextColor={palette.textSecondary}
           style={styles.input}
         />
 
@@ -63,29 +66,39 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: palette.background,
     justifyContent: 'center',
-    padding: 16,
+    padding: 18,
   },
   card: {
     backgroundColor: palette.card,
-    borderRadius: 12,
+    borderRadius: 16,
     borderColor: palette.border,
     borderWidth: 1,
-    padding: 16,
-    gap: 10,
+    padding: 18,
+    gap: 12,
+    shadowColor: palette.textPrimary,
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     color: palette.textPrimary,
-    marginBottom: 8,
+  },
+  subtitle: {
+    color: palette.textSecondary,
+    fontSize: 13,
+    marginTop: -4,
   },
   input: {
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    height: 48,
-    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 50,
+    backgroundColor: palette.background,
+    color: palette.textPrimary,
   },
   error: {
     color: palette.danger,

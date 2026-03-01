@@ -1,6 +1,9 @@
 import { ThemedText } from '@/components/themed-text';
 import { TextField } from '@/components/ui/text-field';
-import useLocationStore from '@/stores/locationStore';
+import useLocationStore, {
+  DEFAULT_LOCATION_ADDRESS,
+  DEFAULT_LOCATION_COORDS,
+} from '@/stores/locationStore';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
@@ -26,27 +29,24 @@ export default function LocationScreen() {
     if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
     return '';
   };
-  const initialAddress = getParamText(params.address).trim() || undefined;
   const initialDeliveryInstructions = getParamText(params.deliveryInstructions).trim();
-  const initialLatitude = Number(getParamText(params.latitude));
-  const initialLongitude = Number(getParamText(params.longitude));
   const rawReturnTo = getParamText(params.returnTo) || '/home';
   const returnTo = rawReturnTo === '/profile' || rawReturnTo === '/checkout' || rawReturnTo === '/home'
     ? rawReturnTo
     : '/home';
-  const hasInitialCoords = Number.isFinite(initialLatitude) && Number.isFinite(initialLongitude);
   const setSelectedLocationInStore = useLocationStore((state) => state.setSelectedLocation);
 
   const [selectedLocation, setSelectedLocation] = useState({
-    latitude: hasInitialCoords ? initialLatitude : 30.7333,
-    longitude: hasInitialCoords ? initialLongitude : 76.7794,
+    latitude: DEFAULT_LOCATION_COORDS.latitude,
+    longitude: DEFAULT_LOCATION_COORDS.longitude,
     latitudeDelta: 0.012,
     longitudeDelta: 0.012,
   });
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState(DEFAULT_LOCATION_ADDRESS);
   const [deliveryInstructions, setDeliveryInstructions] = useState(initialDeliveryInstructions);
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+  const [isMarkerLocked, setIsMarkerLocked] = useState(true);
 
   const LOCATION_PROMPT = 'Tap on map or detect location';
   const getPinnedFallbackAddress = (lat: number, lng: number) =>
@@ -116,6 +116,7 @@ export default function LocationScreen() {
         latitudeDelta: 0.012,
         longitudeDelta: 0.012,
       });
+      setIsMarkerLocked(false);
 
       await reverseGeocode(latitude, longitude);
     } catch (error) {
@@ -128,6 +129,14 @@ export default function LocationScreen() {
 
   // Handle map tap
   const handleMapPress = (event: any) => {
+    if (isMarkerLocked) {
+      Alert.alert(
+        'Location Locked',
+        'For now, map marker is locked to Lakhanmajra. Tap "Use Current Location" to unlock.'
+      );
+      return;
+    }
+
     const { latitude, longitude } = event.nativeEvent.coordinate;
     setSelectedLocation((prev) => ({
       ...prev,
@@ -168,50 +177,15 @@ export default function LocationScreen() {
 
   // Optional: Load initial address if coming back or default
   useEffect(() => {
-    const loadInitial = async () => {
-      if (initialAddress && hasInitialCoords) {
-        setAddress(initialAddress);
-        setSelectedLocation((prev) => ({
-          ...prev,
-          latitude: initialLatitude,
-          longitude: initialLongitude,
-        }));
-      } else if (initialAddress) {
-        setAddress(initialAddress);
-        try {
-          // Request location permission before geocoding to avoid authorization errors
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') {
-            Alert.alert(
-              'Permission required',
-              'Location permission is required to convert address to coordinates. You can still pick a location on the map or use current location.'
-            );
-            return;
-          }
-
-          const results = await Location.geocodeAsync(initialAddress);
-          if (results && results.length > 0) {
-            const { latitude, longitude } = results[0];
-            setSelectedLocation({
-              latitude,
-              longitude,
-              latitudeDelta: 0.012,
-              longitudeDelta: 0.012,
-            });
-            await reverseGeocode(latitude, longitude);
-          } else {
-            Alert.alert('Not found', 'Could not find coordinates for the provided address. Please select a location on the map.');
-          }
-        } catch (err) {
-          console.warn('Geocode error:', err);
-          Alert.alert('Geocode error', 'Could not convert address to location. Please select manually.');
-        }
-      } else if (!address) {
-        setAddress(LOCATION_PROMPT);
-      }
-    };
-    loadInitial();
-  }, [hasInitialCoords, initialAddress, initialLatitude, initialLongitude]);
+    setSelectedLocation({
+      latitude: DEFAULT_LOCATION_COORDS.latitude,
+      longitude: DEFAULT_LOCATION_COORDS.longitude,
+      latitudeDelta: 0.012,
+      longitudeDelta: 0.012,
+    });
+    setAddress(DEFAULT_LOCATION_ADDRESS || LOCATION_PROMPT);
+    setIsMarkerLocked(true);
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -242,8 +216,11 @@ export default function LocationScreen() {
               }}
               title="Delivery Here"
               description={address}
-              draggable
+              draggable={!isMarkerLocked}
               onDragEnd={(e) => {
+                if (isMarkerLocked) {
+                  return;
+                }
                 const { latitude, longitude } = e.nativeEvent.coordinate;
                 setSelectedLocation((prev) => ({ ...prev, latitude, longitude }));
                 setAddress(getPinnedFallbackAddress(latitude, longitude));
@@ -264,6 +241,11 @@ export default function LocationScreen() {
                 </ThemedText>
               )}
             </View>
+            {isMarkerLocked ? (
+              <ThemedText style={styles.lockHint}>
+                Locked to Lakhanmajra • Tap "Use Current Location" to unlock
+              </ThemedText>
+            ) : null}
           </View>
         </View>
 
@@ -353,6 +335,12 @@ const styles = StyleSheet.create({
   locationBadgeContent: { flexDirection: 'row', alignItems: 'center' },
   locationIcon: { fontSize: 22, marginRight: 10 },
   locationText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+  lockHint: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0E7A3D',
+  },
   bottomSection: { flex: 1, backgroundColor: '#F9FAFB' },
   detectButton: {
     backgroundColor: '#FFFFFF',

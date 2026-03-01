@@ -86,11 +86,19 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Order Detail</Text>
+      <Text style={styles.subtitle}>Review order, payment and delivery information</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.card}>
-        <Text style={styles.label}>Order ID</Text>
-        <Text style={styles.value}>{order.id}</Text>
+        <View style={styles.rowSplit}>
+          <View>
+            <Text style={styles.label}>Order ID</Text>
+            <Text style={styles.value}>{order.id}</Text>
+          </View>
+          <View style={styles.statusPill}>
+            <Text style={styles.statusPillText}>{order.status}</Text>
+          </View>
+        </View>
 
         {order.productPreview?.name ? (
           <>
@@ -126,10 +134,11 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
           <View style={styles.itemsList}>
             {order.items.map((item) => (
               <View key={`${item.productId}-${item.name}`} style={styles.itemRow}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemMeta}>
-                  {item.quantity} × ₹{item.price.toFixed(2)} = ₹{item.total.toFixed(2)}
-                </Text>
+                <View style={styles.itemTopRow}>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemTotal}>₹{item.total.toFixed(2)}</Text>
+                </View>
+                <Text style={styles.itemMeta}>{item.quantity} × ₹{item.price.toFixed(2)}</Text>
               </View>
             ))}
           </View>
@@ -181,13 +190,36 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: palette.textPrimary,
   },
+  subtitle: {
+    fontSize: 13,
+    color: palette.textSecondary,
+    marginTop: -8,
+  },
   card: {
     backgroundColor: palette.card,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: palette.border,
     padding: 14,
-    gap: 6,
+    gap: 7,
+  },
+  rowSplit: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statusPill: {
+    backgroundColor: palette.background,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusPillText: {
+    color: palette.textPrimary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   label: {
     color: palette.textSecondary,
@@ -197,6 +229,7 @@ const styles = StyleSheet.create({
     color: palette.textPrimary,
     fontSize: 15,
     fontWeight: '600',
+    marginBottom: 2,
   },
   productImage: {
     width: '100%',
@@ -216,14 +249,24 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   itemRow: {
-    paddingVertical: 4,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: palette.border,
+  },
+  itemTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   itemName: {
     color: palette.textPrimary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  itemTotal: {
+    color: palette.primary,
+    fontSize: 14,
+    fontWeight: '700',
   },
   itemMeta: {
     color: palette.textSecondary,

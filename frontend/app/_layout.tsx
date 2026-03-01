@@ -1,11 +1,17 @@
 import { Stack } from 'expo-router';
 import React, { useEffect } from 'react';
 import useCart from '@/stores/cartStore';
+import useLocationStore from '@/stores/locationStore';
 
 export default function RootLayout() {
   const hydrateLocal = useCart((s) => s.hydrateLocal);
   const syncFromServer = useCart((s) => s.syncFromServer);
   const initialized = useCart((s) => s.initialized);
+  const resetToDefaultLocation = useLocationStore((s) => s.resetToDefaultLocation);
+
+  useEffect(() => {
+    resetToDefaultLocation();
+  }, [resetToDefaultLocation]);
 
   useEffect(() => {
     (async () => {

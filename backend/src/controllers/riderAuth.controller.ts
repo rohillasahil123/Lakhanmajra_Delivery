@@ -109,6 +109,11 @@ const allowedTransitions: Record<RiderFlowStatus, RiderFlowStatus[]> = {
   Rejected: [],
 };
 
+const LOCATION_REALTIME_EMIT_MIN_INTERVAL_MS = Number(
+  process.env.LOCATION_REALTIME_EMIT_MIN_INTERVAL_MS || 10000
+);
+const riderLocationEmitCache = new Map<string, number>();
+
 const riderToBackendStatus = (status: RiderFlowStatus): 'processing' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' => {
   if (status === 'Accepted') return 'confirmed';
   if (status === 'Picked' || status === 'OutForDelivery') return 'shipped';
@@ -231,7 +236,8 @@ export const getRiderOrders = async (req: Request, res: Response): Promise<void>
     })
       .populate('userId', 'name phone')
       .populate('items.productId', 'name images')
-      .sort({createdAt: -1});
+      .sort({createdAt: -1})
+      .lean();
 
     res.status(200).json({orders: orders.map(normalizeRiderOrder)});
   } catch (error) {
@@ -263,7 +269,8 @@ export const getRiderOrderById = async (req: Request, res: Response): Promise<vo
       ],
     })
       .populate('userId', 'name phone')
-      .populate('items.productId', 'name images');
+      .populate('items.productId', 'name images')
+      .lean();
 
     if (!order) {
       res.status(404).json({message: 'Order not found'});
@@ -494,8 +501,15 @@ export const updateRiderLocation = async (req: Request, res: Response): Promise<
         }
       );
 
-      for (const order of activeOrders) {
-        void emitOrderRealtime(String(order._id), { event: 'updated' });
+      const now = Date.now();
+      const lastEmitAt = riderLocationEmitCache.get(riderId) || 0;
+      const shouldEmit = now - lastEmitAt >= LOCATION_REALTIME_EMIT_MIN_INTERVAL_MS;
+
+      if (shouldEmit) {
+        riderLocationEmitCache.set(riderId, now);
+        for (const order of activeOrders) {
+          void emitOrderRealtime(String(order._id), { event: 'updated' });
+        }
       }
     }
 
