@@ -142,6 +142,7 @@ export const importProducts = async (items: Array<any>) => {
       description: it.description || it.desc || undefined,
       price: it.price !== undefined ? Number(it.price) : (it.priceFrom || undefined),
       mrp: it.mrp !== undefined ? Number(it.mrp) : undefined,
+      discount: it.discount !== undefined ? Number(it.discount) : undefined,
       stock: it.stock !== undefined ? Number(it.stock) : (it.qty !== undefined ? Number(it.qty) : 0),
       unit: it.unit ? String(it.unit).toLowerCase().trim() : 'piece',
       unitType: it.unitType ? String(it.unitType).trim() : undefined,

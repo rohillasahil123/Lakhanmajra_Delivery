@@ -124,16 +124,30 @@ export default function ProductDetailDynamic() {
     router.push('/cart');
   };
 
+  const getDiscountPercent = (item: any): number => {
+    const discount = Number(item?.discount ?? 0);
+    if (Number.isFinite(discount) && discount > 0) return Math.round(discount);
+
+    const mrp = Number(item?.mrp ?? 0);
+    const price = Number(item?.price ?? 0);
+    if (mrp > 0 && price >= 0 && price < mrp) {
+      return Math.round(((mrp - price) / mrp) * 100);
+    }
+    return 0;
+  };
+
+  const discountPercent = getDiscountPercent(product);
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
 
         {/* ── Main Product Image from MinIO ── */}
         <View style={styles.imageContainer}>
-          {product.mrp && product.price < product.mrp && (
+          {discountPercent > 0 && (
             <View style={styles.discountBadge}>
               <ThemedText style={styles.discountText}>
-                {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+                {discountPercent}% OFF
               </ThemedText>
             </View>
           )}

@@ -193,6 +193,18 @@ export default function HomeScreen() {
     ? products.filter((p: any) => p.categoryId === selectedCategory)
     : products;
 
+  const getDiscountPercent = (product: any): number => {
+    const discount = Number(product?.discount ?? 0);
+    if (Number.isFinite(discount) && discount > 0) return Math.round(discount);
+
+    const mrp = Number(product?.mrp ?? 0);
+    const price = Number(product?.price ?? 0);
+    if (mrp > 0 && price >= 0 && price < mrp) {
+      return Math.round(((mrp - price) / mrp) * 100);
+    }
+    return 0;
+  };
+
   const locationLines = useMemo(() => {
     const fallback = ['Select your location', 'Tap to choose delivery address'];
     if (!selectedLocation.address || selectedLocation.address === 'Select your delivery location') {
@@ -522,6 +534,7 @@ export default function HomeScreen() {
             (() => {
               const productStock = Number(product?.stock ?? 0);
               const isOutOfStock = productStock <= 0;
+              const discountPercent = getDiscountPercent(product);
 
               return (
             <TouchableOpacity key={product.id || product._id} style={styles.productCard}>
@@ -538,8 +551,8 @@ export default function HomeScreen() {
                 ) : (
                   <ThemedText style={{ fontSize: 28 }}>{product.emoji || product.image || '🛍️'}</ThemedText>
                 )}
-                {product.discount && <View style={styles.discountTag}>
-                  <ThemedText style={styles.discountText}>{product.discount}</ThemedText>
+                {discountPercent > 0 && <View style={styles.discountTag}>
+                  <ThemedText style={styles.discountText}>{discountPercent}% OFF</ThemedText>
                 </View>}
                 <TouchableOpacity style={styles.wishlistBtn}>
                   <ThemedText style={{ fontSize: 16 }}>♡</ThemedText>

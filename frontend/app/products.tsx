@@ -138,6 +138,18 @@ export default function ProductsScreen() {
       return String(product?.name || '').toLowerCase().includes(normalizedQuery);
     });
 
+  const getDiscountPercent = (product: any): number => {
+    const discount = Number(product?.discount ?? 0);
+    if (Number.isFinite(discount) && discount > 0) return Math.round(discount);
+
+    const mrp = Number(product?.mrp ?? 0);
+    const price = Number(product?.price ?? 0);
+    if (mrp > 0 && price >= 0 && price < mrp) {
+      return Math.round(((mrp - price) / mrp) * 100);
+    }
+    return 0;
+  };
+
   const handleProductPress = (product: any) => {
     const id = product._id || product.id;
     router.push({ pathname: '/product/[productId]', params: { productId: id } });
@@ -213,6 +225,7 @@ export default function ProductsScreen() {
             (() => {
               const productStock = Number(product?.stock ?? 0);
               const isOutOfStock = productStock <= 0;
+              const discountPercent = getDiscountPercent(product);
 
               return (
             <TouchableOpacity
@@ -221,9 +234,9 @@ export default function ProductsScreen() {
               onPress={() => handleProductPress(product)}
             >
               {/* Discount Badge */}
-              {product.discount > 0 && (
+              {discountPercent > 0 && (
                 <View style={styles.discountBadge}>
-                  <ThemedText style={styles.discountText}>{product.discount}% OFF</ThemedText>
+                  <ThemedText style={styles.discountText}>{discountPercent}% OFF</ThemedText>
                 </View>
               )}
 

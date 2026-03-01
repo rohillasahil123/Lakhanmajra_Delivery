@@ -6,6 +6,7 @@ type Product = {
   _id: string;
   name: string;
   price: number;
+  discount?: number;
   stock?: number;
   unit?: string;
   unitType?: string;
@@ -48,7 +49,11 @@ export default function Products() {
   const [editName, setEditName] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editMrp, setEditMrp] = useState('');
+  const [editDiscount, setEditDiscount] = useState('');
   const [editStock, setEditStock] = useState('');
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [editSelectedFiles, setEditSelectedFiles] = useState<File[]>([]);
+  const [editPreviewUrls, setEditPreviewUrls] = useState<string[]>([]);
   const [editCatId, setEditCatId] = useState('');
   const [editSubcategoryId, setEditSubcategoryId] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -59,6 +64,7 @@ export default function Products() {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [mrp, setMrp] = useState('');
+  const [discount, setDiscount] = useState('');
   const [stock, setStock] = useState('');
   const [unit, setUnit] = useState<'piece' | 'kg' | 'g' | 'l' | 'ml' | 'pack'>('piece');
   const [unitType, setUnitType] = useState('1 pc');
@@ -223,7 +229,7 @@ export default function Products() {
   };
 
   const resetForm = () => {
-    setName(''); setPrice(''); setMrp(''); setStock('');
+    setName(''); setPrice(''); setMrp(''); setDiscount(''); setStock('');
     setUnit('piece'); setUnitType('1 pc');
     setCatId(''); setSubcategoryId(''); setDescription(''); setTags('');
     setSelectedFiles([]); setPreviewUrls([]);
@@ -245,7 +251,11 @@ export default function Products() {
     setEditName(product.name || '');
     setEditPrice(String(product.price ?? ''));
     setEditMrp(String((product as any).mrp ?? ''));
+    setEditDiscount(String((product as any).discount ?? ''));
     setEditStock(String(product.stock ?? ''));
+    setEditImages(Array.isArray(product.images) ? product.images : []);
+    setEditSelectedFiles([]);
+    setEditPreviewUrls([]);
     const categoryRefId = getRefId(product.categoryId);
     const subcategoryRefId = getRefId(product.subcategoryId);
     setEditCatId(categoryRefId);
@@ -257,9 +267,19 @@ export default function Products() {
     setEditName('');
     setEditPrice('');
     setEditMrp('');
+    setEditDiscount('');
     setEditStock('');
+    setEditImages([]);
+    setEditSelectedFiles([]);
+    setEditPreviewUrls([]);
     setEditCatId('');
     setEditSubcategoryId('');
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setEditSelectedFiles(files);
+    setEditPreviewUrls(files.map((file) => URL.createObjectURL(file)));
   };
 
   const saveEdit = async () => {
@@ -269,17 +289,36 @@ export default function Products() {
 
     setUpdating(true);
     try {
-      const payload: any = {
-        name: editName.trim(),
-        price: Number(editPrice),
-      };
+      if (editSelectedFiles.length > 0) {
+        const formData = new FormData();
+        formData.append('name', editName.trim());
+        formData.append('price', String(Number(editPrice)));
+        if (editMrp.trim() !== '') formData.append('mrp', String(Number(editMrp)));
+        if (editDiscount.trim() !== '') formData.append('discount', String(Number(editDiscount)));
+        if (editStock.trim() !== '') formData.append('stock', String(Number(editStock)));
+        if (editCatId) formData.append('categoryId', editCatId);
+        formData.append('subcategoryId', editSubcategoryId || '');
+        if (editImages.length > 0) formData.append('images', editImages.join(','));
+        editSelectedFiles.forEach((file) => formData.append('images', file));
 
-      if (editMrp.trim() !== '') payload.mrp = Number(editMrp);
-      if (editStock.trim() !== '') payload.stock = Number(editStock);
-      if (editCatId) payload.categoryId = editCatId;
-      payload.subcategoryId = editSubcategoryId;
+        await api.patch(`/products/${editingId}`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        const payload: any = {
+          name: editName.trim(),
+          price: Number(editPrice),
+        };
 
-      await api.patch(`/products/${editingId}`, payload);
+        if (editMrp.trim() !== '') payload.mrp = Number(editMrp);
+        if (editDiscount.trim() !== '') payload.discount = Number(editDiscount);
+        if (editStock.trim() !== '') payload.stock = Number(editStock);
+        if (editCatId) payload.categoryId = editCatId;
+        payload.subcategoryId = editSubcategoryId;
+
+        await api.patch(`/products/${editingId}`, payload);
+      }
+
       cancelEdit();
       await load(page);
       alert('Product updated');
@@ -302,6 +341,7 @@ export default function Products() {
       formData.append('categoryId', catId);
       if (subcategoryId) formData.append('subcategoryId', subcategoryId);
       if (mrp) formData.append('mrp', mrp);
+      if (discount) formData.append('discount', discount);
       if (stock) formData.append('stock', stock);
       formData.append('unit', unit);
       if (unitType) formData.append('unitType', unitType);
@@ -464,6 +504,15 @@ export default function Products() {
             />
             <input
               className="border px-3 py-2 rounded"
+              placeholder="Discount (%)"
+              type="number"
+              min={0}
+              max={100}
+              value={discount}
+              onChange={(e) => setDiscount(e.target.value)}
+            />
+            <input
+              className="border px-3 py-2 rounded"
               placeholder="Stock quantity"
               type="number"
               value={stock}
@@ -613,6 +662,7 @@ export default function Products() {
                 </button>
               </th>
               <th className="p-3">MRP</th>
+              <th className="p-3">Discount %</th>
               <th className="p-3">Category</th>
               <th className="p-3">Sub-category</th>
               <th className="p-3">Variant</th>
@@ -627,7 +677,7 @@ export default function Products() {
           <tbody>
             {sortedItems.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-6 text-center text-slate-400">
+                <td colSpan={10} className="p-6 text-center text-slate-400">
                   No products found
                 </td>
               </tr>
@@ -636,7 +686,48 @@ export default function Products() {
                 <tr key={p._id} className="border-b last:border-0 hover:bg-slate-50">
                   {/* Product image thumbnail */}
                   <td className="p-3">
-                    {p.images && p.images.length > 0 ? (
+                    {editingId === p._id ? (
+                      <div className="space-y-2">
+                        {p.images && p.images.length > 0 ? (
+                          <div className="flex gap-1 flex-wrap">
+                            {p.images.map((img, i) => (
+                              <img
+                                key={i}
+                                src={img}
+                                alt={p.name}
+                                className="w-12 h-12 object-cover rounded border border-slate-200"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src =
+                                    'https://via.placeholder.com/48x48?text=No+Img';
+                                }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-slate-400">No current image</div>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                          multiple
+                          className="text-xs"
+                          onChange={handleEditFileChange}
+                        />
+                        {editPreviewUrls.length > 0 && (
+                          <div className="flex gap-1 flex-wrap">
+                            {editPreviewUrls.map((url, i) => (
+                              <img
+                                key={i}
+                                src={url}
+                                alt={`new-preview-${i}`}
+                                className="w-12 h-12 object-cover rounded border border-emerald-300"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        <div className="text-[11px] text-slate-500">New images save hone par add ho jayengi.</div>
+                      </div>
+                    ) : p.images && p.images.length > 0 ? (
                       <div className="flex gap-1 flex-wrap">
                         {p.images.map((img, i) => (
                           <div key={i} className="relative group">
@@ -700,6 +791,20 @@ export default function Products() {
                       />
                     ) : (
                       (p as any).mrp ? `₹${(p as any).mrp}` : '—'
+                    )}
+                  </td>
+                  <td className="p-3 text-slate-600">
+                    {editingId === p._id ? (
+                      <input
+                        className="border px-2 py-1 rounded w-24"
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={editDiscount}
+                        onChange={(e) => setEditDiscount(e.target.value)}
+                      />
+                    ) : (
+                      (p as any).discount ? `${(p as any).discount}%` : '—'
                     )}
                   </td>
                   <td className="p-3 text-slate-600">

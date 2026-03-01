@@ -9,6 +9,7 @@ export interface IProduct extends Document {
   subcategoryId?: Types.ObjectId | null;
   price: number;
   mrp?: number;
+  discount?: number;
   stock: number;
   unit: string;
   unitType?: string;
@@ -56,6 +57,12 @@ const productSchema = new Schema<IProduct>(
     mrp: {
       type: Number,
       default: 0,
+    },
+    discount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
     stock: {
       type: Number,
