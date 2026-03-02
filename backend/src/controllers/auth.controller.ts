@@ -360,7 +360,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     if (typeof latitude === 'number' && Number.isFinite(latitude)) updates.latitude = latitude;
     if (typeof longitude === 'number' && Number.isFinite(longitude)) updates.longitude = longitude;
 
-    if (updates.phone && updates.phone.replace(/\D/g, '').length < 10) {
+    if (updates.phone && updates.phone.replaceAll(/\D/g, '').length < 10) {
       return res.status(400).json({ message: 'Valid phone number is required' });
     }
 
