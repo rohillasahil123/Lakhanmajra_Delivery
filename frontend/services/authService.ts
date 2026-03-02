@@ -153,7 +153,7 @@ class RequestValidator {
    */
   private static isValidPhone(phone: string): boolean {
     const phoneRegex = /^\d{10,}$/;
-    return phoneRegex.test(phone.replace(/\D/g, ''));
+    return phoneRegex.test(phone.replaceAll(/\D/g, ''));
   }
 }
 
@@ -432,7 +432,7 @@ class AuthService {
         throw new Error('Valid email is required');
       }
 
-      if (!payload.phone || payload.phone.replace(/\D/g, '').length < 10) {
+      if (!payload.phone || payload.phone.replaceAll(/\D/g, '').length < 10) {
         throw new Error('Valid phone number is required (10 digits)');
       }
 

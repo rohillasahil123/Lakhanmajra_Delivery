@@ -16,7 +16,7 @@ const buildMapHtml = (
   riderLat?: number,
   riderLng?: number
 ): string => {
-  const escapedAddress = address.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escapedAddress = address.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   const hasRiderCoords =
     typeof riderLat === 'number' &&
     Number.isFinite(riderLat) &&
