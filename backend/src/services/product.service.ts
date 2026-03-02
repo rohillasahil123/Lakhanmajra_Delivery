@@ -84,8 +84,8 @@ export const createProduct = async (payload: Partial<IProduct>) => {
   // generate slug from name
   const base = (payload.name || "").toString().toLowerCase().trim();
   const slug = base
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)+/g, "");
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/(^-|-$)+/g, "");
 
   // ensure unique slug by appending timestamp if needed
   let finalSlug = slug;
@@ -201,7 +201,7 @@ export const importProducts = async (items: Array<any>) => {
     if (!name) continue;
 
     // generate slug from name
-    const base = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const base = name.toLowerCase().replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/(^-|-$)+/g, '');
     let slug = it.slug ? it.slug.toString().toLowerCase() : base;
 
     // Only upsert by explicit slug. Do not match by name,

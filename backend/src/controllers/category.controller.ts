@@ -30,7 +30,7 @@ export const createCategory = async (req: Request, res: Response) => {
 
     const { name, icon, priority, parentCategory } = value as any;
     const base = (name || "").toString().toLowerCase().trim();
-    const slug = base.replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)+/g, "");
+    const slug = base.replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/(^-|-$)+/g, "");
 
     const category = await Category.create({
       name,
@@ -78,8 +78,8 @@ export const updateCategory = async (req: Request, res: Response) => {
       const newSlug = (name || "")
         .toString()
         .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)+/g, "");
+        .replaceAll(/[^a-z0-9]+/g, "-")
+        .replaceAll(/(^-|-$)+/g, "");
 
       // ✅ Only update slug if name actually changed
       // Without this check, saving same name causes duplicate key error

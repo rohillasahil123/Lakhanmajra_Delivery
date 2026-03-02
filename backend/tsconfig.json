@@ -1,12 +1,31 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
+    /* Language & Environment */
+    "target": "ES2021",
+    "lib": ["ES2021"],
     "module": "CommonJS",
+
+    /* Project Structure */
     "rootDir": "./src",
     "outDir": "./dist",
+
+    /* Type Safety */
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+
+    /* Module Resolution */
+    "moduleResolution": "node",
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "resolveJsonModule": true,
+
+    /* Performance */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Quality */
+    "noFallthroughCasesInSwitch": true
   },
-  "exclude": ["node_modules", "scripts", "dist"]
+
+  "exclude": ["node_modules", "dist", "scripts"]
 }
