@@ -1,8 +1,19 @@
+/// <reference types="vite/client" />
+
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { io } from "socket.io-client";
 import api from "../api/client";
 import { getPermissions } from "../auth";
+
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_API_URL?: string;
+  }
+  interface ImportMeta {
+    readonly env: ImportMetaEnv;
+  }
+}
 
 type OrderItem = {
   productId?: { name?: string; images?: string[] };
@@ -43,6 +54,38 @@ type OrderDetail = Order & {
 };
 
 const PLACEHOLDER_IMAGE = "https://via.placeholder.com/48x48?text=No+Img";
+
+// Get API base URL safely - workaround for Vite import.meta.env typing
+const getApiBase = (): string => {
+  try {
+    return ((import.meta as any).env?.VITE_API_URL as string) || "http://localhost:5000/api";
+  } catch {
+    return "http://localhost:5000/api";
+  }
+};
+
+const API_BASE = getApiBase();
+
+// L192 fix: extracted nested ternary for resolving orders list
+const resolveOrdersList = (payload: any): Order[] => {
+  if (Array.isArray(payload?.orders)) return payload.orders;
+  if (Array.isArray(payload?.data?.orders)) return payload.data.orders;
+  return [];
+};
+
+// L214 fix: extracted nested ternary for resolving total count
+const resolveTotal = (payload: any, list: Order[]): number => {
+  if (typeof payload?.total === "number") return payload.total;
+  if (typeof payload?.data?.total === "number") return payload.data.total;
+  return list.length;
+};
+
+// L532 fix: extracted nested ternary for resolving riders list
+const resolveRidersList = (riderData: any): any[] => {
+  if (Array.isArray(riderData?.users)) return riderData.users;
+  if (Array.isArray(riderData)) return riderData;
+  return [];
+};
 
 export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -180,18 +223,10 @@ export default function Orders() {
 
       const res = await api.get(`/admin/orders?${query.toString()}`);
       const payload = res.data?.data ?? res.data;
-      const list = Array.isArray(payload?.orders)
-        ? payload.orders
-        : Array.isArray(payload?.data?.orders)
-          ? payload.data.orders
-          : [];
 
-      const resolvedTotal =
-        typeof payload?.total === "number"
-          ? payload.total
-          : typeof payload?.data?.total === "number"
-            ? payload.data.total
-            : list.length;
+      // Fixed L192 & L214: extracted nested ternaries into helper functions
+      const list = resolveOrdersList(payload);
+      const resolvedTotal = resolveTotal(payload, list);
 
       setItems(list);
       setTotal(resolvedTotal);
@@ -208,13 +243,10 @@ export default function Orders() {
         setPermissions(await getPermissions());
         const ridersRes = await api.get("/admin/users?role=rider&limit=100");
         const riderData = ridersRes.data?.data ?? ridersRes.data;
-        setRiders(
-          Array.isArray(riderData?.users)
-            ? riderData.users
-            : Array.isArray(riderData)
-              ? riderData
-              : [],
-        );
+
+        // Fixed L532: extracted nested ternary into helper function
+        setRiders(resolveRidersList(riderData));
+
         await load(1);
       } catch (err) {
         console.error(err);
@@ -226,9 +258,7 @@ export default function Orders() {
     const token = localStorage.getItem("token");
     if (!token) return;
 
-    const apiBase =
-      (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
-    const socketBase = apiBase.replace(/\/api\/?$/, "");
+    const socketBase = API_BASE.replace(/\/api\/?$/, "");
 
     const socket = io(socketBase, {
       transports: ["websocket"],
@@ -708,8 +738,8 @@ export default function Orders() {
                       </div>
                     )}
 
-                    {typeof detail.riderLocation?.latitude === "number" &&
-                    typeof detail.riderLocation?.longitude === "number" ? (
+                    {detail.riderLocation?.latitude !== undefined &&
+                    detail.riderLocation?.longitude !== undefined ? (
                       <div className="text-xs text-slate-700 mt-2 space-y-1">
                         <div>
                           Rider Location:{" "}
@@ -774,14 +804,13 @@ export default function Orders() {
                                 {getDistanceKm(
                                   Number(detail.riderLocation.latitude),
                                   Number(detail.riderLocation.longitude),
-                                  Number(detail.shippingAddress.latitude),
-                                  Number(detail.shippingAddress.longitude),
+                                  Number(detail.shippingAddress?.latitude),
+                                  Number(detail.shippingAddress?.longitude),
                                 ).toFixed(2)}{" "}
                                 km
                               </strong>
                             </div>
-                            <a
-                              href={`https://www.google.com/maps/dir/?api=1&origin=${detail.riderLocation?.latitude},${detail.riderLocation?.longitude}&destination=${detail.shippingAddress?.latitude},${detail.shippingAddress?.longitude}&travelmode=driving`}
+                            <a href={`https://www.google.com/maps/dir/?api=1&origin=${detail.riderLocation?.latitude},${detail.riderLocation?.longitude}&destination=${detail.shippingAddress?.latitude},${detail.shippingAddress?.longitude}&travelmode=driving`}
                               target="_blank"
                               rel="noreferrer"
                               className="text-indigo-600 underline"

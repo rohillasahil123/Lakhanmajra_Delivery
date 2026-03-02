@@ -68,23 +68,30 @@ export default function OrdersScreen() {
       {
         text: 'Yes, Cancel',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            setCancellingOrderId(orderId);
-            const updated = await cancelMyOrderApi(orderId);
-            setOrders((prev) =>
-              prev.map((row) => (row._id === orderId ? { ...row, ...updated, status: 'cancelled' } : row))
-            );
-            Alert.alert('Order Cancelled', 'Order cancelled successfully and stock restored.');
-          } catch (error: any) {
-            Alert.alert('Cancel Failed', error?.message || 'Unable to cancel this order.');
-          } finally {
-            setCancellingOrderId(null);
-          }
-        },
+
+
+       onPress: () => {
+  void (async () => {
+    try {
+      setCancellingOrderId(orderId);
+
+      const updated = await cancelMyOrderApi(orderId);
+
+      setOrders(prev =>
+        prev.map(row =>
+          row._id === orderId
+            ? { ...row, ...updated, status: 'cancelled' }
+            : row
+        )
+      );
+    } catch (e) {
+      console.error(e);
+    }
+  })();
+}
       },
     ]);
-  };
+  } 
 
   useEffect(() => {
     (async () => {
