@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
-import api from '../api/client';
-import { getPermissions } from '../auth';
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { io } from "socket.io-client";
+import api from "../api/client";
+import { getPermissions } from "../auth";
 
 type OrderItem = {
   productId?: { name?: string; images?: string[] };
@@ -15,8 +15,8 @@ type Order = {
   orderNumber?: string;
   totalAmount: number;
   deliveryFee?: number;
-  paymentMethod?: 'cod' | 'online';
-  paymentStatus?: 'pending' | 'paid' | 'failed';
+  paymentMethod?: "cod" | "online";
+  paymentStatus?: "pending" | "paid" | "failed";
   status: string;
   userId?: { _id?: string; name?: string; email?: string; phone?: string };
   assignedRiderId?: { _id?: string; name?: string };
@@ -38,9 +38,11 @@ type Order = {
   createdAt?: string;
 };
 
-type OrderDetail = Order & { timeline?: Array<{ timestamp: string; status: string; message?: string }> };
+type OrderDetail = Order & {
+  timeline?: Array<{ timestamp: string; status: string; message?: string }>;
+};
 
-const PLACEHOLDER_IMAGE = 'https://via.placeholder.com/48x48?text=No+Img';
+const PLACEHOLDER_IMAGE = "https://via.placeholder.com/48x48?text=No+Img";
 
 export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -49,12 +51,18 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [total, setTotal] = useState(0);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all');
-  const [paymentFilter, setPaymentFilter] = useState(searchParams.get('paymentMethod') || 'all');
-  const [fromDate, setFromDate] = useState(searchParams.get('from') || '');
-  const [toDate, setToDate] = useState(searchParams.get('to') || '');
-  const [todayOnly, setTodayOnly] = useState(searchParams.get('today') === '1' || searchParams.get('today') === 'true');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState(
+    searchParams.get("status") || "all",
+  );
+  const [paymentFilter, setPaymentFilter] = useState(
+    searchParams.get("paymentMethod") || "all",
+  );
+  const [fromDate, setFromDate] = useState(searchParams.get("from") || "");
+  const [toDate, setToDate] = useState(searchParams.get("to") || "");
+  const [todayOnly, setTodayOnly] = useState(
+    searchParams.get("today") === "1" || searchParams.get("today") === "true",
+  );
 
   const [showDetail, setShowDetail] = useState(false);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
@@ -62,8 +70,8 @@ export default function Orders() {
   const [mapRefreshTick, setMapRefreshTick] = useState(0);
   const [mapRefreshCountdown, setMapRefreshCountdown] = useState(10);
 
-  const [editStatus, setEditStatus] = useState('');
-  const [editRider, setEditRider] = useState('');
+  const [editStatus, setEditStatus] = useState("");
+  const [editRider, setEditRider] = useState("");
   const [riders, setRiders] = useState<any[]>([]);
   const [updating, setUpdating] = useState(false);
 
@@ -79,7 +87,7 @@ export default function Orders() {
     fromLat: number,
     fromLng: number,
     toLat: number,
-    toLng: number
+    toLng: number,
   ): number => {
     const earthRadiusKm = 6371;
     const deltaLat = toRadians(toLat - fromLat);
@@ -94,7 +102,11 @@ export default function Orders() {
     return earthRadiusKm * c;
   };
 
-  const buildOsmEmbedUrl = (latitude: number, longitude: number, refreshTick: number): string => {
+  const buildOsmEmbedUrl = (
+    latitude: number,
+    longitude: number,
+    refreshTick: number,
+  ): string => {
     const delta = 0.01;
     const left = longitude - delta;
     const right = longitude + delta;
@@ -128,7 +140,11 @@ export default function Orders() {
       clearInterval(countdownTimer);
       clearInterval(refreshTimer);
     };
-  }, [showDetail, detail?.riderLocation?.latitude, detail?.riderLocation?.longitude]);
+  }, [
+    showDetail,
+    detail?.riderLocation?.latitude,
+    detail?.riderLocation?.longitude,
+  ]);
 
   const upsertOrderRow = (incoming: Order) => {
     setItems((prev) => {
@@ -151,29 +167,31 @@ export default function Orders() {
   const load = async (pageNum = 1) => {
     try {
       const query = new URLSearchParams();
-      query.set('page', String(pageNum));
-      query.set('limit', String(limit));
-      if (search.trim()) query.set('q', search.trim());
-      if (statusFilter && statusFilter !== 'all') query.set('status', statusFilter);
-      if (paymentFilter && paymentFilter !== 'all') query.set('paymentMethod', paymentFilter);
-      if (todayOnly) query.set('today', '1');
-      if (!todayOnly && fromDate) query.set('from', fromDate);
-      if (!todayOnly && toDate) query.set('to', toDate);
+      query.set("page", String(pageNum));
+      query.set("limit", String(limit));
+      if (search.trim()) query.set("q", search.trim());
+      if (statusFilter && statusFilter !== "all")
+        query.set("status", statusFilter);
+      if (paymentFilter && paymentFilter !== "all")
+        query.set("paymentMethod", paymentFilter);
+      if (todayOnly) query.set("today", "1");
+      if (!todayOnly && fromDate) query.set("from", fromDate);
+      if (!todayOnly && toDate) query.set("to", toDate);
 
       const res = await api.get(`/admin/orders?${query.toString()}`);
       const payload = res.data?.data ?? res.data;
       const list = Array.isArray(payload?.orders)
         ? payload.orders
         : Array.isArray(payload?.data?.orders)
-        ? payload.data.orders
-        : [];
+          ? payload.data.orders
+          : [];
 
       const resolvedTotal =
-        typeof payload?.total === 'number'
+        typeof payload?.total === "number"
           ? payload.total
-          : typeof payload?.data?.total === 'number'
-          ? payload.data.total
-          : list.length;
+          : typeof payload?.data?.total === "number"
+            ? payload.data.total
+            : list.length;
 
       setItems(list);
       setTotal(resolvedTotal);
@@ -188,9 +206,15 @@ export default function Orders() {
     (async () => {
       try {
         setPermissions(await getPermissions());
-        const ridersRes = await api.get('/admin/users?role=rider&limit=100');
+        const ridersRes = await api.get("/admin/users?role=rider&limit=100");
         const riderData = ridersRes.data?.data ?? ridersRes.data;
-        setRiders(Array.isArray(riderData?.users) ? riderData.users : Array.isArray(riderData) ? riderData : []);
+        setRiders(
+          Array.isArray(riderData?.users)
+            ? riderData.users
+            : Array.isArray(riderData)
+              ? riderData
+              : [],
+        );
         await load(1);
       } catch (err) {
         console.error(err);
@@ -199,14 +223,15 @@ export default function Orders() {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
     if (!token) return;
 
-    const apiBase = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000/api';
-    const socketBase = apiBase.replace(/\/api\/?$/, '');
+    const apiBase =
+      (import.meta.env.VITE_API_URL as string) || "http://localhost:5000/api";
+    const socketBase = apiBase.replace(/\/api\/?$/, "");
 
     const socket = io(socketBase, {
-      transports: ['websocket'],
+      transports: ["websocket"],
       auth: { token },
     });
 
@@ -216,20 +241,21 @@ export default function Orders() {
       upsertOrderRow(incoming);
     };
 
-    socket.on('admin:orderUpdated', handleOrderUpdate);
+    socket.on("admin:orderUpdated", handleOrderUpdate);
 
     return () => {
-      socket.off('admin:orderUpdated', handleOrderUpdate);
+      socket.off("admin:orderUpdated", handleOrderUpdate);
       socket.disconnect();
     };
   }, []);
 
   useEffect(() => {
-    const status = searchParams.get('status') || 'all';
-    const paymentMethod = searchParams.get('paymentMethod') || 'all';
-    const from = searchParams.get('from') || '';
-    const to = searchParams.get('to') || '';
-    const today = searchParams.get('today') === '1' || searchParams.get('today') === 'true';
+    const status = searchParams.get("status") || "all";
+    const paymentMethod = searchParams.get("paymentMethod") || "all";
+    const from = searchParams.get("from") || "";
+    const to = searchParams.get("to") || "";
+    const today =
+      searchParams.get("today") === "1" || searchParams.get("today") === "true";
 
     setStatusFilter(status);
     setPaymentFilter(paymentMethod);
@@ -245,39 +271,41 @@ export default function Orders() {
 
   const applyFilters = () => {
     const params = new URLSearchParams(searchParams);
-    if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter);
-    else params.delete('status');
+    if (statusFilter && statusFilter !== "all")
+      params.set("status", statusFilter);
+    else params.delete("status");
 
-    if (paymentFilter && paymentFilter !== 'all') params.set('paymentMethod', paymentFilter);
-    else params.delete('paymentMethod');
+    if (paymentFilter && paymentFilter !== "all")
+      params.set("paymentMethod", paymentFilter);
+    else params.delete("paymentMethod");
 
     if (todayOnly) {
-      params.set('today', '1');
-      params.delete('from');
-      params.delete('to');
+      params.set("today", "1");
+      params.delete("from");
+      params.delete("to");
     } else {
-      params.delete('today');
-      if (fromDate) params.set('from', fromDate);
-      else params.delete('from');
-      if (toDate) params.set('to', toDate);
-      else params.delete('to');
+      params.delete("today");
+      if (fromDate) params.set("from", fromDate);
+      else params.delete("from");
+      if (toDate) params.set("to", toDate);
+      else params.delete("to");
     }
     setSearchParams(params);
   };
 
   const clearFilters = () => {
-    setStatusFilter('all');
-    setPaymentFilter('all');
-    setFromDate('');
-    setToDate('');
+    setStatusFilter("all");
+    setPaymentFilter("all");
+    setFromDate("");
+    setToDate("");
     setTodayOnly(false);
 
     const params = new URLSearchParams(searchParams);
-    params.delete('status');
-    params.delete('paymentMethod');
-    params.delete('today');
-    params.delete('from');
-    params.delete('to');
+    params.delete("status");
+    params.delete("paymentMethod");
+    params.delete("today");
+    params.delete("from");
+    params.delete("to");
     setSearchParams(params);
   };
 
@@ -287,12 +315,12 @@ export default function Orders() {
       const res = await api.get(`/admin/orders/${orderId}`);
       const order = res.data?.data ?? res.data;
       setDetail(order);
-      setEditStatus(order.status || '');
-      setEditRider(order.assignedRiderId?._id || '');
+      setEditStatus(order.status || "");
+      setEditRider(order.assignedRiderId?._id || "");
       setShowDetail(true);
     } catch (err) {
       console.error(err);
-      alert('Failed to load order detail');
+      alert("Failed to load order detail");
     } finally {
       setDetailLoading(false);
     }
@@ -302,12 +330,14 @@ export default function Orders() {
     if (!detail || !editStatus) return;
     setUpdating(true);
     try {
-      await api.patch(`/admin/orders/${detail._id}/status`, { status: editStatus });
-      alert('Status updated');
+      await api.patch(`/admin/orders/${detail._id}/status`, {
+        status: editStatus,
+      });
+      alert("Status updated");
       await load(page);
       setShowDetail(false);
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Update failed');
+      alert(err?.response?.data?.message || "Update failed");
     } finally {
       setUpdating(false);
     }
@@ -317,12 +347,14 @@ export default function Orders() {
     if (!detail || !editRider) return;
     setUpdating(true);
     try {
-      await api.patch(`/admin/orders/${detail._id}/assign`, { riderId: editRider });
-      alert('Rider assigned');
+      await api.patch(`/admin/orders/${detail._id}/assign`, {
+        riderId: editRider,
+      });
+      alert("Rider assigned");
       await load(page);
       setShowDetail(false);
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Assign failed');
+      alert(err?.response?.data?.message || "Assign failed");
     } finally {
       setUpdating(false);
     }
@@ -345,9 +377,12 @@ export default function Orders() {
             setSearch(e.target.value);
             setPage(1);
           }}
-          onKeyDown={(e) => e.key === 'Enter' && load(1)}
+          onKeyDown={(e) => e.key === "Enter" && load(1)}
         />
-        <button className="bg-slate-600 text-white px-4 rounded" onClick={() => load(1)}>
+        <button
+          className="bg-slate-600 text-white px-4 rounded"
+          onClick={() => load(1)}
+        >
           Search
         </button>
       </div>
@@ -383,7 +418,7 @@ export default function Orders() {
             checked={todayOnly}
             onChange={(e) => setTodayOnly(e.target.checked)}
           />
-          Today only
+          <span>Today only</span>
         </label>
 
         <input
@@ -401,10 +436,16 @@ export default function Orders() {
           disabled={todayOnly}
         />
 
-        <button className="bg-indigo-600 text-white px-4 py-2 rounded" onClick={applyFilters}>
+        <button
+          className="bg-indigo-600 text-white px-4 py-2 rounded"
+          onClick={applyFilters}
+        >
           Apply
         </button>
-        <button className="bg-slate-200 text-slate-700 px-4 py-2 rounded" onClick={clearFilters}>
+        <button
+          className="bg-slate-200 text-slate-700 px-4 py-2 rounded"
+          onClick={clearFilters}
+        >
           Clear
         </button>
       </div>
@@ -426,25 +467,40 @@ export default function Orders() {
           </thead>
           <tbody>
             {items.map((order) => (
-              <tr key={order._id} className="border-b last:border-0 hover:bg-slate-50">
-                <td className="p-3">{order.orderNumber || order._id.substring(0, 8)}</td>
+              <tr
+                key={order._id}
+                className="border-b last:border-0 hover:bg-slate-50"
+              >
+                <td className="p-3">
+                  {order.orderNumber || order._id.substring(0, 8)}
+                </td>
                 <td className="p-3 text-sm">
-                  <div className="font-medium">{order.userId?.name || 'Unknown user'}</div>
-                  <div className="text-slate-500">{order.userId?.phone || order.userId?.email || '—'}</div>
+                  <div className="font-medium">
+                    {order.userId?.name || "Unknown user"}
+                  </div>
+                  <div className="text-slate-500">
+                    {order.userId?.phone || order.userId?.email || "—"}
+                  </div>
                 </td>
                 <td className="p-3 text-sm">
                   {order.items && order.items.length > 0 ? (
                     <div className="flex items-center gap-2">
                       <img
-                        src={order.items[0]?.productId?.images?.[0] || PLACEHOLDER_IMAGE}
-                        alt={order.items[0]?.productId?.name || 'Product'}
+                        src={
+                          order.items[0]?.productId?.images?.[0] ||
+                          PLACEHOLDER_IMAGE
+                        }
+                        alt={order.items[0]?.productId?.name || "Product"}
                         className="w-10 h-10 object-cover rounded border border-slate-200"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
+                          (e.target as HTMLImageElement).src =
+                            PLACEHOLDER_IMAGE;
                         }}
                       />
                       <div>
-                        <div className="font-medium">{order.items[0]?.productId?.name || 'Product'}</div>
+                        <div className="font-medium">
+                          {order.items[0]?.productId?.name || "Product"}
+                        </div>
                         <div className="text-slate-500">
                           {order.items.length > 1
                             ? `+${order.items.length - 1} more item(s)`
@@ -453,23 +509,29 @@ export default function Orders() {
                       </div>
                     </div>
                   ) : (
-                    '—'
+                    "—"
                   )}
                 </td>
                 <td className="p-3">₹{order.totalAmount}</td>
                 <td className="p-3 text-sm">
-                  <div className="font-semibold uppercase">{order.paymentMethod || 'cod'}</div>
-                  <div className="text-slate-500">Delivery: ₹{Number(order.deliveryFee ?? 0)}</div>
-                  <div className="text-xs text-slate-500">Status: {order.paymentStatus || 'pending'}</div>
+                  <div className="font-semibold uppercase">
+                    {order.paymentMethod || "cod"}
+                  </div>
+                  <div className="text-slate-500">
+                    Delivery: ₹{Number(order.deliveryFee ?? 0)}
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    Status: {order.paymentStatus || "pending"}
+                  </div>
                 </td>
                 <td className="p-3">
                   <span
                     className={`px-2 py-1 rounded text-sm ${
-                      order.status === 'delivered'
-                        ? 'bg-green-100 text-green-800'
-                        : order.status === 'cancelled'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                      order.status === "delivered"
+                        ? "bg-green-100 text-green-800"
+                        : order.status === "cancelled"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
                     {order.status}
@@ -478,16 +540,26 @@ export default function Orders() {
                 <td className="p-3">
                   <span
                     className={`px-2 py-1 rounded text-xs ${
-                      order.status === 'delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                      order.status === "delivered"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {order.status === 'delivered' ? 'Delivered' : 'Pending'}
+                    {order.status === "delivered" ? "Delivered" : "Pending"}
                   </span>
                 </td>
-                <td className="p-3 text-sm">{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : '—'}</td>
+                <td className="p-3 text-sm">
+                  {order.createdAt
+                    ? new Date(order.createdAt).toLocaleDateString()
+                    : "—"}
+                </td>
                 <td className="p-3">
-                  {hasPerm('orders:view') && (
-                    <button className="text-blue-600 text-sm" onClick={() => showOrderDetail(order._id)} disabled={detailLoading}>
+                  {hasPerm("orders:view") && (
+                    <button
+                      className="text-blue-600 text-sm"
+                      onClick={() => showOrderDetail(order._id)}
+                      disabled={detailLoading}
+                    >
                       View
                     </button>
                   )}
@@ -525,7 +597,9 @@ export default function Orders() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
             <div className="flex justify-between items-center mb-4 border-b pb-3">
-              <h3 className="text-xl font-semibold">Order #{detail.orderNumber || detail._id.substring(0, 8)}</h3>
+              <h3 className="text-xl font-semibold">
+                Order #{detail.orderNumber || detail._id.substring(0, 8)}
+              </h3>
               <button onClick={() => setShowDetail(false)} className="text-lg">
                 ✕
               </button>
@@ -538,25 +612,35 @@ export default function Orders() {
                 <div className="mb-4 p-3 bg-slate-50 rounded">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
-                      <strong>User:</strong> {detail.userId?.name || 'Unknown user'}
+                      <strong>User:</strong>{" "}
+                      {detail.userId?.name || "Unknown user"}
                     </div>
                     <div>
                       <strong>Amount:</strong> ₹{detail.totalAmount}
                     </div>
                     <div>
-                      <strong>Payment:</strong> {String(detail.paymentMethod || 'cod').toUpperCase()} ({detail.paymentStatus || 'pending'})
+                      <strong>Payment:</strong>{" "}
+                      {String(detail.paymentMethod || "cod").toUpperCase()} (
+                      {detail.paymentStatus || "pending"})
                     </div>
                     <div>
-                      <strong>Delivery Fee:</strong> ₹{Number(detail.deliveryFee ?? 0)}
+                      <strong>Delivery Fee:</strong> ₹
+                      {Number(detail.deliveryFee ?? 0)}
                     </div>
                     <div>
                       <strong>Status:</strong> {detail.status}
                     </div>
                     <div>
-                      <strong>Delivery:</strong> {detail.status === 'delivered' ? 'Completed' : 'In Progress'}
+                      <strong>Delivery:</strong>{" "}
+                      {detail.status === "delivered"
+                        ? "Completed"
+                        : "In Progress"}
                     </div>
                     <div>
-                      <strong>Date:</strong> {detail.createdAt ? new Date(detail.createdAt).toLocaleString() : '—'}
+                      <strong>Date:</strong>{" "}
+                      {detail.createdAt
+                        ? new Date(detail.createdAt).toLocaleString()
+                        : "—"}
                     </div>
                   </div>
                 </div>
@@ -568,17 +652,24 @@ export default function Orders() {
                       {detail.items.map((item, i) => (
                         <li key={i} className="flex items-center gap-3">
                           <img
-                            src={item.productId?.images?.[0] || PLACEHOLDER_IMAGE}
-                            alt={item.productId?.name || 'Product'}
+                            src={
+                              item.productId?.images?.[0] || PLACEHOLDER_IMAGE
+                            }
+                            alt={item.productId?.name || "Product"}
                             className="w-12 h-12 object-cover rounded border border-slate-200"
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
+                              (e.target as HTMLImageElement).src =
+                                PLACEHOLDER_IMAGE;
                             }}
                           />
                           <div>
-                            <div className="font-medium">{item.productId?.name || 'Unknown'}</div>
+                            <div className="font-medium">
+                              {item.productId?.name || "Unknown"}
+                            </div>
                             <div>
-                              {item.quantity} × ₹{item.price} = ₹{Number(item.quantity || 0) * Number(item.price || 0)}
+                              {item.quantity} × ₹{item.price} = ₹
+                              {Number(item.quantity || 0) *
+                                Number(item.price || 0)}
                             </div>
                           </div>
                         </li>
@@ -587,7 +678,7 @@ export default function Orders() {
                   </div>
                 )}
 
-                {hasPerm('orders:assign') && (
+                {hasPerm("orders:assign") && (
                   <div className="mb-4 p-3 bg-blue-50 rounded">
                     <h4 className="font-semibold mb-2 text-sm">Assign Rider</h4>
                     <div className="flex gap-2 items-center">
@@ -608,21 +699,30 @@ export default function Orders() {
                         onClick={assignRider}
                         disabled={updating}
                       >
-                        {updating ? 'Assigning...' : 'Assign'}
+                        {updating ? "Assigning..." : "Assign"}
                       </button>
                     </div>
-                    {detail.assignedRiderId && <div className="text-xs text-slate-600 mt-2">Current: {detail.assignedRiderId.name}</div>}
+                    {detail.assignedRiderId && (
+                      <div className="text-xs text-slate-600 mt-2">
+                        Current: {detail.assignedRiderId.name}
+                      </div>
+                    )}
 
-                    {typeof detail.riderLocation?.latitude === 'number' && typeof detail.riderLocation?.longitude === 'number' ? (
+                    {typeof detail.riderLocation?.latitude === "number" &&
+                    typeof detail.riderLocation?.longitude === "number" ? (
                       <div className="text-xs text-slate-700 mt-2 space-y-1">
                         <div>
-                          Rider Location: {Number(detail.riderLocation.latitude).toFixed(5)}, {Number(detail.riderLocation.longitude).toFixed(5)}
+                          Rider Location:{" "}
+                          {Number(detail.riderLocation.latitude).toFixed(5)},{" "}
+                          {Number(detail.riderLocation.longitude).toFixed(5)}
                         </div>
                         <div>
-                          Updated At:{' '}
+                          Updated At:{" "}
                           {detail.riderLocation.timestamp
-                            ? new Date(detail.riderLocation.timestamp).toLocaleString()
-                            : 'just now'}
+                            ? new Date(
+                                detail.riderLocation.timestamp,
+                              ).toLocaleString()
+                            : "just now"}
                         </div>
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${detail.riderLocation.latitude},${detail.riderLocation.longitude}`}
@@ -633,18 +733,25 @@ export default function Orders() {
                           Open Live Location in Maps
                         </a>
 
-                        {hasValidCoords(detail.riderLocation?.latitude, detail.riderLocation?.longitude) && (
+                        {hasValidCoords(
+                          detail.riderLocation?.latitude,
+                          detail.riderLocation?.longitude,
+                        ) && (
                           <div className="mt-3 rounded border border-slate-200 overflow-hidden bg-white">
                             <div className="px-3 py-2 border-b bg-slate-50 flex items-center justify-between text-xs">
-                              <span className="font-medium text-green-700">● Live map auto-refresh</span>
-                              <span className="text-slate-600">Refreshing in {mapRefreshCountdown}s</span>
+                              <span className="font-medium text-green-700">
+                                ● Live map auto-refresh
+                              </span>
+                              <span className="text-slate-600">
+                                Refreshing in {mapRefreshCountdown}s
+                              </span>
                             </div>
                             <iframe
                               title="Rider Live Map"
                               src={buildOsmEmbedUrl(
                                 Number(detail.riderLocation.latitude),
                                 Number(detail.riderLocation.longitude),
-                                mapRefreshTick
+                                mapRefreshTick,
                               )}
                               className="w-full h-56"
                               loading="lazy"
@@ -652,18 +759,25 @@ export default function Orders() {
                           </div>
                         )}
 
-                        {hasValidCoords(detail.riderLocation?.latitude, detail.riderLocation?.longitude) &&
-                        hasValidCoords(detail.shippingAddress?.latitude, detail.shippingAddress?.longitude) ? (
+                        {hasValidCoords(
+                          detail.riderLocation?.latitude,
+                          detail.riderLocation?.longitude,
+                        ) &&
+                        hasValidCoords(
+                          detail.shippingAddress?.latitude,
+                          detail.shippingAddress?.longitude,
+                        ) ? (
                           <>
                             <div className="text-xs text-slate-700">
-                              Rider → Customer Distance:{' '}
+                              Rider → Customer Distance:{" "}
                               <strong>
                                 {getDistanceKm(
                                   Number(detail.riderLocation.latitude),
                                   Number(detail.riderLocation.longitude),
                                   Number(detail.shippingAddress.latitude),
-                                  Number(detail.shippingAddress.longitude)
-                                ).toFixed(2)} km
+                                  Number(detail.shippingAddress.longitude),
+                                ).toFixed(2)}{" "}
+                                km
                               </strong>
                             </div>
                             <a
@@ -678,14 +792,18 @@ export default function Orders() {
                         ) : null}
                       </div>
                     ) : (
-                      <div className="text-xs text-slate-500 mt-2">Live rider location not available yet.</div>
+                      <div className="text-xs text-slate-500 mt-2">
+                        Live rider location not available yet.
+                      </div>
                     )}
                   </div>
                 )}
 
-                {hasPerm('orders:update') && (
+                {hasPerm("orders:update") && (
                   <div className="mb-4 p-3 bg-green-50 rounded">
-                    <h4 className="font-semibold mb-2 text-sm">Update Status</h4>
+                    <h4 className="font-semibold mb-2 text-sm">
+                      Update Status
+                    </h4>
                     <div className="flex gap-2 items-center">
                       <select
                         className="border px-3 py-2 rounded text-sm flex-1"
@@ -704,14 +822,17 @@ export default function Orders() {
                         onClick={updateStatus}
                         disabled={updating}
                       >
-                        {updating ? 'Updating...' : 'Update'}
+                        {updating ? "Updating..." : "Update"}
                       </button>
                     </div>
                   </div>
                 )}
 
                 <div className="flex gap-2 justify-end border-t pt-3">
-                  <button className="px-4 py-2 border rounded text-sm" onClick={() => setShowDetail(false)}>
+                  <button
+                    className="px-4 py-2 border rounded text-sm"
+                    onClick={() => setShowDetail(false)}
+                  >
                     Close
                   </button>
                 </div>

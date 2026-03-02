@@ -749,52 +749,67 @@ export default function Products() {
             )}
           </div>
 
-          {/* ── Image Upload ──────────────────────────────────────────────── */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-600 mb-2">
-              Product Images (max 5, each up to 5MB — JPEG/PNG/WEBP/SVG)
-            </label>
-            <div
-              className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:border-sky-400 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
-                multiple
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <p className="text-slate-500 text-sm">
-                📷 Click to select images or drag & drop
-              </p>
-              <p className="text-slate-400 text-xs mt-1">
-                {selectedFiles.length}/5 images selected
-              </p>
-            </div>
+    {/* ── Image Upload ──────────────────────────────────────────────── */}
+<div className="mb-4">
 
-            {/* Image Previews */}
-            {previewUrls.length > 0 && (
-              <div className="flex gap-3 mt-3 flex-wrap">
-                {previewUrls.map((url, i) => (
-                  <div key={i} className="relative group">
-                    <img
-                      src={url}
-                      alt={`preview-${i}`}
-                      className="w-20 h-20 object-cover rounded-lg border border-slate-200"
-                    />
-                    <button
-                      onClick={() => removeSelectedFile(i)}
-                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+  {/* Properly associated label */}
+  <label
+    htmlFor="productImages"
+    className="block text-sm font-medium text-slate-600 mb-2"
+  >
+    Product Images (max 5, each up to 5MB — JPEG/PNG/WEBP/SVG)
+  </label>
+
+  {/* Clickable upload area (label instead of div) */}
+  <label
+    htmlFor="productImages"
+    className="border-2 border-dashed border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:border-sky-400 transition-colors block"
+  >
+    <p className="text-slate-500 text-sm">
+      📷 Click to select images or drag & drop
+    </p>
+
+    <p className="text-slate-400 text-xs mt-1">
+      {selectedFiles.length}/5 images selected
+    </p>
+  </label>
+
+  {/* Hidden actual file input */}
+  <input
+    id="productImages"
+    ref={fileInputRef}
+    type="file"
+    accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+    multiple
+    className="hidden"
+    onChange={handleFileChange}
+  />
+
+  {/* Image Previews */}
+  {previewUrls.length > 0 && (
+    <div className="flex gap-3 mt-3 flex-wrap">
+      {previewUrls.map((url, i) => (
+        <div key={i} className="relative group">
+          <img
+            src={url}
+            alt={`Selected product preview ${i + 1}`}
+            className="w-20 h-20 object-cover rounded-lg border border-slate-200"
+          />
+
+          <button
+            type="button"
+            onClick={() => removeSelectedFile(i)}
+            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Remove image"
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
+  )}
+
+</div>
 
           <div className="flex gap-2">
             <button
