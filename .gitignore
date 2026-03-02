@@ -1,56 +1,72 @@
+# ==============================
 # Expo
+# ==============================
 .expo/
 
+# ==============================
 # Dependencies
+# ==============================
 node_modules/
 
+# ==============================
 # Build outputs
+# ==============================
 dist/
 build/
 .next/
 out/
 
+# ==============================
 # Environment variables
-# .env.local
-# .env.development
-# .env.production
+# ==============================
+.env
+.env.*
+!.env.example
 
+# ==============================
 # Logs
+# ==============================
+*.log
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-*.log
 
+# ==============================
 # Editor / OS
+# ==============================
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
 
+# ==============================
 # Docker
+# ==============================
 docker-data/
 volumes/
 *.tar
 
+# ==============================
 # Temp / Cache
+# ==============================
 tmp/
 temp/
 .cache/
 
+# ==============================
 # Coverage
+# ==============================
 coverage/
 
+# ==============================
 # Local configs
+# ==============================
 *.local
 *.backup
 
-# Old admin template
-
-
-
-# SonarQube
+# ==============================
+# SonarQube (IMPORTANT)
+# ==============================
 .scannerwork/
-
 sonar-project.properties
-
-git 
+.report-task.txt
