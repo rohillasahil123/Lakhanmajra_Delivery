@@ -1197,6 +1197,7 @@ export default function Products() {
         </table>
       </div>
 
+{/* push change file  */}
       {/* ── Pagination ──────────────────────────────────────────────────────── */}
       <div className="mt-4 flex justify-between items-center">
         <div className="text-sm text-slate-500">Total: {total}</div>
