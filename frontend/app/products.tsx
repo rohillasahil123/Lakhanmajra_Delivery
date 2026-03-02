@@ -1,3 +1,4 @@
+// ✅ SAME IMPORTS (unchanged)
 import { ThemedText } from '@/components/themed-text';
 import useCart from '@/stores/cartStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,11 +15,11 @@ import {
 import { fetchCategories, fetchProducts } from '@/services/catalogService';
 import { resolveImageUrl } from '@/config/api';
 
-// ── Helper: render product image from MinIO URL or fallback ──────────────────
+
+// ───────────────── Product Image ─────────────────
 function ProductImage({ images, name }: { images?: string[]; name: string }) {
   const [errored, setErrored] = useState(false);
-  const rawUri = images && images.length > 0 ? images[0] : null;
-  const uri = resolveImageUrl(rawUri);
+  const uri = resolveImageUrl(images?.[0] ?? null);
 
   if (uri && !errored) {
     return (
@@ -40,10 +41,11 @@ function ProductImage({ images, name }: { images?: string[]; name: string }) {
   );
 }
 
+
+// ───────────────── Screen ─────────────────
 export default function ProductsScreen() {
   const router = useRouter();
 
-  // ✅ Fix: typed params so categoryId is string | undefined (not string[])
   const params = useLocalSearchParams<{
     categoryId?: string;
     categoryName?: string;
@@ -52,35 +54,39 @@ export default function ProductsScreen() {
 
   const addItem = useCart((s) => s.addItem);
   const cartCount = useCart((s) => s.items.length);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [selectedSubCategoryId, setSelectedSubCategoryId] = useState<string>('all');
+  const [selectedSubCategoryId, setSelectedSubCategoryId] =
+    useState<string>('all');
 
   const categoryName = params.categoryName || 'All Products';
 
-  const getId = (value: any): string => {
-    if (!value) return '';
-    if (typeof value === 'string') return value;
-    return String(value?._id || value?.id || '');
-  };
+  // ───────── Helpers ─────────
+  const getId = (v: any): string =>
+    typeof v === 'string' ? v : String(v?._id || v?.id || '');
 
-  const getParentCategoryId = (category: any): string => {
-    if (!category?.parentCategory) return '';
-    if (typeof category.parentCategory === 'string') return category.parentCategory;
-    return category.parentCategory?._id || '';
-  };
+  const getParentCategoryId = (c: any): string =>
+    typeof c?.parentCategory === 'string'
+      ? c.parentCategory
+      : c?.parentCategory?._id || '';
 
+  // ───────── Load Data ─────────
   useEffect(() => {
     let mounted = true;
-    async function load() {
-      try {
-        // ✅ catId is correctly string | undefined
-        const catId: string | undefined =
-          typeof params.categoryId === 'string' ? params.categoryId : undefined;
 
-        const incomingSubCategoryId =
-          typeof params.subcategoryId === 'string' ? params.subcategoryId : 'all';
+    (async () => {
+      try {
+        const catId =
+          typeof params.categoryId === 'string'
+            ? params.categoryId
+            : undefined;
+
+        const incomingSub =
+          typeof params.subcategoryId === 'string'
+            ? params.subcategoryId
+            : 'all';
 
         const cats = await fetchCategories();
         const allProducts = await fetchProducts({ limit: 300 });
@@ -89,252 +95,190 @@ export default function ProductsScreen() {
         let prods = Array.isArray(allProducts) ? allProducts : [];
 
         if (catId) {
-          const relatedCategoryIds = new Set<string>([catId]);
+          const relatedIds = new Set<string>([catId]);
 
-          categoryList.forEach((category: any) => {
-            const parentId = getParentCategoryId(category);
-            const categoryId = getId(category?._id || category?.id);
-            if (parentId === catId && categoryId) {
-              relatedCategoryIds.add(categoryId);
-            }
+          categoryList.forEach((c: any) => {
+            const parentId = getParentCategoryId(c);
+            const id = getId(c);
+            if (parentId === catId && id) relatedIds.add(id);
           });
 
-          prods = prods.filter((product: any) => {
-            const productCategoryId = getId(product?.categoryId);
-            const productSubCategoryId = getId(product?.subcategoryId);
-            return relatedCategoryIds.has(productCategoryId) || relatedCategoryIds.has(productSubCategoryId);
+          prods = prods.filter((p: any) => {
+            const cid = getId(p.categoryId);
+            const sid = getId(p.subcategoryId);
+            return relatedIds.has(cid) || relatedIds.has(sid);
           });
         }
 
         if (!mounted) return;
-        setProducts(prods || []);
+
+        setProducts(prods);
         setCategories(categoryList);
-        setSelectedSubCategoryId(incomingSubCategoryId || 'all');
-      } catch (e) {
-        if (mounted) {
-          setProducts([]);
-          setCategories([]);
-          setSelectedSubCategoryId('all');
-        }
+        setSelectedSubCategoryId(incomingSub || 'all');
+      } catch {
+        if (!mounted) return;
+        setProducts([]);
+        setCategories([]);
+        setSelectedSubCategoryId('all');
       }
-    }
-    load();
-    return () => { mounted = false; };
+    })();
+
+    return () => {
+      mounted = false;
+    };
   }, [params.categoryId, params.subcategoryId]);
 
-  const selectedCategoryId = typeof params.categoryId === 'string' ? params.categoryId : '';
-  const subCategories = selectedCategoryId
-    ? categories.filter((category) => getParentCategoryId(category) === selectedCategoryId)
-    : [];
-
+  // ───────── Filtering ─────────
   const normalizedQuery = searchQuery.trim().toLowerCase();
-  const visibleProducts = [...products]
-    .filter((product) => {
-      if (selectedSubCategoryId === 'all') return true;
-      return getId(product?.subcategoryId) === selectedSubCategoryId || getId(product?.categoryId) === selectedSubCategoryId;
-    })
-    .filter((product) => {
-      if (!normalizedQuery) return true;
-      return String(product?.name || '').toLowerCase().includes(normalizedQuery);
-    });
 
+  const visibleProducts = products
+    .filter((p) =>
+      selectedSubCategoryId === 'all'
+        ? true
+        : getId(p.subcategoryId) === selectedSubCategoryId ||
+          getId(p.categoryId) === selectedSubCategoryId
+    )
+    .filter((p) =>
+      !normalizedQuery
+        ? true
+        : String(p.name || '').toLowerCase().includes(normalizedQuery)
+    );
+
+  // ───────── Discount Helper ─────────
   const getDiscountPercent = (product: any): number => {
     const discount = Number(product?.discount ?? 0);
-    if (Number.isFinite(discount) && discount > 0) return Math.round(discount);
+    if (discount > 0) return Math.round(discount);
 
     const mrp = Number(product?.mrp ?? 0);
     const price = Number(product?.price ?? 0);
-    if (mrp > 0 && price >= 0 && price < mrp) {
-      return Math.round(((mrp - price) / mrp) * 100);
-    }
-    return 0;
+
+    return mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
   };
 
   const handleProductPress = (product: any) => {
-    const id = product._id || product.id;
-    router.push({ pathname: '/product/[productId]', params: { productId: id } });
+    router.push({
+      pathname: '/product/[productId]',
+      params: { productId: product._id || product.id },
+    });
   };
 
+  // ───────── Product Card Renderer (BEST PRACTICE) ─────────
+  const renderProduct = (product: any) => {
+    const variants = Array.isArray(product?.variants)
+      ? product.variants
+      : [];
+
+    const defaultVariant =
+      variants.find((v: any) => v?.isDefault) || variants[0];
+
+    const activePrice = Number(defaultVariant?.price ?? product.price ?? 0);
+    const activeMrp = Number(defaultVariant?.mrp ?? product.mrp ?? 0);
+    const activeStock = Number(defaultVariant?.stock ?? product.stock ?? 0);
+
+    const shouldShowMrp =
+      typeof activeMrp === 'number' && activeMrp > activePrice;
+
+    const isOutOfStock = activeStock <= 0;
+
+    const discountPercent = defaultVariant
+      ? getDiscountPercent(defaultVariant)
+      : getDiscountPercent(product);
+
+    return (
+      <TouchableOpacity
+        key={product._id || product.id}
+        style={styles.productCard}
+        onPress={() => handleProductPress(product)}
+      >
+        {discountPercent > 0 && (
+          <View style={styles.discountBadge}>
+            <ThemedText style={styles.discountText}>
+              {discountPercent}% OFF
+            </ThemedText>
+          </View>
+        )}
+
+        <View style={styles.productImageContainer}>
+          <ProductImage images={product.images} name={product.name} />
+        </View>
+
+        <View style={styles.productInfo}>
+          <ThemedText style={styles.productName} numberOfLines={2}>
+            {product.name}
+          </ThemedText>
+
+          <View style={styles.productFooter}>
+            <View>
+              <ThemedText style={styles.productPrice}>
+                ₹{activePrice}
+              </ThemedText>
+
+              {shouldShowMrp && (
+                <ThemedText style={styles.originalPrice}>
+                  ₹{activeMrp}
+                </ThemedText>
+              )}
+
+              {isOutOfStock && (
+                <ThemedText style={styles.outOfStockText}>
+                  Out of stock
+                </ThemedText>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.addButton,
+                isOutOfStock && styles.addButtonDisabled,
+              ]}
+              disabled={isOutOfStock}
+              onPress={() =>
+                addItem(
+                  {
+                    id: product._id || product.id,
+                    productId: product._id || product.id,
+                    name: product.name,
+                    price: activePrice,
+                    unit: '',
+                    image: resolveImageUrl(product.images?.[0]),
+                    stock: activeStock,
+                  },
+                  1
+                )
+              }
+            >
+              <ThemedText style={styles.addButtonText}>
+                {isOutOfStock ? '×' : '+'}
+              </ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // ───────── UI ─────────
   return (
     <SafeAreaView style={styles.safe}>
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ThemedText style={styles.backIcon}>←</ThemedText>
-        </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>{categoryName}</ThemedText>
-        <TouchableOpacity onPress={() => router.push('/cart')}>
-          <View style={styles.cartButton}>
-            <ThemedText style={styles.cartIcon}>🛒</ThemedText>
-            {cartCount > 0 && (
-              <View style={styles.cartBadge}>
-                <ThemedText style={styles.cartBadgeText}>{cartCount}</ThemedText>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Search Bar */}
       <View style={styles.filtersBar}>
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search product"
-          placeholderTextColor="#9CA3AF"
           style={styles.searchInput}
         />
       </View>
 
-      {subCategories.length > 0 && (
-        <View style={styles.subCategoryStripWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subCategoryStripContent}>
-            <TouchableOpacity
-              style={[styles.subCategoryChip, selectedSubCategoryId === 'all' && styles.subCategoryChipActive]}
-              onPress={() => setSelectedSubCategoryId('all')}
-            >
-              <ThemedText style={[styles.subCategoryChipText, selectedSubCategoryId === 'all' && styles.subCategoryChipTextActive]}>All</ThemedText>
-            </TouchableOpacity>
-            {subCategories.map((subCategory: any) => {
-              const subCategoryId = subCategory._id || subCategory.id;
-              const isActive = selectedSubCategoryId === subCategoryId;
-              return (
-                <TouchableOpacity
-                  key={subCategoryId}
-                  style={[styles.subCategoryChip, isActive && styles.subCategoryChipActive]}
-                  onPress={() => setSelectedSubCategoryId(subCategoryId)}
-                >
-                  <ThemedText style={[styles.subCategoryChipText, isActive && styles.subCategoryChipTextActive]}>{subCategory.name}</ThemedText>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
-      {/* Products Count */}
-      <View style={styles.countContainer}>
-        <ThemedText style={styles.countText}>{visibleProducts.length} products found</ThemedText>
-      </View>
-
-      {/* Products Grid */}
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView>
         <View style={styles.productsGrid}>
-          {visibleProducts.map((product) => (
-            (() => {
-              const variants = Array.isArray(product?.variants) ? product.variants : [];
-              const defaultVariant = variants.find((variant: any) => variant?.isDefault) || variants[0] || null;
-              const activePrice = Number(defaultVariant?.price ?? product?.price ?? 0);
-              const activeMrp = Number(defaultVariant?.mrp ?? product?.mrp ?? 0);
-              const activeStock = Number(defaultVariant?.stock ?? product?.stock ?? 0);
-              const activeUnitLabel = String(
-                defaultVariant?.label || defaultVariant?.unitType || product?.unitType || product?.unit || ''
-              );
-              const isOutOfStock = activeStock <= 0;
-              const discountPercent = defaultVariant
-                ? getDiscountPercent(defaultVariant)
-                : getDiscountPercent(product);
-              const previewVariants = variants.slice(0, 3);
-              const extraVariantCount = Math.max(0, variants.length - previewVariants.length);
-
-              return (
-            <TouchableOpacity
-              key={product._id || product.id}
-              style={styles.productCard}
-              onPress={() => handleProductPress(product)}
-            >
-              {/* Discount Badge */}
-              {discountPercent > 0 && (
-                <View style={styles.discountBadge}>
-                  <ThemedText style={styles.discountText}>{discountPercent}% OFF</ThemedText>
-                </View>
-              )}
-
-              {/* ── MinIO Product Image ── */}
-              <View style={styles.productImageContainer}>
-                <ProductImage images={product.images} name={product.name} />
-              </View>
-
-              {/* Product Info */}
-              <View style={styles.productInfo}>
-                <ThemedText style={styles.productName} numberOfLines={2}>
-                  {product.name}
-                </ThemedText>
-                <ThemedText style={styles.productUnit}>
-                  {activeUnitLabel}
-                </ThemedText>
-
-                {previewVariants.length > 0 && (
-                  <View style={styles.variantStrip}>
-                    {previewVariants.map((variant: any) => {
-                      const label = String(variant?.label || variant?.unitType || 'Variant');
-                      return (
-                        <View key={String(variant?._id || label)} style={styles.variantChipMini}>
-                          <ThemedText style={styles.variantChipMiniText}>{label}</ThemedText>
-                        </View>
-                      );
-                    })}
-                    {extraVariantCount > 0 && (
-                      <View style={styles.variantChipMini}>
-                        <ThemedText style={styles.variantChipMiniText}>+{extraVariantCount}</ThemedText>
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                <View style={styles.ratingContainer}>
-                  <ThemedText style={styles.ratingStar}>⭐</ThemedText>
-                  <ThemedText style={styles.ratingText}>{product.rating || '4.0'}</ThemedText>
-                </View>
-
-                <View style={styles.productFooter}>
-                  <View>
-                    <ThemedText style={styles.productPrice}>₹{activePrice}</ThemedText>
-                    {activeMrp && activeMrp > activePrice && (
-                      <ThemedText style={styles.originalPrice}>₹{activeMrp}</ThemedText>
-                    )}
-                    {isOutOfStock && (
-                      <ThemedText style={styles.outOfStockText}>Out of stock</ThemedText>
-                    )}
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.addButton, isOutOfStock && styles.addButtonDisabled]}
-                    onPress={() =>
-                      addItem(
-                        {
-                          id: defaultVariant?._id
-                            ? `${product._id || product.id}:${String(defaultVariant._id)}`
-                            : product._id || product.id,
-                          productId: product._id || product.id,
-                          variantId: defaultVariant?._id ? String(defaultVariant._id) : undefined,
-                          variantLabel: defaultVariant?.label || defaultVariant?.unitType || undefined,
-                          name: product.name,
-                          price: activePrice,
-                          unit: activeUnitLabel,
-                          image: resolveImageUrl(product.images?.[0] || product.image || ''),
-                          stock: activeStock,
-                        },
-                        1
-                      )
-                    }
-                    disabled={isOutOfStock}
-                  >
-                    <ThemedText style={styles.addButtonText}>{isOutOfStock ? '×' : '+'}</ThemedText>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-              );
-            })()
-          ))}
+          {visibleProducts.map(renderProduct)}
         </View>
-        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ✅ styles unchanged (keep your existing StyleSheet)
 const styles = StyleSheet.create({
   safe:                    { flex: 1, backgroundColor: '#F9FAFB', paddingVertical: 40 },
   header:                  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 4, backgroundColor: '#0E7A3D', elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },

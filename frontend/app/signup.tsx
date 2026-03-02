@@ -39,7 +39,7 @@ export default function SignupScreen() {
   }, [timer]);
 
   function normalizePhone(value: string): string {
-    return value.replace(/\D/g, '').slice(0, PHONE_LENGTH);
+    return value.replaceAll(/\D/g, '').slice(0, PHONE_LENGTH);
   }
 
   async function postAuth<T>(endpoint: string, payload: Record<string, string>): Promise<T> {
@@ -96,7 +96,7 @@ export default function SignupScreen() {
   async function verifyOtpStep() {
     try {
       const cleanPhone = normalizePhone(phone);
-      const cleanOtp = otp.replace(/\D/g, '').slice(0, OTP_LENGTH);
+      const cleanOtp = otp.replaceAll(/\D/g, '').slice(0, OTP_LENGTH);
 
       if (cleanPhone.length !== PHONE_LENGTH) {
         Alert.alert('Error', 'Phone number is invalid. Please go back and retry.');
@@ -247,7 +247,7 @@ export default function SignupScreen() {
                   placeholder="0000"
                   keyboardType="number-pad"
                   value={otp}
-                  onChangeText={(value) => setOtp(value.replace(/\D/g, '').slice(0, OTP_LENGTH))}
+                  onChangeText={(value) => setOtp(value.replaceAll(/\D/g, '').slice(0, OTP_LENGTH))}
                   editable={!loading}
                   maxLength={OTP_LENGTH}
                   style={[styles.input, styles.otpInput]}

@@ -46,3 +46,9 @@ coverage/
 
 # Old admin template
 
+
+
+# SonarQube
+.scannerwork/
+
+sonar-project.properties

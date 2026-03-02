@@ -121,12 +121,13 @@ export default function ProfileScreen() {
   );
 
   const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
+  Alert.alert('Logout', 'Are you sure you want to logout?', [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Logout',
+      style: 'destructive',
+      onPress: () => {
+        void (async () => {
           try {
             await authService.logout();
             await resetLocalCart();
@@ -134,10 +135,11 @@ export default function ProfileScreen() {
           } catch (error: any) {
             Alert.alert('Logout Failed', error?.message || 'Please try again.');
           }
-        },
+        })();
       },
-    ]);
-  };
+    },
+  ]);
+};
 
   const handleAddressChange = () => {
     router.push({
@@ -184,7 +186,7 @@ export default function ProfileScreen() {
       return;
     }
 
-    if (editPhone.replace(/\D/g, '').length < 10) {
+    if (editPhone.replaceAll(/\D/g, '').length < 10) {
       Alert.alert('Validation', 'Please enter a valid phone number.');
       return;
     }
