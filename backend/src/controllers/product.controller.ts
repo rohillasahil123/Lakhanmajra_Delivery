@@ -84,22 +84,76 @@ const normalizeVariants = (
   return cleaned;
 };
 
-const syncRootFieldsFromVariants = (payload: any): any => {
+const ensureBaseVariant = (payload: any): any => {
   if (!Array.isArray(payload?.variants) || payload.variants.length === 0) return payload;
-  const defaultVariant = payload.variants.find((variant: any) => variant.isDefault) || payload.variants[0];
-  const totalStock = payload.variants.reduce((sum: number, variant: any) => sum + Number(variant.stock || 0), 0);
 
+  const basePrice = parseOptionalNumber(payload?.price);
+  if (basePrice === undefined) return payload;
+
+  const baseUnit = String(payload?.unit || "piece").trim().toLowerCase() || "piece";
+  const baseLabel = String(payload?.unitType || payload?.unit || "Default").trim() || "Default";
+  const baseMrp = parseOptionalNumber(payload?.mrp) ?? basePrice;
+  const baseStock = parseOptionalNumber(payload?.stock) ?? 0;
+  const baseDiscount =
+    parseOptionalNumber(payload?.discount) ?? calculateDiscountPercent(baseMrp, basePrice);
+
+  const hasBaseLabel = payload.variants.some(
+    (variant: any) => String(variant?.label || "").trim().toLowerCase() === baseLabel.toLowerCase()
+  );
+
+  if (hasBaseLabel) return payload;
+
+  const resetDefaultVariants = payload.variants.map((variant: any) => ({ ...variant, isDefault: false }));
   return {
     ...payload,
-    price: Number(defaultVariant.price || 0),
-    mrp: Number(defaultVariant.mrp || defaultVariant.price || 0),
+    variants: [
+      {
+        label: baseLabel,
+        price: basePrice,
+        mrp: baseMrp,
+        discount: baseDiscount,
+        stock: baseStock,
+        unit: baseUnit,
+        unitType: baseLabel,
+        isDefault: true,
+      },
+      ...resetDefaultVariants,
+    ],
+  };
+};
+
+const syncRootFieldsFromVariants = (payload: any): any => {
+  if (!Array.isArray(payload?.variants) || payload.variants.length === 0) return payload;
+  const payloadWithBase = ensureBaseVariant(payload);
+  const defaultVariant =
+    payloadWithBase.variants.find((variant: any) => variant.isDefault) || payloadWithBase.variants[0];
+  const totalStock = payloadWithBase.variants.reduce(
+    (sum: number, variant: any) => sum + Number(variant.stock || 0),
+    0
+  );
+
+  return {
+    ...payloadWithBase,
+    price:
+      payloadWithBase.price !== undefined
+        ? payloadWithBase.price
+        : Number(defaultVariant.price || 0),
+    mrp:
+      payloadWithBase.mrp !== undefined
+        ? payloadWithBase.mrp
+        : Number(defaultVariant.mrp || defaultVariant.price || 0),
     discount:
-      typeof defaultVariant.discount === "number"
+      payloadWithBase.discount !== undefined
+        ? payloadWithBase.discount
+        : typeof defaultVariant.discount === "number"
         ? defaultVariant.discount
         : calculateDiscountPercent(Number(defaultVariant.mrp || 0), Number(defaultVariant.price || 0)),
-    stock: totalStock,
-    unit: defaultVariant.unit || payload.unit || "piece",
-    unitType: defaultVariant.unitType || payload.unitType || defaultVariant.label || "",
+    stock:
+      payloadWithBase.stock !== undefined
+        ? payloadWithBase.stock
+        : totalStock,
+    unit: payloadWithBase.unit || defaultVariant.unit || "piece",
+    unitType: payloadWithBase.unitType || defaultVariant.unitType || defaultVariant.label || "",
   };
 };
 

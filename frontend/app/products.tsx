@@ -223,9 +223,20 @@ export default function ProductsScreen() {
         <View style={styles.productsGrid}>
           {visibleProducts.map((product) => (
             (() => {
-              const productStock = Number(product?.stock ?? 0);
-              const isOutOfStock = productStock <= 0;
-              const discountPercent = getDiscountPercent(product);
+              const variants = Array.isArray(product?.variants) ? product.variants : [];
+              const defaultVariant = variants.find((variant: any) => variant?.isDefault) || variants[0] || null;
+              const activePrice = Number(defaultVariant?.price ?? product?.price ?? 0);
+              const activeMrp = Number(defaultVariant?.mrp ?? product?.mrp ?? 0);
+              const activeStock = Number(defaultVariant?.stock ?? product?.stock ?? 0);
+              const activeUnitLabel = String(
+                defaultVariant?.label || defaultVariant?.unitType || product?.unitType || product?.unit || ''
+              );
+              const isOutOfStock = activeStock <= 0;
+              const discountPercent = defaultVariant
+                ? getDiscountPercent(defaultVariant)
+                : getDiscountPercent(product);
+              const previewVariants = variants.slice(0, 3);
+              const extraVariantCount = Math.max(0, variants.length - previewVariants.length);
 
               return (
             <TouchableOpacity
@@ -251,8 +262,26 @@ export default function ProductsScreen() {
                   {product.name}
                 </ThemedText>
                 <ThemedText style={styles.productUnit}>
-                  {product.unitType || product.unit || ''}
+                  {activeUnitLabel}
                 </ThemedText>
+
+                {previewVariants.length > 0 && (
+                  <View style={styles.variantStrip}>
+                    {previewVariants.map((variant: any) => {
+                      const label = String(variant?.label || variant?.unitType || 'Variant');
+                      return (
+                        <View key={String(variant?._id || label)} style={styles.variantChipMini}>
+                          <ThemedText style={styles.variantChipMiniText}>{label}</ThemedText>
+                        </View>
+                      );
+                    })}
+                    {extraVariantCount > 0 && (
+                      <View style={styles.variantChipMini}>
+                        <ThemedText style={styles.variantChipMiniText}>+{extraVariantCount}</ThemedText>
+                      </View>
+                    )}
+                  </View>
+                )}
 
                 <View style={styles.ratingContainer}>
                   <ThemedText style={styles.ratingStar}>⭐</ThemedText>
@@ -261,9 +290,9 @@ export default function ProductsScreen() {
 
                 <View style={styles.productFooter}>
                   <View>
-                    <ThemedText style={styles.productPrice}>₹{product.price}</ThemedText>
-                    {product.mrp && product.mrp > product.price && (
-                      <ThemedText style={styles.originalPrice}>₹{product.mrp}</ThemedText>
+                    <ThemedText style={styles.productPrice}>₹{activePrice}</ThemedText>
+                    {activeMrp && activeMrp > activePrice && (
+                      <ThemedText style={styles.originalPrice}>₹{activeMrp}</ThemedText>
                     )}
                     {isOutOfStock && (
                       <ThemedText style={styles.outOfStockText}>Out of stock</ThemedText>
@@ -274,12 +303,17 @@ export default function ProductsScreen() {
                     onPress={() =>
                       addItem(
                         {
-                          id: product._id || product.id,
+                          id: defaultVariant?._id
+                            ? `${product._id || product.id}:${String(defaultVariant._id)}`
+                            : product._id || product.id,
+                          productId: product._id || product.id,
+                          variantId: defaultVariant?._id ? String(defaultVariant._id) : undefined,
+                          variantLabel: defaultVariant?.label || defaultVariant?.unitType || undefined,
                           name: product.name,
-                          price: product.price,
-                          unit: product.unitType || product.unit || '',
+                          price: activePrice,
+                          unit: activeUnitLabel,
                           image: resolveImageUrl(product.images?.[0] || product.image || ''),
-                          stock: productStock,
+                          stock: activeStock,
                         },
                         1
                       )
@@ -336,6 +370,9 @@ const styles = StyleSheet.create({
   ratingContainer:         { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
   ratingStar:              { fontSize: 12, marginRight: 4 },
   ratingText:              { fontSize: 12, fontWeight: '600', color: '#6B7280' },
+  variantStrip:            { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
+  variantChipMini:         { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
+  variantChipMiniText:     { fontSize: 10, color: '#4B5563', fontWeight: '600' },
   productFooter:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
   productPrice:            { fontSize: 16, fontWeight: '700', color: '#0E7A3D' },
   originalPrice:           { fontSize: 11, color: '#9CA3AF', textDecorationLine: 'line-through' },

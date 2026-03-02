@@ -15,22 +15,68 @@ const computeDiscount = (mrp?: number, price?: number): number => {
   return Math.round(((mrp - price) / mrp) * 100);
 };
 
-const syncRootFieldsFromVariants = (payload: any) => {
-  if (!Array.isArray(payload?.variants) || payload.variants.length === 0) return payload;
-  const defaultVariant = payload.variants.find((variant: any) => variant?.isDefault) || payload.variants[0];
-  const stock = payload.variants.reduce((sum: number, variant: any) => sum + Number(variant?.stock || 0), 0);
+const parseNumber = (value: any): number | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? undefined : parsed;
+};
 
+const ensureBaseVariant = (payload: any) => {
+  if (!Array.isArray(payload?.variants) || payload.variants.length === 0) return payload;
+
+  const basePrice = parseNumber(payload?.price);
+  if (basePrice === undefined) return payload;
+
+  const baseUnit = String(payload?.unit || 'piece').trim().toLowerCase() || 'piece';
+  const baseLabel = String(payload?.unitType || payload?.unit || 'Default').trim() || 'Default';
+  const baseMrp = parseNumber(payload?.mrp) ?? basePrice;
+  const baseStock = parseNumber(payload?.stock) ?? 0;
+  const baseDiscount = parseNumber(payload?.discount) ?? computeDiscount(baseMrp, basePrice);
+
+  const hasBaseLabel = payload.variants.some(
+    (variant: any) => String(variant?.label || '').trim().toLowerCase() === baseLabel.toLowerCase()
+  );
+
+  if (hasBaseLabel) return payload;
+
+  const variants = payload.variants.map((variant: any) => ({ ...variant, isDefault: false }));
   return {
     ...payload,
-    price: Number(defaultVariant?.price || 0),
-    mrp: Number(defaultVariant?.mrp || defaultVariant?.price || 0),
+    variants: [
+      {
+        label: baseLabel,
+        price: basePrice,
+        mrp: baseMrp,
+        discount: baseDiscount,
+        stock: baseStock,
+        unit: baseUnit,
+        unitType: baseLabel,
+        isDefault: true,
+      },
+      ...variants,
+    ],
+  };
+};
+
+const syncRootFieldsFromVariants = (payload: any) => {
+  if (!Array.isArray(payload?.variants) || payload.variants.length === 0) return payload;
+  const payloadWithBase = ensureBaseVariant(payload);
+  const defaultVariant = payloadWithBase.variants.find((variant: any) => variant?.isDefault) || payloadWithBase.variants[0];
+  const stock = payloadWithBase.variants.reduce((sum: number, variant: any) => sum + Number(variant?.stock || 0), 0);
+
+  return {
+    ...payloadWithBase,
+    price: payloadWithBase.price !== undefined ? payloadWithBase.price : Number(defaultVariant?.price || 0),
+    mrp: payloadWithBase.mrp !== undefined ? payloadWithBase.mrp : Number(defaultVariant?.mrp || defaultVariant?.price || 0),
     discount:
-      typeof defaultVariant?.discount === 'number'
+      payloadWithBase.discount !== undefined
+        ? payloadWithBase.discount
+        : typeof defaultVariant?.discount === 'number'
         ? defaultVariant.discount
         : computeDiscount(Number(defaultVariant?.mrp || 0), Number(defaultVariant?.price || 0)),
-    stock,
-    unit: defaultVariant?.unit || payload.unit || 'piece',
-    unitType: defaultVariant?.unitType || payload.unitType || defaultVariant?.label || '',
+    stock: payloadWithBase.stock !== undefined ? payloadWithBase.stock : stock,
+    unit: payloadWithBase.unit || defaultVariant?.unit || 'piece',
+    unitType: payloadWithBase.unitType || defaultVariant?.unitType || defaultVariant?.label || '',
   };
 };
 

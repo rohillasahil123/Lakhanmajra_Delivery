@@ -532,12 +532,28 @@ export default function HomeScreen() {
         <View style={styles.productGrid}>
           {filteredProducts.map((product) => (
             (() => {
-              const productStock = Number(product?.stock ?? 0);
-              const isOutOfStock = productStock <= 0;
-              const discountPercent = getDiscountPercent(product);
+              const variants = Array.isArray(product?.variants) ? product.variants : [];
+              const defaultVariant = variants.find((variant: any) => variant?.isDefault) || variants[0] || null;
+              const activePrice = Number(defaultVariant?.price ?? product?.price ?? 0);
+              const activeMrp = Number(defaultVariant?.mrp ?? product?.mrp ?? 0);
+              const activeStock = Number(defaultVariant?.stock ?? product?.stock ?? 0);
+              const activeUnitLabel = String(defaultVariant?.label || defaultVariant?.unitType || product?.unit || 'piece');
+              const isOutOfStock = activeStock <= 0;
+              const discountPercent = defaultVariant
+                ? getDiscountPercent(defaultVariant)
+                : getDiscountPercent(product);
+              const previewVariants = variants.slice(0, 3);
+              const extraVariantCount = Math.max(0, variants.length - previewVariants.length);
 
               return (
-            <TouchableOpacity key={product.id || product._id} style={styles.productCard}>
+            <TouchableOpacity
+              key={product.id || product._id}
+              style={styles.productCard}
+              onPress={() => {
+                const id = product._id || product.id;
+                router.push({ pathname: '/product/[productId]', params: { productId: id } });
+              }}
+            >
               <View style={styles.productImg}>
                 {/* Show MinIO image if available, else fallback to emoji or placeholder */}
                 {Array.isArray(product.images) && product.images[0] ? (
@@ -566,11 +582,28 @@ export default function HomeScreen() {
                   </View>
                 )}
                 <ThemedText style={styles.productName} numberOfLines={2}>{product.name}</ThemedText>
-                <ThemedText style={styles.productWeight}>Per {product.unit || 'piece'}</ThemedText>
+                <ThemedText style={styles.productWeight}>Per {activeUnitLabel}</ThemedText>
+                {previewVariants.length > 0 && (
+                  <View style={styles.productVariantStrip}>
+                    {previewVariants.map((variant: any) => {
+                      const label = String(variant?.label || variant?.unitType || 'Variant');
+                      return (
+                        <View key={String(variant?._id || label)} style={styles.productVariantChip}>
+                          <ThemedText style={styles.productVariantChipText}>{label}</ThemedText>
+                        </View>
+                      );
+                    })}
+                    {extraVariantCount > 0 && (
+                      <View style={styles.productVariantChip}>
+                        <ThemedText style={styles.productVariantChipText}>+{extraVariantCount}</ThemedText>
+                      </View>
+                    )}
+                  </View>
+                )}
                 <View style={styles.productFooter}>
                   <View>
-                    <ThemedText style={styles.price}>₹{product.price}</ThemedText>
-                    {product.mrp && <ThemedText style={styles.priceOld}>₹{product.mrp}</ThemedText>}
+                    <ThemedText style={styles.price}>₹{activePrice}</ThemedText>
+                    {activeMrp > activePrice && <ThemedText style={styles.priceOld}>₹{activeMrp}</ThemedText>}
                     {isOutOfStock && <ThemedText style={styles.stockWarning}>Out of stock</ThemedText>}
                   </View>
                   <TouchableOpacity
@@ -578,14 +611,19 @@ export default function HomeScreen() {
                     onPress={() =>
                       addItem(
                         {
-                          id: product._id || product.id,
+                          id: defaultVariant?._id
+                            ? `${product._id || product.id}:${String(defaultVariant._id)}`
+                            : product._id || product.id,
+                          productId: product._id || product.id,
+                          variantId: defaultVariant?._id ? String(defaultVariant._id) : undefined,
+                          variantLabel: defaultVariant?.label || defaultVariant?.unitType || undefined,
                           name: product.name,
-                          price: product.price,
-                          unit: product.unit || '',
+                          price: activePrice,
+                          unit: activeUnitLabel,
                           image: (Array.isArray(product.images) && product.images[0])
                             ? resolveImageUrl(product.images[0])
                             : (product.emoji || product.image || '🛍️'),
-                          stock: productStock,
+                          stock: activeStock,
                         },
                         1,
                       )
@@ -1098,6 +1136,23 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     marginBottom: 8,
     fontSize: 11,
+  },
+  productVariantStrip: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 8,
+  },
+  productVariantChip: {
+    backgroundColor: COLORS.light,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  productVariantChipText: {
+    fontSize: 10,
+    color: COLORS.muted,
+    fontWeight: '700',
   },
   productFooter: {
     flexDirection: 'row',
