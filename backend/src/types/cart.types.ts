@@ -1,6 +1,8 @@
 import { Document, Types, Model } from 'mongoose';
 
 export interface ICartItemVariant {
+  id?: string;
+  label?: string;
   size?: string;
   color?: string;
   flavor?: string;
@@ -15,6 +17,8 @@ export interface IOfferDetails {
 export interface ICartItem {
   _id?: Types.ObjectId;
   product: Types.ObjectId;
+  variantId?: Types.ObjectId;
+  variantLabel?: string;
   name: string;
   image: string;
   price: number;
@@ -99,6 +103,7 @@ export interface ICartModel extends Model<ICart> {
 // Request interfaces
 export interface AddToCartRequest {
   productId: string;
+  variantId?: string;
   quantity?: number;
   variant?: ICartItemVariant;
 }

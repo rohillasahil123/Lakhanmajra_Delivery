@@ -17,6 +17,15 @@ const cartItemSchema = new Schema<ICartItem>(
       ref: 'Product',
       required: [true, 'Product is required'],
     },
+    variantId: {
+      type: Schema.Types.ObjectId,
+      default: null,
+    },
+    variantLabel: {
+      type: String,
+      default: '',
+      trim: true,
+    },
     name: {
       type: String,
       required: [true, 'Product name is required'],
@@ -317,7 +326,7 @@ cartSchema.methods.addItem = async function (
   const existingItemIndex = this.items.findIndex(
     (item) =>
       item.product.toString() === productData._id.toString() &&
-      JSON.stringify(item.variant) === JSON.stringify(productData.variant || {})
+      String(item.variantId || '') === String(productData.variantId || '')
   );
 
   if (existingItemIndex > -1) {
@@ -350,6 +359,8 @@ cartSchema.methods.addItem = async function (
 
     this.items.push({
       product: productData._id,
+      variantId: productData.variantId || null,
+      variantLabel: String(productData.variantLabel || ''),
       name: productData.name,
       image: productData.images?.[0] || productData.image,
       price: productData.price,

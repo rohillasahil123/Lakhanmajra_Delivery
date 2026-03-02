@@ -66,7 +66,7 @@ export const getCart = asyncHandler(async (req: AuthRequest, res: Response, next
 // @route   POST /api/cart/add
 // @access  Public (Guest + Authenticated)
 export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  const { productId, quantity = 1, variant }: AddToCartRequest = req.body;
+  const { productId, variantId, quantity = 1, variant }: AddToCartRequest = req.body;
 
   if (!productId) {
     return next(new ErrorResponse('Product ID is required', 400));
@@ -83,8 +83,18 @@ export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, ne
     return next(new ErrorResponse('Product is not available', 400));
   }
 
-  if (product.stock < quantity) {
-    return next(new ErrorResponse(`Only ${product.stock} items available in stock`, 400));
+  const variants = Array.isArray((product as any).variants) ? (product as any).variants : [];
+  const selectedVariant = variantId
+    ? variants.find((entry: any) => String(entry?._id) === String(variantId))
+    : null;
+
+  if (variantId && !selectedVariant) {
+    return next(new ErrorResponse('Selected variant not found', 404));
+  }
+
+  const availableStock = selectedVariant ? Number(selectedVariant.stock || 0) : Number(product.stock || 0);
+  if (availableStock < quantity) {
+    return next(new ErrorResponse(`Only ${availableStock} items available in stock`, 400));
   }
 
   let cart;
@@ -118,10 +128,25 @@ export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, ne
 
   const productData = {
     ...productObj,
+    variantId: selectedVariant?._id || null,
+    variantLabel: selectedVariant?.label || '',
     image: productObj.images?.[0] || productObj.image || 'no-image',
-    mrp: typeof productObj.mrp === 'number' && productObj.mrp > 0 ? productObj.mrp : productObj.price,
-    unit: allowedUnits.includes(unitValue) ? unitValue : 'piece',
-    weight: String(productObj.weight || '1 piece'),
+    price: selectedVariant ? Number(selectedVariant.price || 0) : Number(productObj.price || 0),
+    mrp: selectedVariant
+      ? Number(selectedVariant.mrp || selectedVariant.price || 0)
+      : typeof productObj.mrp === 'number' && productObj.mrp > 0
+      ? productObj.mrp
+      : productObj.price,
+    discount: selectedVariant
+      ? Number(selectedVariant.discount || 0)
+      : Number(productObj.discount || 0),
+    stock: availableStock,
+    unit: selectedVariant
+      ? String(selectedVariant.unit || productObj.unit || 'piece').toLowerCase()
+      : allowedUnits.includes(unitValue)
+      ? unitValue
+      : 'piece',
+    weight: String(selectedVariant?.label || selectedVariant?.unitType || productObj.weight || productObj.unitType || '1 piece'),
     category:
       productObj.category ||
       productObj.categoryName ||
@@ -130,7 +155,11 @@ export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, ne
       productObj.subCategory ||
       productObj.subcategoryName ||
       (productObj.subcategoryId ? String(productObj.subcategoryId) : undefined),
-    variant: variant || {},
+    variant: {
+      ...(variant || {}),
+      ...(selectedVariant?._id ? { id: String(selectedVariant._id) } : {}),
+      ...(selectedVariant?.label ? { label: String(selectedVariant.label), size: String(selectedVariant.label) } : {}),
+    },
   };
 
   // Add item to cart
@@ -194,8 +223,29 @@ export const updateQuantity = asyncHandler(async (req: AuthRequest, res: Respons
     return next(new ErrorResponse('Product not found or inactive', 404));
   }
 
-  if (product.stock < quantity) {
-    return next(new ErrorResponse(`Only ${product.stock} items available in stock`, 400));
+  const itemVariantId = (item as any)?.variantId ? String((item as any).variantId) : '';
+  const matchedVariant = itemVariantId
+    ? (Array.isArray((product as any).variants)
+        ? (product as any).variants.find((entry: any) => String(entry?._id) === itemVariantId)
+        : null)
+    : null;
+
+  const availableStock = matchedVariant ? Number(matchedVariant.stock || 0) : Number(product.stock || 0);
+
+  if (availableStock < quantity) {
+    return next(new ErrorResponse(`Only ${availableStock} items available in stock`, 400));
+  }
+
+  if (matchedVariant) {
+    item.stock = availableStock;
+    item.variantLabel = matchedVariant.label || item.variantLabel || '';
+    item.weight = matchedVariant.label || matchedVariant.unitType || item.weight;
+    item.unit = matchedVariant.unit || item.unit;
+    item.price = Number(matchedVariant.price || item.price);
+    item.mrp = Number(matchedVariant.mrp || matchedVariant.price || item.mrp);
+    item.discount = Number(matchedVariant.discount || item.discount || 0);
+  } else {
+    item.stock = Number(product.stock || 0);
   }
 
   try {

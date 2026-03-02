@@ -5,6 +5,8 @@ const orderSchema = new Schema<IOrder>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   items: [{
     productId: { type: Schema.Types.ObjectId, ref: 'Product' },
+    variantId: { type: Schema.Types.ObjectId, default: null },
+    variantLabel: { type: String, default: '' },
     quantity: { type: Number, required: true },
     price: { type: Number, required: true }
   }],

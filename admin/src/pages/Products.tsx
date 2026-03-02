@@ -2,6 +2,18 @@ import React, { useEffect, useState, useRef } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
 
+type ProductVariant = {
+  _id?: string;
+  label: string;
+  price: string;
+  mrp: string;
+  discount: string;
+  stock: string;
+  unit?: string;
+  unitType?: string;
+  isDefault?: boolean;
+};
+
 type Product = {
   _id: string;
   name: string;
@@ -14,6 +26,7 @@ type Product = {
   isActive?: boolean;
   categoryId?: string | { _id?: string; name?: string } | null;
   subcategoryId?: string | { _id?: string; name?: string } | null;
+  variants?: ProductVariant[];
 };
 
 type Category = {
@@ -33,6 +46,33 @@ const UNIT_VARIANTS: Record<string, string[]> = {
 };
 
 const AUTO_REFRESH_MS = 10000;
+
+const createEmptyVariant = (): ProductVariant => ({
+  label: '',
+  price: '',
+  mrp: '',
+  discount: '',
+  stock: '',
+  isDefault: false,
+});
+
+const toNumber = (value: string): number | null => {
+  if (value.trim() === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const calculateDiscountPercent = (mrpValue: string, priceValue: string): string => {
+  const mrpNumber = toNumber(mrpValue);
+  const priceNumber = toNumber(priceValue);
+
+  if (mrpNumber === null || priceNumber === null || mrpNumber <= 0 || priceNumber < 0 || priceNumber > mrpNumber) {
+    return '';
+  }
+
+  const discountPercent = ((mrpNumber - priceNumber) / mrpNumber) * 100;
+  return String(Math.round(discountPercent));
+};
 
 export default function Products() {
   const [items, setItems] = useState<Product[]>([]);
@@ -54,6 +94,7 @@ export default function Products() {
   const [editImages, setEditImages] = useState<string[]>([]);
   const [editSelectedFiles, setEditSelectedFiles] = useState<File[]>([]);
   const [editPreviewUrls, setEditPreviewUrls] = useState<string[]>([]);
+  const [editVariants, setEditVariants] = useState<ProductVariant[]>([]);
   const [editCatId, setEditCatId] = useState('');
   const [editSubcategoryId, setEditSubcategoryId] = useState('');
   const [updating, setUpdating] = useState(false);
@@ -68,6 +109,7 @@ export default function Products() {
   const [stock, setStock] = useState('');
   const [unit, setUnit] = useState<'piece' | 'kg' | 'g' | 'l' | 'ml' | 'pack'>('piece');
   const [unitType, setUnitType] = useState('1 pc');
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [catId, setCatId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState('');
   const [description, setDescription] = useState('');
@@ -228,9 +270,41 @@ export default function Products() {
     setPreviewUrls(updated.map((f) => URL.createObjectURL(f)));
   };
 
+  const normalizeVariantsForPayload = (rawVariants: ProductVariant[], selectedUnit?: string) => {
+    const cleaned = rawVariants
+      .map((variant) => {
+        const label = variant.label.trim();
+        const priceValue = toNumber(variant.price);
+        const stockValue = toNumber(variant.stock);
+        const mrpValue = toNumber(variant.mrp);
+        if (!label || priceValue === null || stockValue === null) return null;
+
+        const resolvedMrp = mrpValue === null ? priceValue : mrpValue;
+
+        return {
+          ...(variant._id ? { _id: variant._id } : {}),
+          label,
+          price: priceValue,
+          mrp: resolvedMrp,
+          discount: Number(calculateDiscountPercent(String(resolvedMrp), String(priceValue)) || 0),
+          stock: Math.max(0, Math.floor(stockValue)),
+          unit: String(variant.unit || selectedUnit || 'piece').toLowerCase(),
+          unitType: label,
+          isDefault: Boolean(variant.isDefault),
+        };
+      })
+      .filter(Boolean) as Array<any>;
+
+    if (cleaned.length === 0) return [];
+    const defaultIndex = cleaned.findIndex((variant) => variant.isDefault);
+    const resolvedDefaultIndex = defaultIndex >= 0 ? defaultIndex : 0;
+    return cleaned.map((variant, index) => ({ ...variant, isDefault: index === resolvedDefaultIndex }));
+  };
+
   const resetForm = () => {
     setName(''); setPrice(''); setMrp(''); setDiscount(''); setStock('');
     setUnit('piece'); setUnitType('1 pc');
+    setVariants([]);
     setCatId(''); setSubcategoryId(''); setDescription(''); setTags('');
     setSelectedFiles([]); setPreviewUrls([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -251,11 +325,27 @@ export default function Products() {
     setEditName(product.name || '');
     setEditPrice(String(product.price ?? ''));
     setEditMrp(String((product as any).mrp ?? ''));
-    setEditDiscount(String((product as any).discount ?? ''));
+    setEditDiscount(calculateDiscountPercent(String((product as any).mrp ?? ''), String(product.price ?? '')));
     setEditStock(String(product.stock ?? ''));
     setEditImages(Array.isArray(product.images) ? product.images : []);
     setEditSelectedFiles([]);
     setEditPreviewUrls([]);
+    const sourceVariants = Array.isArray((product as any).variants) ? (product as any).variants : [];
+    setEditVariants(
+      sourceVariants.map((variant: any, index: number) => ({
+        _id: variant?._id ? String(variant._id) : undefined,
+        label: String(variant?.label || variant?.unitType || ''),
+        price: String(variant?.price ?? ''),
+        mrp: String(variant?.mrp ?? ''),
+        discount: String(
+          variant?.discount ?? calculateDiscountPercent(String(variant?.mrp ?? ''), String(variant?.price ?? ''))
+        ),
+        stock: String(variant?.stock ?? ''),
+        unit: String(variant?.unit || product.unit || 'piece'),
+        unitType: String(variant?.unitType || variant?.label || ''),
+        isDefault: Boolean(variant?.isDefault || index === 0),
+      }))
+    );
     const categoryRefId = getRefId(product.categoryId);
     const subcategoryRefId = getRefId(product.subcategoryId);
     setEditCatId(categoryRefId);
@@ -272,6 +362,7 @@ export default function Products() {
     setEditImages([]);
     setEditSelectedFiles([]);
     setEditPreviewUrls([]);
+    setEditVariants([]);
     setEditCatId('');
     setEditSubcategoryId('');
   };
@@ -285,17 +376,21 @@ export default function Products() {
   const saveEdit = async () => {
     if (!editingId) return;
     if (!editName.trim()) return alert('Product name is required');
-    if (!editPrice.trim()) return alert('Price is required');
+    const normalizedEditVariants = normalizeVariantsForPayload(editVariants, unit);
+    const defaultEditVariant = normalizedEditVariants.find((variant) => variant.isDefault) || normalizedEditVariants[0];
+    const resolvedEditPrice = editPrice.trim() || (defaultEditVariant ? String(defaultEditVariant.price) : '');
+    if (!resolvedEditPrice) return alert('Price is required');
 
     setUpdating(true);
     try {
       if (editSelectedFiles.length > 0) {
         const formData = new FormData();
         formData.append('name', editName.trim());
-        formData.append('price', String(Number(editPrice)));
+        formData.append('price', String(Number(resolvedEditPrice)));
         if (editMrp.trim() !== '') formData.append('mrp', String(Number(editMrp)));
         if (editDiscount.trim() !== '') formData.append('discount', String(Number(editDiscount)));
         if (editStock.trim() !== '') formData.append('stock', String(Number(editStock)));
+        formData.append('variants', JSON.stringify(normalizedEditVariants));
         if (editCatId) formData.append('categoryId', editCatId);
         formData.append('subcategoryId', editSubcategoryId || '');
         if (editImages.length > 0) formData.append('images', editImages.join(','));
@@ -307,12 +402,13 @@ export default function Products() {
       } else {
         const payload: any = {
           name: editName.trim(),
-          price: Number(editPrice),
+          price: Number(resolvedEditPrice),
         };
 
         if (editMrp.trim() !== '') payload.mrp = Number(editMrp);
         if (editDiscount.trim() !== '') payload.discount = Number(editDiscount);
         if (editStock.trim() !== '') payload.stock = Number(editStock);
+        payload.variants = normalizedEditVariants;
         if (editCatId) payload.categoryId = editCatId;
         payload.subcategoryId = editSubcategoryId;
 
@@ -331,18 +427,23 @@ export default function Products() {
 
   // ── Create product ───────────────────────────────────────────────────────────
   const create = async () => {
-    if (!name || !price || !catId) return alert('Name, price, and category are required');
+    const normalizedVariants = normalizeVariantsForPayload(variants, unit);
+    const defaultVariant = normalizedVariants.find((variant) => variant.isDefault) || normalizedVariants[0];
+    const resolvedPrice = price || (defaultVariant ? String(defaultVariant.price) : '');
+
+    if (!name || !resolvedPrice || !catId) return alert('Name, price, and category are required');
     setCreating(true);
     try {
       // Use FormData to send files + fields together
       const formData = new FormData();
       formData.append('name', name);
-      formData.append('price', price);
+      formData.append('price', resolvedPrice);
       formData.append('categoryId', catId);
       if (subcategoryId) formData.append('subcategoryId', subcategoryId);
       if (mrp) formData.append('mrp', mrp);
       if (discount) formData.append('discount', discount);
       if (stock) formData.append('stock', stock);
+      if (normalizedVariants.length > 0) formData.append('variants', JSON.stringify(normalizedVariants));
       formData.append('unit', unit);
       if (unitType) formData.append('unitType', unitType);
       if (description) formData.append('description', description);
@@ -493,14 +594,22 @@ export default function Products() {
               placeholder="Price (₹) *"
               type="number"
               value={price}
-              onChange={(e) => setPrice(e.target.value)}
+              onChange={(e) => {
+                const nextPrice = e.target.value;
+                setPrice(nextPrice);
+                setDiscount(calculateDiscountPercent(mrp, nextPrice));
+              }}
             />
             <input
               className="border px-3 py-2 rounded"
               placeholder="MRP (₹)"
               type="number"
               value={mrp}
-              onChange={(e) => setMrp(e.target.value)}
+              onChange={(e) => {
+                const nextMrp = e.target.value;
+                setMrp(nextMrp);
+                setDiscount(calculateDiscountPercent(nextMrp, price));
+              }}
             />
             <input
               className="border px-3 py-2 rounded"
@@ -509,7 +618,7 @@ export default function Products() {
               min={0}
               max={100}
               value={discount}
-              onChange={(e) => setDiscount(e.target.value)}
+              readOnly
             />
             <input
               className="border px-3 py-2 rounded"
@@ -550,6 +659,94 @@ export default function Products() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+          </div>
+
+          <div className="mb-4 border rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="font-medium text-slate-700">Variants (optional)</h4>
+              <button
+                type="button"
+                className="text-sm px-3 py-1 rounded bg-slate-100 hover:bg-slate-200"
+                onClick={() => setVariants((prev) => {
+                  const next = [...prev, createEmptyVariant()];
+                  if (next.length === 1) next[0].isDefault = true;
+                  return next;
+                })}
+              >
+                + Add Variant
+              </button>
+            </div>
+
+            {variants.length === 0 ? (
+              <div className="text-xs text-slate-500">No variants added. You can keep single base product or add 500g / 1kg / 2kg variants.</div>
+            ) : (
+              <div className="space-y-2">
+                {variants.map((variant, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                    <input
+                      className="border px-2 py-1 rounded col-span-3"
+                      placeholder="Label (e.g. 500g)"
+                      value={variant.label}
+                      onChange={(e) => setVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, label: e.target.value, unitType: e.target.value } : row))}
+                    />
+                    <input
+                      className="border px-2 py-1 rounded col-span-2"
+                      placeholder="Price"
+                      type="number"
+                      value={variant.price}
+                      onChange={(e) => {
+                        const nextPrice = e.target.value;
+                        setVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, price: nextPrice, discount: calculateDiscountPercent(row.mrp, nextPrice) } : row));
+                      }}
+                    />
+                    <input
+                      className="border px-2 py-1 rounded col-span-2"
+                      placeholder="MRP"
+                      type="number"
+                      value={variant.mrp}
+                      onChange={(e) => {
+                        const nextMrp = e.target.value;
+                        setVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, mrp: nextMrp, discount: calculateDiscountPercent(nextMrp, row.price) } : row));
+                      }}
+                    />
+                    <input
+                      className="border px-2 py-1 rounded col-span-1"
+                      placeholder="%"
+                      type="number"
+                      value={variant.discount}
+                      readOnly
+                    />
+                    <input
+                      className="border px-2 py-1 rounded col-span-2"
+                      placeholder="Stock"
+                      type="number"
+                      value={variant.stock}
+                      onChange={(e) => setVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, stock: e.target.value } : row))}
+                    />
+                    <div className="col-span-2 flex items-center gap-2 justify-end">
+                      <button
+                        type="button"
+                        className={`text-xs px-2 py-1 rounded ${variant.isDefault ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
+                        onClick={() => setVariants((prev) => prev.map((row, rowIndex) => ({ ...row, isDefault: rowIndex === index })))}
+                      >
+                        {variant.isDefault ? 'Default' : 'Set Default'}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 rounded bg-red-100 text-red-600"
+                        onClick={() => setVariants((prev) => {
+                          const next = prev.filter((_, rowIndex) => rowIndex !== index);
+                          if (next.length > 0 && !next.some((row) => row.isDefault)) next[0].isDefault = true;
+                          return next;
+                        })}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ── Image Upload ──────────────────────────────────────────────── */}
@@ -775,7 +972,11 @@ export default function Products() {
                         className="border px-2 py-1 rounded w-28"
                         type="number"
                         value={editPrice}
-                        onChange={(e) => setEditPrice(e.target.value)}
+                        onChange={(e) => {
+                          const nextPrice = e.target.value;
+                          setEditPrice(nextPrice);
+                          setEditDiscount(calculateDiscountPercent(editMrp, nextPrice));
+                        }}
                       />
                     ) : (
                       `₹${p.price}`
@@ -787,7 +988,11 @@ export default function Products() {
                         className="border px-2 py-1 rounded w-28"
                         type="number"
                         value={editMrp}
-                        onChange={(e) => setEditMrp(e.target.value)}
+                        onChange={(e) => {
+                          const nextMrp = e.target.value;
+                          setEditMrp(nextMrp);
+                          setEditDiscount(calculateDiscountPercent(nextMrp, editPrice));
+                        }}
                       />
                     ) : (
                       (p as any).mrp ? `₹${(p as any).mrp}` : '—'
@@ -801,7 +1006,7 @@ export default function Products() {
                         min={0}
                         max={100}
                         value={editDiscount}
-                        onChange={(e) => setEditDiscount(e.target.value)}
+                        readOnly
                       />
                     ) : (
                       (p as any).discount ? `${(p as any).discount}%` : '—'
@@ -844,7 +1049,93 @@ export default function Products() {
                     )}
                   </td>
                   <td className="p-3 text-slate-600">
-                    {(p.unitType || p.unit || 'piece').toString()}
+                    {editingId === p._id ? (
+                      <div className="space-y-2 min-w-[320px]">
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-1 rounded bg-slate-100 hover:bg-slate-200"
+                          onClick={() => setEditVariants((prev) => {
+                            const next = [...prev, createEmptyVariant()];
+                            if (next.length === 1) next[0].isDefault = true;
+                            return next;
+                          })}
+                        >
+                          + Add Variant
+                        </button>
+                        {editVariants.length === 0 ? (
+                          <div className="text-xs text-slate-400">No variants configured</div>
+                        ) : (
+                          editVariants.map((variant, index) => (
+                            <div key={index} className="grid grid-cols-12 gap-1 items-center">
+                              <input
+                                className="border px-1 py-1 rounded col-span-3 text-xs"
+                                placeholder="500g"
+                                value={variant.label}
+                                onChange={(e) => setEditVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, label: e.target.value, unitType: e.target.value } : row))}
+                              />
+                              <input
+                                className="border px-1 py-1 rounded col-span-2 text-xs"
+                                type="number"
+                                placeholder="Price"
+                                value={variant.price}
+                                onChange={(e) => {
+                                  const nextPrice = e.target.value;
+                                  setEditVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, price: nextPrice, discount: calculateDiscountPercent(row.mrp, nextPrice) } : row));
+                                }}
+                              />
+                              <input
+                                className="border px-1 py-1 rounded col-span-2 text-xs"
+                                type="number"
+                                placeholder="MRP"
+                                value={variant.mrp}
+                                onChange={(e) => {
+                                  const nextMrp = e.target.value;
+                                  setEditVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, mrp: nextMrp, discount: calculateDiscountPercent(nextMrp, row.price) } : row));
+                                }}
+                              />
+                              <input className="border px-1 py-1 rounded col-span-1 text-xs" type="number" value={variant.discount} readOnly />
+                              <input
+                                className="border px-1 py-1 rounded col-span-2 text-xs"
+                                type="number"
+                                placeholder="Stock"
+                                value={variant.stock}
+                                onChange={(e) => setEditVariants((prev) => prev.map((row, rowIndex) => rowIndex === index ? { ...row, stock: e.target.value } : row))}
+                              />
+                              <div className="col-span-2 flex gap-1 justify-end">
+                                <button
+                                  type="button"
+                                  className={`text-[10px] px-1.5 py-1 rounded ${variant.isDefault ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}
+                                  onClick={() => setEditVariants((prev) => prev.map((row, rowIndex) => ({ ...row, isDefault: rowIndex === index })))}
+                                >
+                                  {variant.isDefault ? 'Default' : 'Set'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-[10px] px-1.5 py-1 rounded bg-red-100 text-red-600"
+                                  onClick={() => setEditVariants((prev) => {
+                                    const next = prev.filter((_, rowIndex) => rowIndex !== index);
+                                    if (next.length > 0 && !next.some((row) => row.isDefault)) next[0].isDefault = true;
+                                    return next;
+                                  })}
+                                >
+                                  x
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    ) : Array.isArray((p as any).variants) && (p as any).variants.length > 0 ? (
+                      <div className="text-xs space-y-1">
+                        {(p as any).variants.map((variant: any) => (
+                          <div key={String(variant?._id || variant?.label)} className="whitespace-nowrap">
+                            {variant?.label || variant?.unitType || 'Variant'}: ₹{variant?.price ?? 0} • Stock {variant?.stock ?? 0}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      (p.unitType || p.unit || 'piece').toString()
+                    )}
                   </td>
                   <td className="p-3">
                     {editingId === p._id ? (

@@ -28,6 +28,9 @@ function readObjectId(value: any): string {
 
 export type CartItem = {
   id: string;
+  productId?: string;
+  variantId?: string;
+  variantLabel?: string;
   cartItemId?: string;
   name: string;
   price: number;
@@ -72,9 +75,15 @@ const normalizeItem = (item: any): CartItem => {
     readObjectId(item?.id);
 
   const cartItemId = item?._id ? String(item._id) : item?.cartItemId ? String(item.cartItemId) : '';
+  const variantId = readObjectId(item?.variantId || item?.variant?.id);
+  const variantLabel = String(item?.variantLabel || item?.variant?.label || item?.variant?.size || '').trim();
+  const compositeId = variantId ? `${productId}:${variantId}` : productId;
 
   return {
-    id: productId || cartItemId,
+    id: compositeId || productId || cartItemId,
+    productId: productId || undefined,
+    variantId: variantId || undefined,
+    variantLabel: variantLabel || undefined,
     cartItemId: cartItemId || undefined,
     name: item?.name || product?.name || productIdObj?.name || 'Product',
     price: Number(item?.price ?? product?.price ?? productIdObj?.price ?? 0),
@@ -134,19 +143,25 @@ const useCart = create<CartState>((set, get) => ({
   },
 
   addItem: async (item, qty = 1) => {
-    const productId = String(item.id);
+    const productId = String((item as any).productId || item.id);
+    const variantId = (item as any).variantId ? String((item as any).variantId) : '';
+    const variantLabel = (item as any).variantLabel ? String((item as any).variantLabel) : '';
+    const compareId = variantId ? `${productId}:${variantId}` : productId;
     const quantityToAdd = Number(qty) > 0 ? Number(qty) : 1;
     const availableStock = Number((item as any)?.stock ?? 0);
     if (availableStock <= 0) return;
 
-    const existing = get().items.find((row) => row.id === productId);
+    const existing = get().items.find((row) => row.id === compareId);
     if (existing && existing.quantity + quantityToAdd > availableStock) return;
     if (!existing && quantityToAdd > availableStock) return;
 
     try {
       const cart = existing?.cartItemId
         ? await updateCartQuantityApi(existing.cartItemId, existing.quantity + quantityToAdd)
-        : await addToCartApi(productId, quantityToAdd);
+        : await addToCartApi(productId, quantityToAdd, {
+            variantId: variantId || undefined,
+            variantLabel: variantLabel || undefined,
+          });
 
       const synced = mapServerCartToItems(cart);
       set({ items: synced });

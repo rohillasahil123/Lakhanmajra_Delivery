@@ -1,5 +1,17 @@
 import { Schema, model, Document, Types } from "mongoose";
 
+export interface IProductVariant {
+  _id?: Types.ObjectId;
+  label: string;
+  price: number;
+  mrp?: number;
+  discount?: number;
+  stock: number;
+  unit?: string;
+  unitType?: string;
+  isDefault?: boolean;
+}
+
 export interface IProduct extends Document {
   name: string;
   slug: string;
@@ -13,10 +25,58 @@ export interface IProduct extends Document {
   stock: number;
   unit: string;
   unitType?: string;
+  variants?: IProductVariant[];
   tags: string[];
   isActive: boolean;
   isDeleted: boolean;
 }
+
+const productVariantSchema = new Schema<IProductVariant>(
+  {
+    label: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    mrp: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    discount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
+    },
+    stock: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    unit: {
+      type: String,
+      default: "piece",
+      trim: true,
+      lowercase: true,
+    },
+    unitType: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    isDefault: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  { _id: true }
+);
 
 const productSchema = new Schema<IProduct>(
   {
@@ -78,6 +138,10 @@ const productSchema = new Schema<IProduct>(
       type: String,
       default: "",
       trim: true,
+    },
+    variants: {
+      type: [productVariantSchema],
+      default: [],
     },
     tags: {
       type: [String],

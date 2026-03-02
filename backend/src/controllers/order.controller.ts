@@ -28,8 +28,18 @@ const restoreStockForOrder = async (order: any): Promise<void> => {
 
   for (const item of items) {
     const productId = getOrderItemProductId(item);
+    const variantId = item?.variantId ? String(item.variantId) : '';
     const quantity = Number(item?.quantity || 0);
     if (!productId || quantity <= 0) continue;
+
+    if (variantId) {
+      await Product.updateOne(
+        { _id: productId, 'variants._id': variantId },
+        { $inc: { stock: quantity, 'variants.$.stock': quantity } }
+      );
+      continue;
+    }
+
     await Product.updateOne({ _id: productId }, { $inc: { stock: quantity } });
   }
 };
@@ -140,13 +150,27 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         continue;
       }
 
-      if ((product.stock || 0) <= 0) {
+      const variantId = item?.variantId ? String(item.variantId) : '';
+      const selectedVariant = variantId
+        ? (Array.isArray((product as any).variants)
+            ? (product as any).variants.find((entry: any) => String(entry?._id) === variantId)
+            : null)
+        : null;
+
+      if (variantId && !selectedVariant) {
+        stockIssues.push(`Variant not found for ${product.name}`);
+        continue;
+      }
+
+      const availableStock = selectedVariant ? Number(selectedVariant.stock || 0) : Number(product.stock || 0);
+
+      if (availableStock <= 0) {
         stockIssues.push(`${product.name} is out of stock`);
         continue;
       }
 
-      if ((product.stock || 0) < item.quantity) {
-        stockIssues.push(`Only ${product.stock} qty available for ${product.name}`);
+      if (availableStock < item.quantity) {
+        stockIssues.push(`Only ${availableStock} qty available for ${product.name}`);
       }
     }
 
@@ -170,29 +194,37 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     // Order create karo
     const orderPayload = {
-      userId,
+      userId: new Types.ObjectId(userId),
       items: cart.items.map(item => ({
-        productId: getCartItemProductId(item),
+        productId: new Types.ObjectId(getCartItemProductId(item)),
+        variantId: item.variantId ? new Types.ObjectId(String(item.variantId)) : undefined,
+        variantLabel: item.variantLabel || item.variant?.label || item.variant?.size || '',
         quantity: item.quantity,
         price: item.price
       })),
       totalAmount,
       deliveryFee,
-      paymentMethod: normalizedPaymentMethod,
+      paymentMethod: normalizedPaymentMethod as 'cod' | 'online',
       shippingAddress: normalizedShippingAddress,
-      paymentStatus: advancePaid ? 'paid' : 'pending',
-      riderStatus: 'Assigned',
+      paymentStatus: (advancePaid ? 'paid' : 'pending') as 'paid' | 'pending',
+      riderStatus: 'Assigned' as 'Assigned',
       rejectedByRiderIds: [],
     };
 
-    const [order] = await Order.create([orderPayload], { session });
+    const [order] = (await Order.create([orderPayload], { session })) as any[];
 
     const quantityByProduct = new Map<string, number>();
+    const quantityByProductVariant = new Map<string, number>();
     for (const item of cart.items) {
       const productId = getCartItemProductId(item);
+      const variantId = item?.variantId ? String(item.variantId) : '';
       const quantityToReduce = Number(item.quantity || 0);
       if (!productId || quantityToReduce <= 0) continue;
       quantityByProduct.set(productId, (quantityByProduct.get(productId) || 0) + quantityToReduce);
+      if (variantId) {
+        const key = `${productId}:${variantId}`;
+        quantityByProductVariant.set(key, (quantityByProductVariant.get(key) || 0) + quantityToReduce);
+      }
     }
 
     const stockOps = Array.from(quantityByProduct.entries()).map(([productId, quantity]) => ({
@@ -202,9 +234,37 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       },
     }));
 
-    if (stockOps.length > 0) {
-      const stockResult = await Product.bulkWrite(stockOps, { session });
-      if (stockResult.modifiedCount !== stockOps.length) {
+    const variantStockOps = Array.from(quantityByProductVariant.entries()).map(([key, quantity]) => {
+      const [productId, variantId] = key.split(':');
+      return {
+        updateOne: {
+          filter: {
+            _id: productId,
+            isActive: true,
+            isDeleted: false,
+            stock: { $gte: quantity },
+            variants: {
+              $elemMatch: {
+                _id: new Types.ObjectId(variantId),
+                stock: { $gte: quantity },
+              },
+            },
+          },
+          update: {
+            $inc: {
+              stock: -quantity,
+              'variants.$.stock': -quantity,
+            },
+          },
+        },
+      };
+    });
+
+    const allStockOps = [...stockOps, ...variantStockOps];
+
+    if (allStockOps.length > 0) {
+      const stockResult = await Product.bulkWrite(allStockOps, { session });
+      if (stockResult.modifiedCount !== allStockOps.length) {
         await session.abortTransaction();
         session.endSession();
         session = null;

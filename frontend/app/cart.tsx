@@ -128,7 +128,7 @@ export default function CartScreen() {
 
                   <View style={styles.itemDetails}>
                     <ThemedText style={styles.itemName}>{item.name}</ThemedText>
-                    <ThemedText style={styles.itemUnit}>{item.unit}</ThemedText>
+                    <ThemedText style={styles.itemUnit}>{item.variantLabel || item.unit}</ThemedText>
                     <ThemedText style={styles.itemPrice}>₹{item.price}</ThemedText>
                     {isOutOfStock && <ThemedText style={styles.stockText}>Out of stock</ThemedText>}
                   </View>

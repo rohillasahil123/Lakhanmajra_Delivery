@@ -8,6 +8,9 @@ export type ServerCartItem = {
   _id?: string;
   product?: string;
   productId?: any;
+  variantId?: string;
+  variantLabel?: string;
+  variant?: { id?: string; label?: string; size?: string };
   name: string;
   image?: string;
   price: number;
@@ -71,10 +74,27 @@ export async function getCartApi(): Promise<ServerCart> {
   return result?.data || { items: [] };
 }
 
-export async function addToCartApi(productId: string, quantity = 1): Promise<ServerCart> {
+export async function addToCartApi(
+  productId: string,
+  quantity = 1,
+  options?: { variantId?: string; variantLabel?: string }
+): Promise<ServerCart> {
   const result = await request<{ data?: ServerCart }>('/api/cart/add', {
     method: 'POST',
-    body: JSON.stringify({ productId, quantity }),
+    body: JSON.stringify({
+      productId,
+      quantity,
+      ...(options?.variantId ? { variantId: options.variantId } : {}),
+      ...(options?.variantLabel
+        ? {
+            variant: {
+              id: options.variantId,
+              label: options.variantLabel,
+              size: options.variantLabel,
+            },
+          }
+        : {}),
+    }),
   });
   return result?.data || { items: [] };
 }

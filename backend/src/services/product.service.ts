@@ -10,6 +10,30 @@ type ProductFilters = {
   stockStatus?: "in" | "out";
 };
 
+const computeDiscount = (mrp?: number, price?: number): number => {
+  if (typeof mrp !== 'number' || typeof price !== 'number' || mrp <= 0 || price < 0 || price > mrp) return 0;
+  return Math.round(((mrp - price) / mrp) * 100);
+};
+
+const syncRootFieldsFromVariants = (payload: any) => {
+  if (!Array.isArray(payload?.variants) || payload.variants.length === 0) return payload;
+  const defaultVariant = payload.variants.find((variant: any) => variant?.isDefault) || payload.variants[0];
+  const stock = payload.variants.reduce((sum: number, variant: any) => sum + Number(variant?.stock || 0), 0);
+
+  return {
+    ...payload,
+    price: Number(defaultVariant?.price || 0),
+    mrp: Number(defaultVariant?.mrp || defaultVariant?.price || 0),
+    discount:
+      typeof defaultVariant?.discount === 'number'
+        ? defaultVariant.discount
+        : computeDiscount(Number(defaultVariant?.mrp || 0), Number(defaultVariant?.price || 0)),
+    stock,
+    unit: defaultVariant?.unit || payload.unit || 'piece',
+    unitType: defaultVariant?.unitType || payload.unitType || defaultVariant?.label || '',
+  };
+};
+
 export const createProduct = async (payload: Partial<IProduct>) => {
   // generate slug from name
   const base = (payload.name || "").toString().toLowerCase().trim();
@@ -22,7 +46,8 @@ export const createProduct = async (payload: Partial<IProduct>) => {
   let exists = await Product.findOne({ slug: finalSlug });
   if (exists) finalSlug = `${slug}-${Date.now().toString().slice(-5)}`;
 
-  const doc = await Product.create({ ...payload, slug: finalSlug });
+  const normalizedPayload: any = syncRootFieldsFromVariants(payload);
+  const doc = await Product.create({ ...normalizedPayload, slug: finalSlug });
   return doc;
 };
 
@@ -152,9 +177,56 @@ export const importProducts = async (items: Array<any>) => {
       isActive: it.isActive === undefined ? true : Boolean(it.isActive),
     };
 
+    if (it.variants) {
+      const parsedVariants = Array.isArray(it.variants)
+        ? it.variants
+        : typeof it.variants === 'string'
+        ? (() => {
+            try {
+              const parsed = JSON.parse(it.variants);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })()
+        : [];
+
+      payload.variants = parsedVariants
+        .map((variant: any) => {
+          const label = String(variant?.label || '').trim();
+          const price = Number(variant?.price);
+          const stock = Number(variant?.stock);
+          if (!label || Number.isNaN(price) || Number.isNaN(stock)) return null;
+
+          const mrp = variant?.mrp !== undefined ? Number(variant.mrp) : price;
+          const discount =
+            variant?.discount !== undefined
+              ? Number(variant.discount)
+              : computeDiscount(mrp, price);
+
+          return {
+            label,
+            price,
+            mrp,
+            discount,
+            stock,
+            unit: String(variant?.unit || payload.unit || 'piece').toLowerCase().trim(),
+            unitType: String(variant?.unitType || label).trim(),
+            isDefault: Boolean(variant?.isDefault),
+          };
+        })
+        .filter(Boolean);
+
+      if (payload.variants.length > 0 && !payload.variants.some((variant: any) => variant.isDefault)) {
+        payload.variants[0].isDefault = true;
+      }
+    }
+
+    const syncedPayload = syncRootFieldsFromVariants(payload);
+
     if (existing) {
       const before = existing.toObject();
-      Object.assign(existing, payload);
+      Object.assign(existing, syncedPayload);
       await existing.save();
       results.push({ action: 'updated', id: existing._id.toString(), name: existing.name, before, after: existing.toObject() });
     } else {
@@ -162,7 +234,7 @@ export const importProducts = async (items: Array<any>) => {
       let finalSlug = slug;
       let found = await Product.findOne({ slug: finalSlug });
       if (found) finalSlug = `${slug}-${Date.now().toString().slice(-5)}`;
-      const created = await Product.create({ ...payload, slug: finalSlug });
+      const created = await Product.create({ ...syncedPayload, slug: finalSlug });
       results.push({ action: 'created', id: created._id.toString(), name: created.name, after: created.toObject() });
     }
   }

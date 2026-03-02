@@ -38,6 +38,8 @@ export interface ICart extends Document {
 // Order Interfaces
 export interface IOrderItem {
   productId: IProduct['_id'];
+  variantId?: IProduct['_id'];
+  variantLabel?: string;
   quantity: number;
   price: number;
 }

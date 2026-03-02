@@ -11,6 +11,98 @@ const parseOptionalNumber = (value: any): number | undefined => {
   return Number.isNaN(parsed) ? undefined : parsed;
 };
 
+const parseVariantsInput = (value: any): any[] | undefined => {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (Array.isArray(value)) return value;
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+};
+
+const calculateDiscountPercent = (mrp?: number, price?: number): number => {
+  if (typeof mrp !== "number" || typeof price !== "number" || mrp <= 0 || price < 0 || price > mrp) return 0;
+  return Math.round(((mrp - price) / mrp) * 100);
+};
+
+const normalizeVariants = (
+  variants: any[] | undefined,
+  fallbackUnit?: string,
+  fallbackUnitType?: string
+): any[] | undefined => {
+  if (!Array.isArray(variants)) return undefined;
+
+  const cleaned = variants
+    .map((variant) => {
+      const label = String(variant?.label || "").trim();
+      const price = parseOptionalNumber(variant?.price);
+      const stock = parseOptionalNumber(variant?.stock);
+      const mrp = parseOptionalNumber(variant?.mrp);
+      const discount = parseOptionalNumber(variant?.discount);
+      if (!label || price === undefined || stock === undefined) return null;
+
+      const normalizedMrp = mrp !== undefined ? mrp : price;
+      const normalizedDiscount =
+        discount !== undefined ? discount : calculateDiscountPercent(normalizedMrp, price);
+
+      return {
+        ...(variant?._id ? { _id: variant._id } : {}),
+        label,
+        price,
+        mrp: normalizedMrp,
+        discount: normalizedDiscount,
+        stock,
+        unit: String(variant?.unit || fallbackUnit || "piece").trim().toLowerCase(),
+        unitType: String(variant?.unitType || label || fallbackUnitType || "").trim(),
+        isDefault: Boolean(variant?.isDefault),
+      };
+    })
+    .filter(Boolean) as any[];
+
+  if (cleaned.length === 0) return [];
+
+  if (!cleaned.some((variant) => variant.isDefault)) {
+    cleaned[0].isDefault = true;
+  } else {
+    let defaultAssigned = false;
+    for (const variant of cleaned) {
+      if (variant.isDefault && !defaultAssigned) {
+        defaultAssigned = true;
+        continue;
+      }
+      variant.isDefault = false;
+    }
+  }
+
+  return cleaned;
+};
+
+const syncRootFieldsFromVariants = (payload: any): any => {
+  if (!Array.isArray(payload?.variants) || payload.variants.length === 0) return payload;
+  const defaultVariant = payload.variants.find((variant: any) => variant.isDefault) || payload.variants[0];
+  const totalStock = payload.variants.reduce((sum: number, variant: any) => sum + Number(variant.stock || 0), 0);
+
+  return {
+    ...payload,
+    price: Number(defaultVariant.price || 0),
+    mrp: Number(defaultVariant.mrp || defaultVariant.price || 0),
+    discount:
+      typeof defaultVariant.discount === "number"
+        ? defaultVariant.discount
+        : calculateDiscountPercent(Number(defaultVariant.mrp || 0), Number(defaultVariant.price || 0)),
+    stock: totalStock,
+    unit: defaultVariant.unit || payload.unit || "piece",
+    unitType: defaultVariant.unitType || payload.unitType || defaultVariant.label || "",
+  };
+};
+
 // ─── Helper: upload all files from req.files to MinIO ────────────────────────
 const uploadProductImages = async (req: Request): Promise<string[]> => {
   const files = req.files as Express.Multer.File[] | undefined;
@@ -34,6 +126,11 @@ export const createProduct = async (req: Request, res: Response) => {
       stock: parseOptionalNumber(req.body.stock),
       unit: req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
       unitType: req.body.unitType ? String(req.body.unitType).trim() : undefined,
+      variants: normalizeVariants(
+        parseVariantsInput(req.body.variants),
+        req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
+        req.body.unitType ? String(req.body.unitType).trim() : undefined
+      ),
       categoryId: req.body.categoryId ? String(req.body.categoryId).trim() : undefined,
       subcategoryId: req.body.subcategoryId ? String(req.body.subcategoryId).trim() : undefined,
       tags: req.body.tags
@@ -72,11 +169,13 @@ export const createProduct = async (req: Request, res: Response) => {
 
     // Import ObjectId and convert categoryId/subcategoryId strings to ObjectIds
     const { Types } = require("mongoose");
+    const syncedValue = syncRootFieldsFromVariants(value);
+
     const dataToSave = {
-      ...value,
+      ...syncedValue,
       images: allImages,
-      categoryId: value.categoryId ? new Types.ObjectId(value.categoryId) : undefined,
-      subcategoryId: value.subcategoryId && value.subcategoryId.trim() ? new Types.ObjectId(value.subcategoryId) : null,
+      categoryId: syncedValue.categoryId ? new Types.ObjectId(syncedValue.categoryId) : undefined,
+      subcategoryId: syncedValue.subcategoryId && syncedValue.subcategoryId.trim() ? new Types.ObjectId(syncedValue.subcategoryId) : null,
     };
 
     const doc = await service.createProduct(dataToSave);
@@ -142,6 +241,11 @@ export const updateProduct = async (req: Request, res: Response) => {
       stock: parseOptionalNumber(req.body.stock),
       unit: req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
       unitType: req.body.unitType ? String(req.body.unitType).trim() : undefined,
+      variants: normalizeVariants(
+        parseVariantsInput(req.body.variants),
+        req.body.unit ? String(req.body.unit).trim().toLowerCase() : undefined,
+        req.body.unitType ? String(req.body.unitType).trim() : undefined
+      ),
       tags: req.body.tags
         ? typeof req.body.tags === "string"
           ? req.body.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
@@ -180,9 +284,11 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
     if (finalImages.length > 0) value.images = finalImages;
 
+    const syncedValue = syncRootFieldsFromVariants(value);
+
     // Convert categoryId and subcategoryId strings to ObjectIds for MongoDB
     const { Types } = require("mongoose");
-    const dataToUpdate = { ...value } as any;
+    const dataToUpdate = { ...syncedValue } as any;
     if (dataToUpdate.categoryId) dataToUpdate.categoryId = new Types.ObjectId(dataToUpdate.categoryId);
     if (dataToUpdate.subcategoryId && dataToUpdate.subcategoryId.trim()) {
       dataToUpdate.subcategoryId = new Types.ObjectId(dataToUpdate.subcategoryId);

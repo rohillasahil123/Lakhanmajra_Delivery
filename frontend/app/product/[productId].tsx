@@ -20,6 +20,18 @@ type CategoryItem = {
   parentCategory?: string | { _id?: string } | null;
 };
 
+type ProductVariant = {
+  _id?: string;
+  label?: string;
+  unitType?: string;
+  price?: number;
+  mrp?: number;
+  discount?: number;
+  stock?: number;
+  unit?: string;
+  isDefault?: boolean;
+};
+
 export default function ProductDetailDynamic() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -34,6 +46,7 @@ export default function ProductDetailDynamic() {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [imgErrored, setImgErrored] = useState(false);
+  const [selectedVariantId, setSelectedVariantId] = useState('');
 
   // Fetch product from API
   useEffect(() => {
@@ -50,6 +63,9 @@ export default function ProductDetailDynamic() {
         const p = json?.data || json;
         if (mounted) {
           setProduct(p);
+          const variants = Array.isArray(p?.variants) ? p.variants : [];
+          const defaultVariant = variants.find((variant: ProductVariant) => variant?.isDefault) || variants[0];
+          setSelectedVariantId(defaultVariant?._id ? String(defaultVariant._id) : '');
           setCategories(Array.isArray(categoriesRes) ? categoriesRes : []);
         }
       } catch (e) {
@@ -112,14 +128,29 @@ export default function ProductDetailDynamic() {
     ? categories.filter((category) => getParentId(category) === mainCategory._id)
     : [];
 
+  const variants: ProductVariant[] = Array.isArray(product?.variants) ? product.variants : [];
+  const selectedVariant =
+    variants.find((variant) => String(variant?._id || '') === selectedVariantId) ||
+    variants.find((variant) => variant?.isDefault) ||
+    variants[0] ||
+    null;
+
+  const activePrice = Number(selectedVariant?.price ?? product?.price ?? 0);
+  const activeMrp = Number(selectedVariant?.mrp ?? product?.mrp ?? 0);
+  const activeStock = Number(selectedVariant?.stock ?? product?.stock ?? 0);
+  const activeUnitLabel = String(selectedVariant?.label || selectedVariant?.unitType || product?.unitType || product?.unit || 'piece');
+
   const handleAddToCart = () => {
     addItem({
-      id: product._id || product.id,
+      id: selectedVariant?._id ? `${product._id || product.id}:${String(selectedVariant._id)}` : product._id || product.id,
+      productId: product._id || product.id,
+      variantId: selectedVariant?._id ? String(selectedVariant._id) : undefined,
+      variantLabel: selectedVariant?.label || selectedVariant?.unitType || undefined,
       name: product.name,
-      price: product.price,
-      unit: product.unit || product.unitType || '',
+      price: activePrice,
+      unit: activeUnitLabel,
       image: images[0] || '',
-      stock: Number(product?.stock ?? 0),
+      stock: activeStock,
     }, quantity);
     router.push('/cart');
   };
@@ -137,6 +168,7 @@ export default function ProductDetailDynamic() {
   };
 
   const discountPercent = getDiscountPercent(product);
+  const activeDiscountPercent = selectedVariant ? getDiscountPercent(selectedVariant) : discountPercent;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -144,10 +176,10 @@ export default function ProductDetailDynamic() {
 
         {/* ── Main Product Image from MinIO ── */}
         <View style={styles.imageContainer}>
-          {discountPercent > 0 && (
+          {activeDiscountPercent > 0 && (
             <View style={styles.discountBadge}>
               <ThemedText style={styles.discountText}>
-                {discountPercent}% OFF
+                {activeDiscountPercent}% OFF
               </ThemedText>
             </View>
           )}
@@ -217,28 +249,51 @@ export default function ProductDetailDynamic() {
               <ThemedText style={styles.ratingStar}>⭐</ThemedText>
               <ThemedText style={styles.ratingText}>{product.rating || '4.0'}</ThemedText>
             </View>
-            {product.stock !== undefined && (
-              <ThemedText style={{ fontSize: 13, color: product.stock > 0 ? '#0E7A3D' : '#EF4444' }}>
-                {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
-              </ThemedText>
-            )}
+            <ThemedText style={{ fontSize: 13, color: activeStock > 0 ? '#0E7A3D' : '#EF4444' }}>
+              {activeStock > 0 ? `${activeStock} in stock` : 'Out of stock'}
+            </ThemedText>
           </View>
 
           <View style={styles.priceRow}>
             <View>
-              <ThemedText style={styles.price}>₹{product.price}</ThemedText>
-              {product.mrp && product.mrp > product.price && (
-                <ThemedText style={styles.originalPrice}>MRP ₹{product.mrp}</ThemedText>
+              <ThemedText style={styles.price}>₹{activePrice}</ThemedText>
+              {activeMrp && activeMrp > activePrice && (
+                <ThemedText style={styles.originalPrice}>MRP ₹{activeMrp}</ThemedText>
               )}
             </View>
-            {product.mrp && product.mrp > product.price && (
+            {activeMrp && activeMrp > activePrice && (
               <View style={styles.savingsContainer}>
                 <ThemedText style={styles.savingsText}>
-                  Save ₹{product.mrp - product.price}
+                  Save ₹{activeMrp - activePrice}
                 </ThemedText>
               </View>
             )}
           </View>
+
+          {variants.length > 0 && (
+            <View style={styles.section}>
+              <ThemedText style={styles.sectionTitle}>Select Variant</ThemedText>
+              <View style={styles.subCategoryRow}>
+                {variants.map((variant) => {
+                  const variantId = String(variant?._id || '');
+                  const isActive = variantId === String(selectedVariant?._id || '');
+                  const label = String(variant?.label || variant?.unitType || 'Variant');
+                  const stock = Number(variant?.stock || 0);
+                  return (
+                    <TouchableOpacity
+                      key={variantId || label}
+                      style={[styles.subCategoryChip, isActive && styles.subCategoryChipActive, stock <= 0 && { opacity: 0.5 }]}
+                      onPress={() => setSelectedVariantId(variantId)}
+                    >
+                      <ThemedText style={[styles.subCategoryChipText, isActive && styles.subCategoryChipTextActive]}>
+                        {label} • ₹{Number(variant?.price || 0)}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
 
           {product.description ? (
             <View style={styles.section}>
@@ -291,22 +346,22 @@ export default function ProductDetailDynamic() {
           <ThemedText style={styles.quantityText}>{quantity}</ThemedText>
           <TouchableOpacity
             style={styles.quantityButton}
-            onPress={() => setQuantity(q => Math.min(Number(product?.stock || 1), q + 1))}
-            disabled={Number(product?.stock || 0) <= quantity}
+            onPress={() => setQuantity(q => Math.min(Number(activeStock || 1), q + 1))}
+            disabled={Number(activeStock || 0) <= quantity}
           >
             <ThemedText style={styles.quantityButtonText}>+</ThemedText>
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.addToCartButton, product.stock === 0 && { backgroundColor: '#9CA3AF' }]}
+          style={[styles.addToCartButton, activeStock === 0 && { backgroundColor: '#9CA3AF' }]}
           onPress={handleAddToCart}
-          disabled={product.stock === 0}
+          disabled={activeStock === 0}
         >
           <ThemedText style={styles.addToCartText}>
-            {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+            {activeStock === 0 ? 'Out of Stock' : 'Add to Cart'}
           </ThemedText>
-          <ThemedText style={styles.addToCartPrice}>₹{product.price * quantity}</ThemedText>
+          <ThemedText style={styles.addToCartPrice}>₹{activePrice * quantity}</ThemedText>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
