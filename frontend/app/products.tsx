@@ -56,7 +56,6 @@ export default function ProductsScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
   const [selectedSubCategoryId, setSelectedSubCategoryId] =
     useState<string>('all');
 
@@ -110,12 +109,10 @@ export default function ProductsScreen() {
         if (!mounted) return;
 
         setProducts(prods);
-        setCategories(categoryList);
         setSelectedSubCategoryId(incomingSub || 'all');
       } catch {
         if (!mounted) return;
         setProducts([]);
-        setCategories([]);
         setSelectedSubCategoryId('all');
       }
     })();
