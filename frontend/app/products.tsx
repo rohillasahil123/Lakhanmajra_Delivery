@@ -53,15 +53,12 @@ export default function ProductsScreen() {
   }>();
 
   const addItem = useCart((s) => s.addItem);
-  const cartCount = useCart((s) => s.items.length);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedSubCategoryId, setSelectedSubCategoryId] =
     useState<string>('all');
-
-  const categoryName = params.categoryName || 'All Products';
 
   // ───────── Helpers ─────────
   const getId = (v: any): string =>
@@ -139,7 +136,7 @@ export default function ProductsScreen() {
           getId(p.categoryId) === selectedSubCategoryId
     )
     .filter((p) =>
-      !normalizedQuery
+      normalizedQuery === ''
         ? true
         : String(p.name || '').toLowerCase().includes(normalizedQuery)
     );

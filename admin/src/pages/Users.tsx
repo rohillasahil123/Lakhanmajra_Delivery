@@ -90,7 +90,7 @@ const AVATAR_COLORS = [
   "from-cyan-400 to-cyan-600",
 ];
 
-function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
+function Avatar({ name, size = "md" }: Readonly<{ name: string; size?: "sm" | "md" }>) {
   const idx = (name.codePointAt(0) ?? 0) % AVATAR_COLORS.length;
   const cls = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
   return (
@@ -105,7 +105,7 @@ function Avatar({ name, size = "md" }: { name: string; size?: "sm" | "md" }) {
 /* ─────────────────────────────────────────
    ROLE BADGE
 ───────────────────────────────────────── */
-function RoleBadge({ name }: { name?: string }) {
+function RoleBadge({ name }: Readonly<{ name?: string }>) {
   const cfg = getRoleConfig(name);
   if (!cfg) return <span className="text-slate-400 text-xs">—</span>;
   return (
@@ -132,7 +132,7 @@ function ActionMenu({
   onDelete,
   onToggleActive,
   onChangeRole,
-}: {
+}: Readonly<{
   user: User;
   roles: Role[];
   canEdit: boolean;
@@ -143,7 +143,7 @@ function ActionMenu({
   onDelete: () => void;
   onToggleActive: () => void;
   onChangeRole: (roleId: string) => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [showRoles, setShowRoles] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -355,13 +355,13 @@ function UserModal({
   roles,
   onClose,
   onSaved,
-}: {
+}: Readonly<{
   mode: ModalMode;
   user: User | null;
   roles: Role[];
   onClose: () => void;
   onSaved: () => void;
-}) {
+}>) {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -416,18 +416,12 @@ function UserModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-        role="button"
-        tabIndex={0}
+      {/* Backdrop - Using button for accessibility */}
+      <button
+        type="button"
+        className="absolute inset-0 bg-black/30 backdrop-blur-[2px] cursor-default"
         aria-label="Close modal"
         onClick={onClose}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            onClose();
-          }
-        }}
       />
 
       {/* Panel */}
@@ -569,15 +563,21 @@ function UserModal({
                 {form.isActive ? "User can sign in" : "User cannot sign in"}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => set("isActive", !form.isActive)}
-              className={`relative w-11 h-6 rounded-full transition-colors ${form.isActive ? "bg-blue-500" : "bg-slate-200"}`}
-            >
-              <span
-                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.isActive ? "translate-x-5" : "translate-x-0"}`}
-              />
-            </button>
+            {(() => {
+              const buttonBgClass = form.isActive ? "bg-blue-500" : "bg-slate-200";
+              const spanTransformClass = form.isActive ? "translate-x-5" : "translate-x-0";
+              return (
+                <button
+                  type="button"
+                  onClick={() => set("isActive", !form.isActive)}
+                  className={`relative w-11 h-6 rounded-full transition-colors ${buttonBgClass}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${spanTransformClass}`}
+                  />
+                </button>
+              );
+            })()}
           </div>
 
           {/* Actions */}
@@ -638,12 +638,12 @@ function Field({
   required,
   hint,
   children,
-}: {
+}: Readonly<{
   label: string;
   required?: boolean;
   hint?: string;
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <div>
       <label className="block text-xs font-medium text-slate-600 mb-1.5">

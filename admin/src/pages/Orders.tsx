@@ -1,8 +1,8 @@
 /// <reference types="vite/client" />
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import api from "../api/client";
 import { getPermissions } from "../auth";
 
@@ -15,10 +15,28 @@ declare global {
   }
 }
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type OrderItem = {
   productId?: { name?: string; images?: string[] };
   quantity?: number;
   price?: number;
+};
+
+type ShippingAddress = {
+  street?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+type RiderLocation = {
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  timestamp?: string;
 };
 
 type Order = {
@@ -31,20 +49,8 @@ type Order = {
   status: string;
   userId?: { _id?: string; name?: string; email?: string; phone?: string };
   assignedRiderId?: { _id?: string; name?: string };
-  shippingAddress?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    pincode?: string;
-    latitude?: number;
-    longitude?: number;
-  };
-  riderLocation?: {
-    latitude?: number;
-    longitude?: number;
-    accuracy?: number;
-    timestamp?: string;
-  };
+  shippingAddress?: ShippingAddress;
+  riderLocation?: RiderLocation;
   items?: OrderItem[];
   createdAt?: string;
 };
@@ -53,12 +59,32 @@ type OrderDetail = Order & {
   timeline?: Array<{ timestamp: string; status: string; message?: string }>;
 };
 
-const PLACEHOLDER_IMAGE = "https://via.placeholder.com/48x48?text=No+Img";
+type Rider = {
+  _id: string;
+  name: string;
+};
 
-// Get API base URL safely - workaround for Vite import.meta.env typing
+type FilterState = {
+  status: string;
+  paymentMethod: string;
+  from: string;
+  to: string;
+  today: boolean;
+};
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PLACEHOLDER_IMAGE = "https://via.placeholder.com/48x48?text=No+Img";
+const MAP_REFRESH_INTERVAL_MS = 10_000;
+const RIDERS_LIMIT = 100;
+const PAGE_LIMIT = 20;
+
 const getApiBase = (): string => {
   try {
-    return ((import.meta as any).env?.VITE_API_URL as string) || "http://localhost:5000/api";
+    return (
+      ((import.meta as { env?: { VITE_API_URL?: string } }).env
+        ?.VITE_API_URL as string) || "http://localhost:5000/api"
+    );
   } catch {
     return "http://localhost:5000/api";
   }
@@ -66,327 +92,425 @@ const getApiBase = (): string => {
 
 const API_BASE = getApiBase();
 
-// L192 fix: extracted nested ternary for resolving orders list
-const resolveOrdersList = (payload: any): Order[] => {
-  if (Array.isArray(payload?.orders)) return payload.orders;
-  if (Array.isArray(payload?.data?.orders)) return payload.data.orders;
+// ─── Pure helpers ─────────────────────────────────────────────────────────────
+
+const resolveOrdersList = (payload: unknown): Order[] => {
+  if (!payload || typeof payload !== "object") return [];
+  const p = payload as Record<string, unknown>;
+  if (Array.isArray(p.orders)) return p.orders as Order[];
+  const nested = p.data as Record<string, unknown> | undefined;
+  if (nested && Array.isArray(nested.orders)) return nested.orders as Order[];
   return [];
 };
 
-// L214 fix: extracted nested ternary for resolving total count
-const resolveTotal = (payload: any, list: Order[]): number => {
-  if (typeof payload?.total === "number") return payload.total;
-  if (typeof payload?.data?.total === "number") return payload.data.total;
-  return list.length;
+const resolveTotal = (payload: unknown, fallback: number): number => {
+  if (!payload || typeof payload !== "object") return fallback;
+  const p = payload as Record<string, unknown>;
+  if (typeof p.total === "number") return p.total;
+  const nested = p.data as Record<string, unknown> | undefined;
+  if (nested && typeof nested.total === "number") return nested.total;
+  return fallback;
 };
 
-// L532 fix: extracted nested ternary for resolving riders list
-const resolveRidersList = (riderData: any): any[] => {
-  if (Array.isArray(riderData?.users)) return riderData.users;
-  if (Array.isArray(riderData)) return riderData;
+const resolveRidersList = (data: unknown): Rider[] => {
+  if (!data || typeof data !== "object") return [];
+  const d = data as Record<string, unknown>;
+  if (Array.isArray(d.users)) return d.users as Rider[];
+  if (Array.isArray(data)) return data as Rider[];
   return [];
 };
+
+const formatDate = (value?: string, fallback = "—"): string => {
+  if (!value) return fallback;
+  return new Date(value).toLocaleDateString();
+};
+
+const formatDateTime = (value?: string, fallback = "—"): string => {
+  if (!value) return fallback;
+  return new Date(value).toLocaleString();
+};
+
+const hasValidCoords = (lat?: number, lng?: number): boolean =>
+  Number.isFinite(lat) && Number.isFinite(lng);
+
+const getDistanceKm = (
+  fromLat: number,
+  fromLng: number,
+  toLat: number,
+  toLng: number,
+): number => {
+  const R = 6371;
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(toLat - fromLat);
+  const dLng = toRad(toLng - fromLng);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(fromLat)) *
+      Math.cos(toRad(toLat)) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const buildOsmEmbedUrl = (lat: number, lng: number, tick: number): string => {
+  const delta = 0.01;
+  return (
+    `https://www.openstreetmap.org/export/embed.html` +
+    `?bbox=${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}` +
+    `&layer=mapnik&marker=${lat}%2C${lng}&refresh=${tick}`
+  );
+};
+
+const readFilterParams = (params: URLSearchParams): FilterState => ({
+  status: params.get("status") || "all",
+  paymentMethod: params.get("paymentMethod") || "all",
+  from: params.get("from") || "",
+  to: params.get("to") || "",
+  today: params.get("today") === "1" || params.get("today") === "true",
+});
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+const ProductCell: React.FC<{ order: Order }> = ({ order }) => {
+  const hasItems = Array.isArray(order.items) && order.items.length > 0;
+  if (!hasItems) return <span>—</span>;
+
+  const primary = order.items![0];
+  const extra =
+    order.items!.length > 1
+      ? `+${order.items!.length - 1} more item(s)`
+      : `Qty: ${primary?.quantity ?? 1}`;
+
+  return (
+    <div className="flex items-center gap-2">
+      <img
+        src={primary?.productId?.images?.[0] || PLACEHOLDER_IMAGE}
+        alt={primary?.productId?.name || "Product"}
+        className="w-10 h-10 object-cover rounded border border-slate-200"
+        onError={(e) => {
+          (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
+        }}
+      />
+      <div>
+        <div className="font-medium">
+          {primary?.productId?.name || "Product"}
+        </div>
+        <div className="text-slate-500">{extra}</div>
+      </div>
+    </div>
+  );
+};
+
+const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  let cls = "bg-yellow-100 text-yellow-800";
+  if (status === "delivered") cls = "bg-green-100 text-green-800";
+  else if (status === "cancelled") cls = "bg-red-100 text-red-800";
+  return (
+    <span className={`px-2 py-1 rounded text-sm ${cls}`}>{status}</span>
+  );
+};
+
+const DeliveryBadge: React.FC<{ status: string }> = ({ status }) => {
+  const delivered = status === "delivered";
+  return (
+    <span
+      className={`px-2 py-1 rounded text-xs ${
+        delivered
+          ? "bg-emerald-100 text-emerald-700"
+          : "bg-slate-100 text-slate-600"
+      }`}
+    >
+      {delivered ? "Delivered" : "Pending"}
+    </span>
+  );
+};
+
+interface RiderMapProps {
+  riderLocation: RiderLocation;
+  shippingAddress?: ShippingAddress;
+}
+
+const RiderMap: React.FC<RiderMapProps> = ({
+  riderLocation,
+  shippingAddress,
+}) => {
+  const [tick, setTick] = useState(0);
+  const [countdown, setCountdown] = useState(10);
+
+  useEffect(() => {
+    setCountdown(10);
+    const cdTimer = setInterval(
+      () => setCountdown((p) => (p <= 1 ? 10 : p - 1)),
+      1000,
+    );
+    const refreshTimer = setInterval(
+      () => setTick((p) => p + 1),
+      MAP_REFRESH_INTERVAL_MS,
+    );
+    return () => {
+      clearInterval(cdTimer);
+      clearInterval(refreshTimer);
+    };
+  }, [riderLocation.latitude, riderLocation.longitude]);
+
+  const rLat = Number(riderLocation.latitude);
+  const rLng = Number(riderLocation.longitude);
+  const sLat = Number(shippingAddress?.latitude);
+  const sLng = Number(shippingAddress?.longitude);
+  const hasDestination = hasValidCoords(sLat, sLng);
+
+  return (
+    <div className="text-xs text-slate-700 mt-2 space-y-1">
+      <div>
+        Rider Location: {rLat.toFixed(5)}, {rLng.toFixed(5)}
+      </div>
+      <div>
+        Updated At: {formatDateTime(riderLocation.timestamp, "just now")}
+      </div>
+      <a
+        href={`https://www.google.com/maps/search/?api=1&query=${rLat},${rLng}`}
+        target="_blank"
+        rel="noreferrer"
+        className="text-indigo-600 underline"
+      >
+        Open Live Location in Maps
+      </a>
+
+      <div className="mt-3 rounded border border-slate-200 overflow-hidden bg-white">
+        <div className="px-3 py-2 border-b bg-slate-50 flex items-center justify-between text-xs">
+          <span className="font-medium text-green-700">
+            ● Live map auto-refresh
+          </span>
+          <span className="text-slate-600">Refreshing in {countdown}s</span>
+        </div>
+        <iframe
+          title="Rider Live Map"
+          src={buildOsmEmbedUrl(rLat, rLng, tick)}
+          className="w-full h-56"
+          loading="lazy"
+        />
+      </div>
+
+      {hasDestination && (
+        <>
+          <div className="text-xs text-slate-700">
+            Rider → Customer Distance:{" "}
+            <strong>
+              {getDistanceKm(rLat, rLng, sLat, sLng).toFixed(2)} km
+            </strong>
+          </div>
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&origin=${rLat},${rLng}&destination=${sLat},${sLng}&travelmode=driving`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-indigo-600 underline"
+          >
+            Open Rider → Customer Route
+          </a>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function Orders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [items, setItems] = useState<Order[]>([]);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [page, setPage] = useState(1);
-  const [limit] = useState(20);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState(
-    searchParams.get("status") || "all",
-  );
-  const [paymentFilter, setPaymentFilter] = useState(
-    searchParams.get("paymentMethod") || "all",
-  );
-  const [fromDate, setFromDate] = useState(searchParams.get("from") || "");
-  const [toDate, setToDate] = useState(searchParams.get("to") || "");
-  const [todayOnly, setTodayOnly] = useState(
-    searchParams.get("today") === "1" || searchParams.get("today") === "true",
+  const [filters, setFilters] = useState<FilterState>(() =>
+    readFilterParams(searchParams),
   );
 
   const [showDetail, setShowDetail] = useState(false);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [mapRefreshTick, setMapRefreshTick] = useState(0);
-  const [mapRefreshCountdown, setMapRefreshCountdown] = useState(10);
 
   const [editStatus, setEditStatus] = useState("");
   const [editRider, setEditRider] = useState("");
-  const [riders, setRiders] = useState<any[]>([]);
+  const [riders, setRiders] = useState<Rider[]>([]);
   const [updating, setUpdating] = useState(false);
 
-  const hasPerm = (p: string) => permissions.includes(p);
+  const hasPerm = useCallback(
+    (p: string) => permissions.includes(p),
+    [permissions],
+  );
 
-  const formatDateOrFallback = (value?: string, fallback = "—"): string => {
-    if (!value) return fallback;
-    return new Date(value).toLocaleDateString();
-  };
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-  const formatDateTimeOrFallback = (
-    value?: string,
-    fallback = "—",
-  ): string => {
-    if (!value) return fallback;
-    return new Date(value).toLocaleString();
-  };
-
-  const hasValidCoords = (latitude?: number, longitude?: number): boolean => {
-    return Number.isFinite(latitude) && Number.isFinite(longitude);
-  };
-
-  const toRadians = (value: number): number => (value * Math.PI) / 180;
-
-  const getDistanceKm = (
-    fromLat: number,
-    fromLng: number,
-    toLat: number,
-    toLng: number,
-  ): number => {
-    const earthRadiusKm = 6371;
-    const deltaLat = toRadians(toLat - fromLat);
-    const deltaLng = toRadians(toLng - fromLng);
-    const a =
-      Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
-      Math.cos(toRadians(fromLat)) *
-        Math.cos(toRadians(toLat)) *
-        Math.sin(deltaLng / 2) *
-        Math.sin(deltaLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return earthRadiusKm * c;
-  };
-
-  const buildOsmEmbedUrl = (
-    latitude: number,
-    longitude: number,
-    refreshTick: number,
-  ): string => {
-    const delta = 0.01;
-    const left = longitude - delta;
-    const right = longitude + delta;
-    const top = latitude + delta;
-    const bottom = latitude - delta;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${left}%2C${bottom}%2C${right}%2C${top}&layer=mapnik&marker=${latitude}%2C${longitude}&refresh=${refreshTick}`;
-  };
-
-  useEffect(() => {
-    if (!showDetail) return;
-
-    const riderLat = detail?.riderLocation?.latitude;
-    const riderLng = detail?.riderLocation?.longitude;
-    const hasRiderCoords = hasValidCoords(riderLat, riderLng);
-    if (!hasRiderCoords) return;
-
-    setMapRefreshCountdown(10);
-
-    const countdownTimer = setInterval(() => {
-      setMapRefreshCountdown((prev) => {
-        if (prev <= 1) return 10;
-        return prev - 1;
-      });
-    }, 1000);
-
-    const refreshTimer = setInterval(() => {
-      setMapRefreshTick((prev) => prev + 1);
-    }, 10000);
-
-    return () => {
-      clearInterval(countdownTimer);
-      clearInterval(refreshTimer);
-    };
-  }, [
-    showDetail,
-    detail?.riderLocation?.latitude,
-    detail?.riderLocation?.longitude,
-  ]);
-
-  const upsertOrderRow = (incoming: Order) => {
+  const upsertOrderRow = useCallback((incoming: Order) => {
     setItems((prev) => {
-      const index = prev.findIndex((row) => row._id === incoming._id);
-      if (index === -1) {
-        return [incoming, ...prev];
-      }
-
+      const idx = prev.findIndex((r) => r._id === incoming._id);
+      if (idx === -1) return [incoming, ...prev];
       const next = [...prev];
-      next[index] = { ...next[index], ...incoming };
+      next[idx] = { ...next[idx], ...incoming };
       return next;
     });
-
     setDetail((prev) => {
       if (!prev || prev._id !== incoming._id) return prev;
       return { ...prev, ...incoming };
     });
-  };
+  }, []);
 
-  const load = async (pageNum = 1) => {
-    try {
-      const query = new URLSearchParams();
-      query.set("page", String(pageNum));
-      query.set("limit", String(limit));
-      if (search.trim()) query.set("q", search.trim());
-      if (statusFilter && statusFilter !== "all")
-        query.set("status", statusFilter);
-      if (paymentFilter && paymentFilter !== "all")
-        query.set("paymentMethod", paymentFilter);
-      if (todayOnly) query.set("today", "1");
-      if (!todayOnly && fromDate) query.set("from", fromDate);
-      if (!todayOnly && toDate) query.set("to", toDate);
-
-      const res = await api.get(`/admin/orders?${query.toString()}`);
-      const payload = res.data?.data ?? res.data;
-<<<<<<< HEAD
-
-      // Fixed L192 & L214: extracted nested ternaries into helper functions
-      const list = resolveOrdersList(payload);
-      const resolvedTotal = resolveTotal(payload, list);
-=======
-      let list: Order[] = [];
-
-      if (Array.isArray(payload?.orders)) {
-        list = payload.orders;
-      } else if (Array.isArray(payload?.data?.orders)) {
-        list = payload.data.orders;
+  const buildQuery = useCallback(
+    (pageNum: number): string => {
+      const q = new URLSearchParams();
+      q.set("page", String(pageNum));
+      q.set("limit", String(PAGE_LIMIT));
+      if (search.trim()) q.set("q", search.trim());
+      if (filters.status !== "all") q.set("status", filters.status);
+      if (filters.paymentMethod !== "all")
+        q.set("paymentMethod", filters.paymentMethod);
+      if (filters.today) {
+        q.set("today", "1");
+      } else {
+        if (filters.from) q.set("from", filters.from);
+        if (filters.to) q.set("to", filters.to);
       }
+      return q.toString();
+    },
+    [search, filters],
+  );
 
-      let resolvedTotal = list.length;
+  // ── Data fetching ─────────────────────────────────────────────────────────
 
-      if (typeof payload?.total === "number") {
-        resolvedTotal = payload.total;
-      } else if (typeof payload?.data?.total === "number") {
-        resolvedTotal = payload.data.total;
+  const load = useCallback(
+    async (pageNum = 1) => {
+      try {
+        const res = await api.get(`/admin/orders?${buildQuery(pageNum)}`);
+        const payload = res.data?.data ?? res.data;
+        const list = resolveOrdersList(payload);
+        setItems(list);
+        setTotal(resolveTotal(payload, list.length));
+        setPage(pageNum);
+      } catch (err) {
+        console.error(err);
+        setItems([]);
       }
->>>>>>> 7b935de (3 error fix in admin/src/pages/Orders.tsx)
+    },
+    [buildQuery],
+  );
 
-      setItems(list);
-      setTotal(resolvedTotal);
-      setPage(pageNum);
-    } catch (err) {
-      console.error(err);
-      setItems([]);
-    }
-  };
+  // ── Initialise ────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        setPermissions(await getPermissions());
-        const ridersRes = await api.get("/admin/users?role=rider&limit=100");
+        const [perms, ridersRes] = await Promise.all([
+          getPermissions(),
+          api.get(`/admin/users?role=rider&limit=${RIDERS_LIMIT}`),
+        ]);
+        if (cancelled) return;
+        setPermissions(perms);
         const riderData = ridersRes.data?.data ?? ridersRes.data;
-<<<<<<< HEAD
-
-        // Fixed L532: extracted nested ternary into helper function
         setRiders(resolveRidersList(riderData));
-
-=======
-        let resolvedRiders: Rider[] = [];
-
-        if (Array.isArray(riderData?.users)) {
-          resolvedRiders = riderData.users;
-        } else if (Array.isArray(riderData)) {
-          resolvedRiders = riderData;
-        }
-
-        setRiders(resolvedRiders);
->>>>>>> 7b935de (3 error fix in admin/src/pages/Orders.tsx)
         await load(1);
       } catch (err) {
         console.error(err);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── WebSocket ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) return;
 
     const socketBase = API_BASE.replace(/\/api\/?$/, "");
-
-    const socket = io(socketBase, {
+    const socket: Socket = io(socketBase, {
       transports: ["websocket"],
       auth: { token },
     });
 
-    const handleOrderUpdate = (payload: { order?: Order }) => {
+    socket.on("admin:orderUpdated", (payload: { order?: Order }) => {
       const incoming = payload?.order;
-      if (!incoming || !incoming._id) return;
+      if (!incoming?._id) return;
       upsertOrderRow(incoming);
-    };
-
-    socket.on("admin:orderUpdated", handleOrderUpdate);
+    });
 
     return () => {
-      socket.off("admin:orderUpdated", handleOrderUpdate);
       socket.disconnect();
     };
-  }, []);
+  }, [upsertOrderRow]);
+
+  // ── Sync filters from URL ─────────────────────────────────────────────────
 
   useEffect(() => {
-    const status = searchParams.get("status") || "all";
-    const paymentMethod = searchParams.get("paymentMethod") || "all";
-    const from = searchParams.get("from") || "";
-    const to = searchParams.get("to") || "";
-    const today =
-      searchParams.get("today") === "1" || searchParams.get("today") === "true";
-
-    setStatusFilter(status);
-    setPaymentFilter(paymentMethod);
-    setFromDate(from);
-    setToDate(to);
-    setTodayOnly(today);
+    setFilters(readFilterParams(searchParams));
     setPage(1);
   }, [searchParams]);
 
   useEffect(() => {
     load(1);
-  }, [statusFilter, paymentFilter, fromDate, toDate, todayOnly]);
+  }, [filters, load]);
+
+  // ── Filter actions ────────────────────────────────────────────────────────
+
+  const setFilter = <K extends keyof FilterState>(
+    key: K,
+    value: FilterState[K],
+  ) => setFilters((prev) => ({ ...prev, [key]: value }));
 
   const applyFilters = () => {
     const params = new URLSearchParams(searchParams);
-    if (statusFilter && statusFilter !== "all")
-      params.set("status", statusFilter);
-    else params.delete("status");
+    
+    if (filters.status === "all") {
+      params.delete("status");
+    } else {
+      params.set("status", filters.status);
+    }
 
-    if (paymentFilter && paymentFilter !== "all")
-      params.set("paymentMethod", paymentFilter);
-    else params.delete("paymentMethod");
+    if (filters.paymentMethod === "all") {
+      params.delete("paymentMethod");
+    } else {
+      params.set("paymentMethod", filters.paymentMethod);
+    }
 
-    if (todayOnly) {
+    if (filters.today) {
       params.set("today", "1");
       params.delete("from");
       params.delete("to");
     } else {
       params.delete("today");
-      if (fromDate) params.set("from", fromDate);
+      if (filters.from) params.set("from", filters.from);
       else params.delete("from");
-      if (toDate) params.set("to", toDate);
+      if (filters.to) params.set("to", filters.to);
       else params.delete("to");
     }
     setSearchParams(params);
   };
 
   const clearFilters = () => {
-    setStatusFilter("all");
-    setPaymentFilter("all");
-    setFromDate("");
-    setToDate("");
-    setTodayOnly(false);
-
+    setFilters({
+      status: "all",
+      paymentMethod: "all",
+      from: "",
+      to: "",
+      today: false,
+    });
     const params = new URLSearchParams(searchParams);
-    params.delete("status");
-    params.delete("paymentMethod");
-    params.delete("today");
-    params.delete("from");
-    params.delete("to");
+    ["status", "paymentMethod", "today", "from", "to"].forEach((k) =>
+      params.delete(k),
+    );
     setSearchParams(params);
   };
+
+  // ── Detail modal ──────────────────────────────────────────────────────────
 
   const showOrderDetail = async (orderId: string) => {
     setDetailLoading(true);
     try {
       const res = await api.get(`/admin/orders/${orderId}`);
-      const order = res.data?.data ?? res.data;
+      const order: OrderDetail = res.data?.data ?? res.data;
       setDetail(order);
       setEditStatus(order.status || "");
       setEditRider(order.assignedRiderId?._id || "");
@@ -409,8 +533,11 @@ export default function Orders() {
       alert("Status updated");
       await load(page);
       setShowDetail(false);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Update failed");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Update failed";
+      alert(msg);
     } finally {
       setUpdating(false);
     }
@@ -426,31 +553,25 @@ export default function Orders() {
       alert("Rider assigned");
       await load(page);
       setShowDetail(false);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Assign failed");
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || "Assign failed";
+      alert(msg);
     } finally {
       setUpdating(false);
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(total / limit));
+  // ── Derived values ────────────────────────────────────────────────────────
 
-  let assignButtonLabel = "Assign";
-  if (updating) {
-    assignButtonLabel = "Assigning...";
-  }
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT));
+  const riderHasCoords = hasValidCoords(
+    detail?.riderLocation?.latitude,
+    detail?.riderLocation?.longitude,
+  );
 
-  let updateButtonLabel = "Update";
-  if (updating) {
-    updateButtonLabel = "Updating...";
-  }
-
-  let detailDeliveryText = "In Progress";
-  if (detail?.status === "delivered") {
-    detailDeliveryText = "Completed";
-  }
-
-  const detailCreatedAtText = formatDateTimeOrFallback(detail?.createdAt);
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-6">
@@ -458,6 +579,7 @@ export default function Orders() {
         <h2 className="text-2xl font-semibold">Orders</h2>
       </div>
 
+      {/* Search bar */}
       <div className="mb-4 flex gap-2 items-center">
         <input
           className="border px-3 py-2 rounded flex-1"
@@ -477,11 +599,12 @@ export default function Orders() {
         </button>
       </div>
 
+      {/* Filter bar */}
       <div className="mb-4 flex flex-wrap gap-2 items-center bg-white p-3 rounded shadow-sm border">
         <select
           className="border px-3 py-2 rounded"
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          value={filters.status}
+          onChange={(e) => setFilter("status", e.target.value)}
         >
           <option value="all">All Status</option>
           <option value="pending">Pending</option>
@@ -494,8 +617,8 @@ export default function Orders() {
 
         <select
           className="border px-3 py-2 rounded"
-          value={paymentFilter}
-          onChange={(e) => setPaymentFilter(e.target.value)}
+          value={filters.paymentMethod}
+          onChange={(e) => setFilter("paymentMethod", e.target.value)}
         >
           <option value="all">All Payments</option>
           <option value="cod">COD</option>
@@ -505,8 +628,8 @@ export default function Orders() {
         <label className="text-sm flex items-center gap-2 px-2">
           <input
             type="checkbox"
-            checked={todayOnly}
-            onChange={(e) => setTodayOnly(e.target.checked)}
+            checked={filters.today}
+            onChange={(e) => setFilter("today", e.target.checked)}
           />
           <span>Today only</span>
         </label>
@@ -514,16 +637,16 @@ export default function Orders() {
         <input
           type="date"
           className="border px-3 py-2 rounded"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          disabled={todayOnly}
+          value={filters.from}
+          onChange={(e) => setFilter("from", e.target.value)}
+          disabled={filters.today}
         />
         <input
           type="date"
           className="border px-3 py-2 rounded"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          disabled={todayOnly}
+          value={filters.to}
+          onChange={(e) => setFilter("to", e.target.value)}
+          disabled={filters.today}
         />
 
         <button
@@ -540,6 +663,7 @@ export default function Orders() {
         </button>
       </div>
 
+      {/* Orders table */}
       <div className="bg-white rounded shadow overflow-auto">
         <table className="w-full text-left table-auto">
           <thead className="bg-slate-50 border-b">
@@ -556,37 +680,7 @@ export default function Orders() {
             </tr>
           </thead>
           <tbody>
-            {items.map((order) => {
-              let statusBadgeClass = "bg-yellow-100 text-yellow-800";
-              if (order.status === "delivered") {
-                statusBadgeClass = "bg-green-100 text-green-800";
-              } else if (order.status === "cancelled") {
-                statusBadgeClass = "bg-red-100 text-red-800";
-              }
-
-              let deliveryBadgeClass = "bg-slate-100 text-slate-600";
-              let deliveryBadgeText = "Pending";
-              if (order.status === "delivered") {
-                deliveryBadgeClass = "bg-emerald-100 text-emerald-700";
-                deliveryBadgeText = "Delivered";
-              }
-
-              const hasOrderItems =
-                Array.isArray(order.items) && order.items.length > 0;
-              const primaryItem = hasOrderItems ? order.items[0] : null;
-
-              let productSummaryText = "";
-              if (hasOrderItems) {
-                if (order.items.length > 1) {
-                  productSummaryText = `+${order.items.length - 1} more item(s)`;
-                } else {
-                  productSummaryText = `Qty: ${primaryItem?.quantity || 1}`;
-                }
-              }
-
-              const orderCreatedDateText = formatDateOrFallback(order.createdAt);
-
-              return (
+            {items.map((order) => (
               <tr
                 key={order._id}
                 className="border-b last:border-0 hover:bg-slate-50"
@@ -603,27 +697,7 @@ export default function Orders() {
                   </div>
                 </td>
                 <td className="p-3 text-sm">
-                  {hasOrderItems ? (
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={primaryItem?.productId?.images?.[0] || PLACEHOLDER_IMAGE}
-                        alt={primaryItem?.productId?.name || "Product"}
-                        className="w-10 h-10 object-cover rounded border border-slate-200"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src =
-                            PLACEHOLDER_IMAGE;
-                        }}
-                      />
-                      <div>
-                        <div className="font-medium">
-                          {primaryItem?.productId?.name || "Product"}
-                        </div>
-                        <div className="text-slate-500">{productSummaryText}</div>
-                      </div>
-                    </div>
-                  ) : (
-                    "—"
-                  )}
+                  <ProductCell order={order} />
                 </td>
                 <td className="p-3">₹{order.totalAmount}</td>
                 <td className="p-3 text-sm">
@@ -638,22 +712,12 @@ export default function Orders() {
                   </div>
                 </td>
                 <td className="p-3">
-                  <span
-                    className={`px-2 py-1 rounded text-sm ${statusBadgeClass}`}
-                  >
-                    {order.status}
-                  </span>
+                  <StatusBadge status={order.status} />
                 </td>
                 <td className="p-3">
-                  <span
-                    className={`px-2 py-1 rounded text-xs ${deliveryBadgeClass}`}
-                  >
-                    {deliveryBadgeText}
-                  </span>
+                  <DeliveryBadge status={order.status} />
                 </td>
-                <td className="p-3 text-sm">
-                  {orderCreatedDateText}
-                </td>
+                <td className="p-3 text-sm">{formatDate(order.createdAt)}</td>
                 <td className="p-3">
                   {hasPerm("orders:view") && (
                     <button
@@ -666,12 +730,12 @@ export default function Orders() {
                   )}
                 </td>
               </tr>
-              );
-            })}
+            ))}
           </tbody>
         </table>
       </div>
 
+      {/* Pagination */}
       <div className="mt-4 flex justify-between items-center">
         <div className="text-sm text-slate-500">Total: {total}</div>
         <div className="flex gap-2">
@@ -695,6 +759,7 @@ export default function Orders() {
         </div>
       </div>
 
+      {/* Detail modal */}
       {showDetail && detail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
@@ -702,7 +767,10 @@ export default function Orders() {
               <h3 className="text-xl font-semibold">
                 Order #{detail.orderNumber || detail._id.substring(0, 8)}
               </h3>
-              <button onClick={() => setShowDetail(false)} className="text-lg">
+              <button
+                onClick={() => setShowDetail(false)}
+                className="text-lg"
+              >
                 ✕
               </button>
             </div>
@@ -711,6 +779,7 @@ export default function Orders() {
               <div className="text-center py-8">Loading...</div>
             ) : (
               <>
+                {/* Order summary */}
                 <div className="mb-4 p-3 bg-slate-50 rounded">
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div>
@@ -734,21 +803,23 @@ export default function Orders() {
                     </div>
                     <div>
                       <strong>Delivery:</strong>{" "}
-                      {detailDeliveryText}
+                      {detail.status === "delivered"
+                        ? "Completed"
+                        : "In Progress"}
                     </div>
                     <div>
-                      <strong>Date:</strong>{" "}
-                      {detailCreatedAtText}
+                      <strong>Date:</strong> {formatDateTime(detail.createdAt)}
                     </div>
                   </div>
                 </div>
 
+                {/* Items list */}
                 {detail.items && detail.items.length > 0 && (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2">Items</h4>
                     <ul className="text-sm space-y-2 bg-slate-50 p-3 rounded">
                       {detail.items.map((item, i) => (
-                        <li key={i} className="flex items-center gap-3">
+                        <li key={`${detail._id}-item-${i}`} className="flex items-center gap-3">
                           <img
                             src={
                               item.productId?.images?.[0] || PLACEHOLDER_IMAGE
@@ -766,8 +837,8 @@ export default function Orders() {
                             </div>
                             <div>
                               {item.quantity} × ₹{item.price} = ₹
-                              {Number(item.quantity || 0) *
-                                Number(item.price || 0)}
+                              {Number(item.quantity ?? 0) *
+                                Number(item.price ?? 0)}
                             </div>
                           </div>
                         </li>
@@ -776,6 +847,7 @@ export default function Orders() {
                   </div>
                 )}
 
+                {/* Assign rider */}
                 {hasPerm("orders:assign") && (
                   <div className="mb-4 p-3 bg-blue-50 rounded">
                     <h4 className="font-semibold mb-2 text-sm">Assign Rider</h4>
@@ -797,96 +869,21 @@ export default function Orders() {
                         onClick={assignRider}
                         disabled={updating}
                       >
-                        {assignButtonLabel}
+                        {updating ? "Assigning..." : "Assign"}
                       </button>
                     </div>
+
                     {detail.assignedRiderId && (
                       <div className="text-xs text-slate-600 mt-2">
                         Current: {detail.assignedRiderId.name}
                       </div>
                     )}
 
-                    {detail.riderLocation?.latitude !== undefined &&
-                    detail.riderLocation?.longitude !== undefined ? (
-                      <div className="text-xs text-slate-700 mt-2 space-y-1">
-                        <div>
-                          Rider Location:{" "}
-                          {Number(detail.riderLocation.latitude).toFixed(5)},{" "}
-                          {Number(detail.riderLocation.longitude).toFixed(5)}
-                        </div>
-                        <div>
-                          Updated At:{" "}
-                          {formatDateTimeOrFallback(
-                            detail.riderLocation.timestamp,
-                            "just now",
-                          )}
-                        </div>
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${detail.riderLocation.latitude},${detail.riderLocation.longitude}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-indigo-600 underline"
-                        >
-                          Open Live Location in Maps
-                        </a>
-
-                        {hasValidCoords(
-                          detail.riderLocation?.latitude,
-                          detail.riderLocation?.longitude,
-                        ) && (
-                          <div className="mt-3 rounded border border-slate-200 overflow-hidden bg-white">
-                            <div className="px-3 py-2 border-b bg-slate-50 flex items-center justify-between text-xs">
-                              <span className="font-medium text-green-700">
-                                ● Live map auto-refresh
-                              </span>
-                              <span className="text-slate-600">
-                                Refreshing in {mapRefreshCountdown}s
-                              </span>
-                            </div>
-                            <iframe
-                              title="Rider Live Map"
-                              src={buildOsmEmbedUrl(
-                                Number(detail.riderLocation.latitude),
-                                Number(detail.riderLocation.longitude),
-                                mapRefreshTick,
-                              )}
-                              className="w-full h-56"
-                              loading="lazy"
-                            />
-                          </div>
-                        )}
-
-                        {hasValidCoords(
-                          detail.riderLocation?.latitude,
-                          detail.riderLocation?.longitude,
-                        ) &&
-                        hasValidCoords(
-                          detail.shippingAddress?.latitude,
-                          detail.shippingAddress?.longitude,
-                        ) && (
-                          <>
-                            <div className="text-xs text-slate-700">
-                              Rider → Customer Distance:{" "}
-                              <strong>
-                                {getDistanceKm(
-                                  Number(detail.riderLocation.latitude),
-                                  Number(detail.riderLocation.longitude),
-                                  Number(detail.shippingAddress?.latitude),
-                                  Number(detail.shippingAddress?.longitude),
-                                ).toFixed(2)}{" "}
-                                km
-                              </strong>
-                            </div>
-                            <a href={`https://www.google.com/maps/dir/?api=1&origin=${detail.riderLocation?.latitude},${detail.riderLocation?.longitude}&destination=${detail.shippingAddress?.latitude},${detail.shippingAddress?.longitude}&travelmode=driving`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-indigo-600 underline"
-                            >
-                              Open Rider → Customer Route
-                            </a>
-                          </>
-                        )}
-                      </div>
+                    {riderHasCoords && detail.riderLocation ? (
+                      <RiderMap
+                        riderLocation={detail.riderLocation}
+                        shippingAddress={detail.shippingAddress}
+                      />
                     ) : (
                       <div className="text-xs text-slate-500 mt-2">
                         Live rider location not available yet.
@@ -895,6 +892,7 @@ export default function Orders() {
                   </div>
                 )}
 
+                {/* Update status */}
                 {hasPerm("orders:update") && (
                   <div className="mb-4 p-3 bg-green-50 rounded">
                     <h4 className="font-semibold mb-2 text-sm">
@@ -918,7 +916,7 @@ export default function Orders() {
                         onClick={updateStatus}
                         disabled={updating}
                       >
-                        {updateButtonLabel}
+                        {updating ? "Updating..." : "Update"}
                       </button>
                     </div>
                   </div>

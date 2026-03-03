@@ -1,19 +1,18 @@
 import { ThemedText } from "@/components/themed-text";
-import { resolveImageUrl } from "@/config/api";
+import { resolveImageUrl, API_BASE_URL } from "@/config/api";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { io } from "socket.io-client";
-import { API_BASE_URL } from "@/config/api";
 import { tokenManager } from "@/utils/tokenManager";
 import {
   cancelMyOrderApi,
@@ -104,6 +103,32 @@ export default function OrdersScreen() {
     );
   };
 
+  // ──── Extracted cancel handler ────
+  const executeCancelOrder = async (orderId: string) => {
+    try {
+      setCancellingOrderId(orderId);
+      const updated = await cancelMyOrderApi(orderId);
+      setOrders((prev) =>
+        prev.map((row) =>
+          row._id === orderId
+            ? { ...row, ...updated, status: "cancelled" }
+            : row,
+        ),
+      );
+      Alert.alert(
+        "Order Cancelled",
+        "Order cancelled successfully and stock restored.",
+      );
+    } catch (error: any) {
+      Alert.alert(
+        "Cancel Failed",
+        error?.message || "Unable to cancel this order.",
+      );
+    } finally {
+      setCancellingOrderId(null);
+    }
+  };
+
   const handleCancelOrder = (orderId: string) => {
     Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
       { text: "No", style: "cancel" },
@@ -111,30 +136,7 @@ export default function OrdersScreen() {
         text: "Yes, Cancel",
         style: "destructive",
         onPress: () => {
-          void (async () => {
-            try {
-              setCancellingOrderId(orderId);
-              const updated = await cancelMyOrderApi(orderId);
-              setOrders((prev) =>
-                prev.map((row) =>
-                  row._id === orderId
-                    ? { ...row, ...updated, status: "cancelled" }
-                    : row,
-                ),
-              );
-              Alert.alert(
-                "Order Cancelled",
-                "Order cancelled successfully and stock restored.",
-              );
-            } catch (error: any) {
-              Alert.alert(
-                "Cancel Failed",
-                error?.message || "Unable to cancel this order.",
-              );
-            } finally {
-              setCancellingOrderId(null);
-            }
-          })();
+          void executeCancelOrder(orderId);
         },
       },
     ]);
@@ -344,7 +346,7 @@ export default function OrdersScreen() {
                 </ThemedText>
               </View>
 
-              {normalizeStatus(order.status) !== "cancelled" ? (
+              {normalizeStatus(order.status) === "cancelled" ? null : (
                 <View style={styles.trackingBlock}>
                   <ThemedText style={styles.trackingTitle}>
                     Tracking Progress
@@ -376,7 +378,7 @@ export default function OrdersScreen() {
                     })}
                   </View>
                 </View>
-              ) : null}
+              )}
 
               <View style={styles.paymentMetaRow}>
                 <ThemedText style={styles.paymentMetaText}>

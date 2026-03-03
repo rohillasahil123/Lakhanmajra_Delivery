@@ -32,6 +32,23 @@ type ProductVariant = {
   isDefault?: boolean;
 };
 
+// ───────────────── Helper Functions ─────────────────
+const buildCategoryName = (product: any, categories: CategoryItem[]): string => {
+  const categoryId = typeof product?.categoryId === 'string'
+    ? product.categoryId
+    : String(product?.categoryId?._id || '');
+  return categories.find((c) => String(c?._id) === categoryId)?.name || product?.categoryName || '';
+};
+
+const getActiveUnit = (selectedVariant: ProductVariant | null, product: any): string =>
+  selectedVariant?.label || selectedVariant?.unit || selectedVariant?.unitType || product?.unit || 'piece';
+
+const buildImageArray = (product: any): string[] => {
+  if (!Array.isArray(product.images)) return [];
+  return product.images.map((img: string) => resolveImageUrl(img)).filter(Boolean);
+};
+
+// ───────────────── Main Component ─────────────────
 export default function ProductDetailDynamic() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -42,10 +59,12 @@ export default function ProductDetailDynamic() {
   const [product, setProduct] = useState<any>(null);
   const [categories, setCategories] = useState<CategoryItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
-  const [activeImage, setActiveImage] = useState(0);
   const [imgErrored, setImgErrored] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState('');
+
+  // Fixed values - not state since they don't change
+  const quantity = 1;
+  const activeImage = 0;
 
   // ───────────────── Fetch ─────────────────
   useEffect(() => {
@@ -103,10 +122,7 @@ export default function ProductDetailDynamic() {
   }
 
   // ───────────────── Images ─────────────────
-  const images: string[] = Array.isArray(product.images)
-    ? product.images.map((img: string) => resolveImageUrl(img)).filter(Boolean)
-    : [];
-
+  const images: string[] = buildImageArray(product);
   const currentImage = images[activeImage] || null;
 
   // ───────────────── Variant Logic ─────────────────
@@ -123,24 +139,11 @@ export default function ProductDetailDynamic() {
   const activePrice = Number(selectedVariant?.price ?? product?.price ?? 0);
   const activeMrp = Number(selectedVariant?.mrp ?? product?.mrp ?? 0);
   const activeStock = Number(selectedVariant?.stock ?? product?.stock ?? 0);
-  const categoryId =
-    typeof product?.categoryId === 'string'
-      ? product.categoryId
-      : String(product?.categoryId?._id || '');
-  const categoryName =
-    categories.find((c) => String(c?._id) === categoryId)?.name ||
-    product?.categoryName ||
-    '';
-  const activeUnit =
-    selectedVariant?.label ||
-    selectedVariant?.unit ||
-    selectedVariant?.unitType ||
-    product?.unit ||
-    'piece';
+  const categoryName = buildCategoryName(product, categories);
+  const activeUnit = getActiveUnit(selectedVariant, product);
   const productDescription =
     typeof product?.description === 'string' ? product.description.trim() : '';
 
-  // ✅ STEP-1 (THIS IS THE IMPORTANT FIX)
   const shouldShowDiscount =
     typeof activeMrp === 'number' &&
     typeof activePrice === 'number' &&
