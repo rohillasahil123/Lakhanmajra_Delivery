@@ -1,69 +1,65 @@
 import { useEffect, useState } from "react";
 import api from "../api/client";
-import { getMe, getPermissions } from "../auth";
-import { User } from "./useUsers";
 
-export type Role = {
+interface IRole {
   _id: string;
   name: string;
-};
+  description?: string;
+}
 
-export function useUserInit() {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [permissions, setPermissions] =
-    useState<string[]>([]);
-  const [currentRole, setCurrentRole] =
-    useState<string | null>(null);
-  const [initialUser, setInitialUser] =
-    useState<User | null>(null);
+interface ISummary {
+  summary: Record<string, number>;
+  total: number;
+}
+
+export const useUserInit = (fetchUsers: Function) => {
+  const [roles, setRoles] = useState<IRole[]>([]);
+  const [summary, setSummary] = useState<ISummary | null>(null);
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let cancelled = false;
+    init();
+  }, []);
 
-    (async () => {
-      const me = await getMe();
-      const meData = me.data;
+  const init = async () => {
+    try {
+      setLoading(true);
 
-      const roleName =
-        meData?.roleId?.name ??
-        meData?.role ??
-        null;
+      const [rolesRes, summaryRes, permRes] = await Promise.all([
+        api.get("/admin/roles"),
+        api.get("/admin/users/summary"),
+        api.get("/auth/permissions"),
+      ]);
 
-      if (cancelled) return;
-
-      setCurrentRole(roleName);
-
-      const perms = await getPermissions();
-      setPermissions(perms);
-
-      if (
-        !perms.includes("users:view") &&
-        roleName !== "superadmin"
-      ) {
-        setInitialUser(meData);
-        return;
-      }
-
-      const rolesRes =
-        await api.get("/admin/roles");
-
-      const rolesData =
-        rolesRes.data?.data ??
-        rolesRes.data ??
+      const rolesData = rolesRes.data?.data ?? rolesRes.data ?? [];
+      const summaryData = summaryRes.data?.data ?? summaryRes.data ?? null;
+      const permData =
+        permRes.data?.permissions ??
+        permRes.data?.data?.permissions ??
         [];
 
       setRoles(rolesData);
-    })();
+      setSummary(summaryData);
+      setPermissions(permData);
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      await fetchUsers({ page: 1 });
+    } catch (err) {
+      console.error("User init failed", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const hasPermission = (perm: string) => {
+    return permissions.includes(perm);
+  };
 
   return {
     roles,
+    summary,
     permissions,
-    currentRole,
-    initialUser,
+    hasPermission,
+    loading,
   };
-}
+};

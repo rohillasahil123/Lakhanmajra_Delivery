@@ -1,75 +1,96 @@
-import { useCallback, useState } from "react";
+import { useState, useCallback } from "react";
 import api from "../api/client";
 
-export type User = {
+export interface IUser {
   _id: string;
   name: string;
-  email?: string;
-  phone?: string;
-  roleId?: { _id?: string; name?: string } | string;
-  isActive?: boolean;
-  createdAt?: string;
-};
+  email: string;
+  phone: string;
+  isActive: boolean;
+  roleId: {
+    _id: string;
+    name: string;
+  };
+}
 
-export const LIMIT = 20;
+interface IUserResponse {
+  users: IUser[];
+  total: number;
+  page: number;
+  limit: number;
+}
 
-export function useUsers() {
-  const [users, setUsers] = useState<User[]>([]);
+export const useUsers = () => {
+  const [users, setUsers] = useState<IUser[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(false);
 
-  const loadUsers = useCallback(
-    async (
-      pageNum = 1,
-      role?: string,
-      search?: string
-    ) => {
+  const fetchUsers = useCallback(
+    async (params?: { page?: number; role?: string }) => {
       try {
         setLoading(true);
 
-        const params = new URLSearchParams({
-          page: pageNum.toString(),
-          limit: LIMIT.toString(),
+        const res = await api.get("/admin/users", {
+          params: {
+            page: params?.page || page,
+            limit,
+            role: params?.role || undefined,
+          },
         });
 
-        if (role && role !== "all") {
-          params.append("role", role);
-        }
+        const payload: IUserResponse =
+          res.data?.data ?? res.data;
 
-       const trimmedSearch = search?.trim();
-
-if (trimmedSearch) {
-  params.append("search", trimmedSearch);
-}
-        const res = await api.get(`/admin/users?${params}`);
-
-       const payload =
-  res.data?.users ??
-  res.data?.data?.users ??
-  [];
-
-        const totalCount =
-  res.data?.total ??
-  res.data?.data?.total ??
-  payload.length;
-
-        setUsers(payload);
-        setTotal(totalCount);
-        setPage(pageNum);
+        setUsers(payload.users || []);
+        setTotal(payload.total || 0);
+        setPage(payload.page || 1);
+        setLimit(payload.limit || 10);
+      } catch (err) {
+        console.error("Fetch users failed", err);
       } finally {
         setLoading(false);
       }
     },
-    []
+    [page, limit]
   );
+
+  const createUser = async (data: any) => {
+    const res = await api.post("/admin/users", data);
+    return res.data?.data ?? res.data;
+  };
+
+  const updateUser = async (id: string, data: any) => {
+    const res = await api.patch(`/admin/users/${id}`, data);
+    return res.data?.data ?? res.data;
+  };
+
+  const deleteUser = async (id: string) => {
+    await api.delete(`/admin/users/${id}`);
+  };
+
+  const toggleStatus = async (id: string, isActive: boolean) => {
+    const res = await api.patch(`/admin/users/${id}/status`, { isActive });
+    return res.data?.data ?? res.data;
+  };
+
+  const assignRole = async (id: string, roleId: string) => {
+    const res = await api.patch(`/auth/users/${id}/role`, { roleId });
+    return res.data?.data ?? res.data;
+  };
 
   return {
     users,
     total,
     page,
+    limit,
     loading,
-    loadUsers,
-    setPage,
+    fetchUsers,
+    createUser,
+    updateUser,
+    deleteUser,
+    toggleStatus,
+    assignRole,
   };
-}
+};

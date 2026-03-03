@@ -1,26 +1,148 @@
-import { User } from "../../hooks/useUsers";
+import { useState, useEffect } from "react";
+import { IUser } from "../../hooks/useUsers";
 
-export default function UserModal({
-  user,
-  onClose,
-}: Readonly<{
-  user: User | null;
+interface UserModalProps {
+  open: boolean;
   onClose: () => void;
-}>) {
+  onSubmit: (data: any) => Promise<void>;
+  roles: { _id: string; name: string }[];
+  editingUser: IUser | null;
+}
+
+const UserModal = ({
+  open,
+  onClose,
+  onSubmit,
+  roles,
+  editingUser,
+}: UserModalProps) => {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    roleId: "",
+  });
+
+  const isEditMode = Boolean(editingUser);
+
+  useEffect(() => {
+    if (editingUser) {
+      setForm({
+        name: editingUser.name,
+        email: editingUser.email,
+        phone: editingUser.phone,
+        password: "",
+        roleId: editingUser.roleId?._id || "",
+      });
+    } else {
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        roleId: "",
+      });
+    }
+  }, [editingUser]);
+
+  if (!open) return null;
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async () => {
+    if (!form.name || !form.email || !form.phone || (!isEditMode && !form.password)) {
+      alert("Please fill all required fields");
+      return;
+    }
+
+    await onSubmit(form);
+    onClose();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center">
-      <div className="bg-white p-6 rounded-xl">
-        <h2 className="text-lg font-semibold">
-          {user ? "Edit User" : "Create User"}
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+      <div className="bg-white p-6 rounded-lg w-full max-w-md">
+        <h2 className="text-lg font-semibold mb-4">
+          {isEditMode ? "Edit User" : "Create User"}
         </h2>
 
-        <button
-          onClick={onClose}
-          className="mt-4"
-        >
-          Close
-        </button>
+        <div className="space-y-3">
+          <input
+            type="text"
+            name="name"
+            placeholder="Name"
+            value={form.name}
+            onChange={handleChange}
+            className="w-full border px-3 py-2 rounded"
+          />
+
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full border px-3 py-2 rounded"
+          />
+
+          <input
+            type="text"
+            name="phone"
+            placeholder="Phone"
+            value={form.phone}
+            onChange={handleChange}
+            className="w-full border px-3 py-2 rounded"
+          />
+
+          {!isEditMode && (
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={handleChange}
+              className="w-full border px-3 py-2 rounded"
+            />
+          )}
+
+          <select
+            name="roleId"
+            value={form.roleId}
+            onChange={handleChange}
+            className="w-full border px-3 py-2 rounded"
+          >
+            <option value="">Select Role</option>
+            {roles.map((role) => (
+              <option key={role._id} value={role._id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 bg-gray-300 rounded"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={handleSubmit}
+            className="px-4 py-2 bg-blue-600 text-white rounded"
+          >
+            {isEditMode ? "Update" : "Create"}
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default UserModal;
