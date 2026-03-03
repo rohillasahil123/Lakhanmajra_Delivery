@@ -123,6 +123,22 @@ export default function ProductDetailDynamic() {
   const activePrice = Number(selectedVariant?.price ?? product?.price ?? 0);
   const activeMrp = Number(selectedVariant?.mrp ?? product?.mrp ?? 0);
   const activeStock = Number(selectedVariant?.stock ?? product?.stock ?? 0);
+  const categoryId =
+    typeof product?.categoryId === 'string'
+      ? product.categoryId
+      : String(product?.categoryId?._id || '');
+  const categoryName =
+    categories.find((c) => String(c?._id) === categoryId)?.name ||
+    product?.categoryName ||
+    '';
+  const activeUnit =
+    selectedVariant?.label ||
+    selectedVariant?.unit ||
+    selectedVariant?.unitType ||
+    product?.unit ||
+    'piece';
+  const productDescription =
+    typeof product?.description === 'string' ? product.description.trim() : '';
 
   // ✅ STEP-1 (THIS IS THE IMPORTANT FIX)
   const shouldShowDiscount =
@@ -151,7 +167,10 @@ export default function ProductDetailDynamic() {
   // ───────────────── UI ─────────────────
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
 
         {/* Image */}
         <View style={styles.imageContainer}>
@@ -177,6 +196,34 @@ export default function ProductDetailDynamic() {
             {product.name}
           </ThemedText>
 
+          <View style={styles.metaRow}>
+            {categoryName ? (
+              <View style={styles.metaChip}>
+                <ThemedText style={styles.metaChipText}>{categoryName}</ThemedText>
+              </View>
+            ) : null}
+
+            <View style={styles.metaChip}>
+              <ThemedText style={styles.metaChipText}>{activeUnit}</ThemedText>
+            </View>
+
+            <View
+              style={[
+                styles.stockChip,
+                activeStock > 0 ? styles.stockChipIn : styles.stockChipOut,
+              ]}
+            >
+              <ThemedText
+                style={[
+                  styles.stockChipText,
+                  activeStock > 0 ? styles.stockChipTextIn : styles.stockChipTextOut,
+                ]}
+              >
+                {activeStock > 0 ? `In Stock (${activeStock})` : 'Out of Stock'}
+              </ThemedText>
+            </View>
+          </View>
+
           {/* ✅ FIXED PRICE BLOCK */}
           <View style={styles.priceRow}>
             <View>
@@ -200,7 +247,59 @@ export default function ProductDetailDynamic() {
             )}
           </View>
 
-          <View style={{ height: 120 }} />
+          {variants.length > 1 && (
+            <View style={styles.sectionBlock}>
+              <ThemedText style={styles.sectionTitle}>Available Variants</ThemedText>
+              <View style={styles.variantsWrap}>
+                {variants.map((variant, index) => {
+                  const variantId = String(variant?._id || index);
+                  const isSelected = variantId === selectedVariantId;
+                  const variantPrice = Number(variant?.price ?? activePrice ?? 0);
+                  const variantLabel =
+                    variant?.label ||
+                    variant?.unit ||
+                    variant?.unitType ||
+                    `Variant ${index + 1}`;
+
+                  return (
+                    <TouchableOpacity
+                      key={variantId}
+                      style={[
+                        styles.variantChip,
+                        isSelected && styles.variantChipActive,
+                      ]}
+                      onPress={() => setSelectedVariantId(variantId)}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.variantChipLabel,
+                          isSelected && styles.variantChipLabelActive,
+                        ]}
+                      >
+                        {variantLabel}
+                      </ThemedText>
+                      <ThemedText
+                        style={[
+                          styles.variantChipPrice,
+                          isSelected && styles.variantChipPriceActive,
+                        ]}
+                      >
+                        ₹{variantPrice}
+                      </ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {productDescription ? (
+            <View style={styles.sectionBlock}>
+              <ThemedText style={styles.sectionTitle}>Product Details</ThemedText>
+              <ThemedText style={styles.descriptionText}>{productDescription}</ThemedText>
+            </View>
+          ) : null}
+
         </View>
       </ScrollView>
 
@@ -229,17 +328,45 @@ export default function ProductDetailDynamic() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F9FAFB' },
+  scrollContent: { paddingBottom: 120 },
   imageContainer: { height: 280, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' },
   mainImage: { width: '100%', height: '100%' },
   imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   imagePlaceholderText: { fontSize: 72, color: '#D1D5DB', fontWeight: '700' },
   infoSection: { backgroundColor: '#FFF', padding: 16 },
-  productName: { fontSize: 22, fontWeight: '700', marginBottom: 10 },
+  productName: { fontSize: 22, fontWeight: '700', marginBottom: 10, color: '#111827' },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
+  metaChip: { backgroundColor: '#F3F4F6', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  metaChipText: { fontSize: 12, fontWeight: '600', color: '#374151' },
+  stockChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  stockChipIn: { backgroundColor: '#DCFCE7' },
+  stockChipOut: { backgroundColor: '#FEE2E2' },
+  stockChipText: { fontSize: 12, fontWeight: '700' },
+  stockChipTextIn: { color: '#166534' },
+  stockChipTextOut: { color: '#991B1B' },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   price: { fontSize: 28, fontWeight: '800', color: '#0E7A3D' },
   originalPrice: { fontSize: 16, color: '#9CA3AF', textDecorationLine: 'line-through' },
   savingsContainer: { backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
   savingsText: { fontSize: 13, fontWeight: '600', color: '#92400E' },
+  sectionBlock: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' },
+  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 10 },
+  variantsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  variantChip: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    minWidth: 92,
+  },
+  variantChipActive: { borderColor: '#0E7A3D', backgroundColor: '#ECFDF3' },
+  variantChipLabel: { fontSize: 12, fontWeight: '700', color: '#111827' },
+  variantChipLabelActive: { color: '#0E7A3D' },
+  variantChipPrice: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  variantChipPriceActive: { color: '#065F46', fontWeight: '600' },
+  descriptionText: { fontSize: 14, lineHeight: 22, color: '#374151' },
   bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', padding: 16 },
   addToCartButton: { backgroundColor: '#0E7A3D', borderRadius: 10, padding: 14, flexDirection: 'row', justifyContent: 'space-between' },
   addToCartText: { color: '#FFF', fontWeight: '700', fontSize: 16 },

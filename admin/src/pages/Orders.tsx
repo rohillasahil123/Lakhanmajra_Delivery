@@ -120,6 +120,19 @@ export default function Orders() {
 
   const hasPerm = (p: string) => permissions.includes(p);
 
+  const formatDateOrFallback = (value?: string, fallback = "—"): string => {
+    if (!value) return fallback;
+    return new Date(value).toLocaleDateString();
+  };
+
+  const formatDateTimeOrFallback = (
+    value?: string,
+    fallback = "—",
+  ): string => {
+    if (!value) return fallback;
+    return new Date(value).toLocaleString();
+  };
+
   const hasValidCoords = (latitude?: number, longitude?: number): boolean => {
     return Number.isFinite(latitude) && Number.isFinite(longitude);
   };
@@ -223,10 +236,28 @@ export default function Orders() {
 
       const res = await api.get(`/admin/orders?${query.toString()}`);
       const payload = res.data?.data ?? res.data;
+<<<<<<< HEAD
 
       // Fixed L192 & L214: extracted nested ternaries into helper functions
       const list = resolveOrdersList(payload);
       const resolvedTotal = resolveTotal(payload, list);
+=======
+      let list: Order[] = [];
+
+      if (Array.isArray(payload?.orders)) {
+        list = payload.orders;
+      } else if (Array.isArray(payload?.data?.orders)) {
+        list = payload.data.orders;
+      }
+
+      let resolvedTotal = list.length;
+
+      if (typeof payload?.total === "number") {
+        resolvedTotal = payload.total;
+      } else if (typeof payload?.data?.total === "number") {
+        resolvedTotal = payload.data.total;
+      }
+>>>>>>> 7b935de (3 error fix in admin/src/pages/Orders.tsx)
 
       setItems(list);
       setTotal(resolvedTotal);
@@ -243,10 +274,22 @@ export default function Orders() {
         setPermissions(await getPermissions());
         const ridersRes = await api.get("/admin/users?role=rider&limit=100");
         const riderData = ridersRes.data?.data ?? ridersRes.data;
+<<<<<<< HEAD
 
         // Fixed L532: extracted nested ternary into helper function
         setRiders(resolveRidersList(riderData));
 
+=======
+        let resolvedRiders: Rider[] = [];
+
+        if (Array.isArray(riderData?.users)) {
+          resolvedRiders = riderData.users;
+        } else if (Array.isArray(riderData)) {
+          resolvedRiders = riderData;
+        }
+
+        setRiders(resolvedRiders);
+>>>>>>> 7b935de (3 error fix in admin/src/pages/Orders.tsx)
         await load(1);
       } catch (err) {
         console.error(err);
@@ -392,6 +435,23 @@ export default function Orders() {
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
+  let assignButtonLabel = "Assign";
+  if (updating) {
+    assignButtonLabel = "Assigning...";
+  }
+
+  let updateButtonLabel = "Update";
+  if (updating) {
+    updateButtonLabel = "Updating...";
+  }
+
+  let detailDeliveryText = "In Progress";
+  if (detail?.status === "delivered") {
+    detailDeliveryText = "Completed";
+  }
+
+  const detailCreatedAtText = formatDateTimeOrFallback(detail?.createdAt);
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
@@ -496,7 +556,37 @@ export default function Orders() {
             </tr>
           </thead>
           <tbody>
-            {items.map((order) => (
+            {items.map((order) => {
+              let statusBadgeClass = "bg-yellow-100 text-yellow-800";
+              if (order.status === "delivered") {
+                statusBadgeClass = "bg-green-100 text-green-800";
+              } else if (order.status === "cancelled") {
+                statusBadgeClass = "bg-red-100 text-red-800";
+              }
+
+              let deliveryBadgeClass = "bg-slate-100 text-slate-600";
+              let deliveryBadgeText = "Pending";
+              if (order.status === "delivered") {
+                deliveryBadgeClass = "bg-emerald-100 text-emerald-700";
+                deliveryBadgeText = "Delivered";
+              }
+
+              const hasOrderItems =
+                Array.isArray(order.items) && order.items.length > 0;
+              const primaryItem = hasOrderItems ? order.items[0] : null;
+
+              let productSummaryText = "";
+              if (hasOrderItems) {
+                if (order.items.length > 1) {
+                  productSummaryText = `+${order.items.length - 1} more item(s)`;
+                } else {
+                  productSummaryText = `Qty: ${primaryItem?.quantity || 1}`;
+                }
+              }
+
+              const orderCreatedDateText = formatDateOrFallback(order.createdAt);
+
+              return (
               <tr
                 key={order._id}
                 className="border-b last:border-0 hover:bg-slate-50"
@@ -513,14 +603,11 @@ export default function Orders() {
                   </div>
                 </td>
                 <td className="p-3 text-sm">
-                  {order.items && order.items.length > 0 ? (
+                  {hasOrderItems ? (
                     <div className="flex items-center gap-2">
                       <img
-                        src={
-                          order.items[0]?.productId?.images?.[0] ||
-                          PLACEHOLDER_IMAGE
-                        }
-                        alt={order.items[0]?.productId?.name || "Product"}
+                        src={primaryItem?.productId?.images?.[0] || PLACEHOLDER_IMAGE}
+                        alt={primaryItem?.productId?.name || "Product"}
                         className="w-10 h-10 object-cover rounded border border-slate-200"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =
@@ -529,13 +616,9 @@ export default function Orders() {
                       />
                       <div>
                         <div className="font-medium">
-                          {order.items[0]?.productId?.name || "Product"}
+                          {primaryItem?.productId?.name || "Product"}
                         </div>
-                        <div className="text-slate-500">
-                          {order.items.length > 1
-                            ? `+${order.items.length - 1} more item(s)`
-                            : `Qty: ${order.items[0]?.quantity || 1}`}
-                        </div>
+                        <div className="text-slate-500">{productSummaryText}</div>
                       </div>
                     </div>
                   ) : (
@@ -556,32 +639,20 @@ export default function Orders() {
                 </td>
                 <td className="p-3">
                   <span
-                    className={`px-2 py-1 rounded text-sm ${
-                      order.status === "delivered"
-                        ? "bg-green-100 text-green-800"
-                        : order.status === "cancelled"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-yellow-100 text-yellow-800"
-                    }`}
+                    className={`px-2 py-1 rounded text-sm ${statusBadgeClass}`}
                   >
                     {order.status}
                   </span>
                 </td>
                 <td className="p-3">
                   <span
-                    className={`px-2 py-1 rounded text-xs ${
-                      order.status === "delivered"
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
+                    className={`px-2 py-1 rounded text-xs ${deliveryBadgeClass}`}
                   >
-                    {order.status === "delivered" ? "Delivered" : "Pending"}
+                    {deliveryBadgeText}
                   </span>
                 </td>
                 <td className="p-3 text-sm">
-                  {order.createdAt
-                    ? new Date(order.createdAt).toLocaleDateString()
-                    : "—"}
+                  {orderCreatedDateText}
                 </td>
                 <td className="p-3">
                   {hasPerm("orders:view") && (
@@ -595,7 +666,8 @@ export default function Orders() {
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -662,15 +734,11 @@ export default function Orders() {
                     </div>
                     <div>
                       <strong>Delivery:</strong>{" "}
-                      {detail.status === "delivered"
-                        ? "Completed"
-                        : "In Progress"}
+                      {detailDeliveryText}
                     </div>
                     <div>
                       <strong>Date:</strong>{" "}
-                      {detail.createdAt
-                        ? new Date(detail.createdAt).toLocaleString()
-                        : "—"}
+                      {detailCreatedAtText}
                     </div>
                   </div>
                 </div>
@@ -729,7 +797,7 @@ export default function Orders() {
                         onClick={assignRider}
                         disabled={updating}
                       >
-                        {updating ? "Assigning..." : "Assign"}
+                        {assignButtonLabel}
                       </button>
                     </div>
                     {detail.assignedRiderId && (
@@ -748,11 +816,10 @@ export default function Orders() {
                         </div>
                         <div>
                           Updated At:{" "}
-                          {detail.riderLocation.timestamp
-                            ? new Date(
-                                detail.riderLocation.timestamp,
-                              ).toLocaleString()
-                            : "just now"}
+                          {formatDateTimeOrFallback(
+                            detail.riderLocation.timestamp,
+                            "just now",
+                          )}
                         </div>
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${detail.riderLocation.latitude},${detail.riderLocation.longitude}`}
@@ -796,7 +863,7 @@ export default function Orders() {
                         hasValidCoords(
                           detail.shippingAddress?.latitude,
                           detail.shippingAddress?.longitude,
-                        ) ? (
+                        ) && (
                           <>
                             <div className="text-xs text-slate-700">
                               Rider → Customer Distance:{" "}
@@ -818,7 +885,7 @@ export default function Orders() {
                               Open Rider → Customer Route
                             </a>
                           </>
-                        ) : null}
+                        )}
                       </div>
                     ) : (
                       <div className="text-xs text-slate-500 mt-2">
@@ -851,7 +918,7 @@ export default function Orders() {
                         onClick={updateStatus}
                         disabled={updating}
                       >
-                        {updating ? "Updating..." : "Update"}
+                        {updateButtonLabel}
                       </button>
                     </div>
                   </div>
