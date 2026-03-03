@@ -11,8 +11,6 @@ type FunctionKey = 'home' | 'earnings' | 'delivered' | 'profile';
 
 interface FunctionBarProps {
   active: FunctionKey;
-  onOpenEarnings?: () => void;
-  onOpenDelivered?: () => void;
 }
 
 const items: {key: FunctionKey; icon: keyof typeof Ionicons.glyphMap; label: string}[] = [
@@ -22,7 +20,7 @@ const items: {key: FunctionKey; icon: keyof typeof Ionicons.glyphMap; label: str
   {key: 'profile', icon: 'person-outline', label: 'Profile'},
 ];
 
-export const FunctionBar: React.FC<FunctionBarProps> = ({active, onOpenDelivered, onOpenEarnings}) => {
+export const FunctionBar: React.FC<FunctionBarProps> = ({active}) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const {logout} = useRiderAuth();
 
@@ -38,19 +36,11 @@ export const FunctionBar: React.FC<FunctionBarProps> = ({active, onOpenDelivered
     }
 
     if (key === 'earnings') {
-      if (onOpenEarnings) {
-        onOpenEarnings();
-      } else {
-        navigation.navigate('Earnings', {initialTab: 'summary'});
-      }
+      navigation.navigate('Earnings');
       return;
     }
 
-    if (onOpenDelivered) {
-      onOpenDelivered();
-    } else {
-      navigation.navigate('Earnings', {initialTab: 'delivered'});
-    }
+    navigation.navigate('DeliveredOrders');
   };
 
   return (

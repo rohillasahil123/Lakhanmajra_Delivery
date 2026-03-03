@@ -4,6 +4,7 @@ import {NavigationContainer} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {useRiderAuth} from '../context/RiderAuthContext';
 import {DashboardScreen} from '../screens/DashboardScreen';
+import {DeliveredOrdersScreen} from '../screens/DeliveredOrdersScreen';
 import {EarningsScreen} from '../screens/EarningsScreen';
 import {InAppMapScreen} from '../screens/InAppMapScreen';
 import {LoginScreen} from '../screens/LoginScreen';
@@ -34,6 +35,7 @@ export const AppNavigator: React.FC = () => {
           <>
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="RiderProfile" component={RiderProfileScreen} />
+            <Stack.Screen name="DeliveredOrders" component={DeliveredOrdersScreen} />
             <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
             <Stack.Screen name="InAppMap" component={InAppMapScreen} />
             <Stack.Screen name="Earnings" component={EarningsScreen} />
