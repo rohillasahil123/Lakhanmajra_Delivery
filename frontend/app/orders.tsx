@@ -108,31 +108,6 @@ export default function OrdersScreen() {
     Alert.alert("Cancel Order", "Are you sure you want to cancel this order?", [
       { text: "No", style: "cancel" },
       {
-<<<<<<< HEAD
-        text: 'Yes, Cancel',
-        style: 'destructive',
-
-
-       onPress: () => {
-  void (async () => {
-    try {
-      setCancellingOrderId(orderId);
-
-      const updated = await cancelMyOrderApi(orderId);
-
-      setOrders(prev =>
-        prev.map(row =>
-          row._id === orderId
-            ? { ...row, ...updated, status: 'cancelled' }
-            : row
-        )
-      );
-    } catch (e) {
-      console.error(e);
-    }
-  })();
-}
-=======
         text: "Yes, Cancel",
         style: "destructive",
         onPress: () => {
@@ -156,13 +131,14 @@ export default function OrdersScreen() {
                 "Cancel Failed",
                 error?.message || "Unable to cancel this order.",
               );
+            } finally {
+              setCancellingOrderId(null);
             }
           })();
         },
->>>>>>> 7b935de (3 error fix in admin/src/pages/Orders.tsx)
       },
     ]);
-  } 
+  };
 
   useEffect(() => {
     (async () => {
