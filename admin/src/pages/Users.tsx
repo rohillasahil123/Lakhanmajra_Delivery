@@ -103,27 +103,39 @@ const Users = () => {
         )}
       </div>
 
-      {/* Summary Tabs */}
+      {/* Summary Cards */}
       {summary && (
-        <div className="flex gap-3 mb-4 flex-wrap">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <button
             onClick={() => setActiveRole(null)}
-            className={`px-4 py-2 rounded ${!activeRole ? "bg-blue-600 text-white" : "bg-gray-200"
-              }`}
+            className={`text-left bg-white dark:bg-slate-800 rounded-lg p-3 shadow-sm border transition hover:shadow-md ${
+              !activeRole ? "border-blue-500" : "border-slate-200 dark:border-slate-700"
+            }`}
           >
-            All ({summary.total})
+            <div className="text-xs text-slate-500 dark:text-slate-400">
+              Total
+            </div>
+            <div className="text-lg font-semibold mt-1">
+              {summary.total}
+            </div>
           </button>
 
           {Object.entries(summary.summary).map(([role, count]) => (
             <button
               key={role}
               onClick={() => setActiveRole(role)}
-              className={`px-4 py-2 rounded ${activeRole === role
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200"
-                }`}
+              className={`text-left bg-white dark:bg-slate-800 rounded-lg p-3 shadow-sm border transition hover:shadow-md ${
+                activeRole === role
+                  ? "border-blue-500"
+                  : "border-slate-200 dark:border-slate-700"
+              }`}
             >
-              {role} ({count})
+              <div className="text-xs text-slate-500 dark:text-slate-400 capitalize">
+                {role}
+              </div>
+              <div className="text-lg font-semibold mt-1">
+                {count as number}
+              </div>
             </button>
           ))}
         </div>
@@ -139,12 +151,11 @@ const Users = () => {
       />
 
       {/* Table */}
-      <div className="overflow-x-auto bg-white rounded-xl shadow">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-3">Name</th>
-              <th className="p-3">Email</th>
               <th className="p-3">Phone</th>
               <th className="p-3">Role</th>
               <th className="p-3">Status</th>
@@ -154,23 +165,47 @@ const Users = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center p-6">
+                <td colSpan={5} className="text-center p-6">
                   Loading...
                 </td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center p-6">
+                <td colSpan={5} className="text-center p-6">
                   No users found
                 </td>
               </tr>
             ) : (
               users.map((user) => (
-                <tr key={user._id} className="border-t">
-                  <td className="p-3">{user.name}</td>
-                  <td className="p-3">{user.email}</td>
-                  <td className="p-3">{user.phone}</td>
-                  <td className="p-3">
+                <tr
+                  key={user._id}
+                  className="border-t border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition"
+                >
+                  {/* USER */}
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-semibold">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+
+                      <div>
+                        <div className="font-medium dark:text-slate-100">
+                          {user.name}
+                        </div>
+                        <div className="text-sm text-slate-500 dark:text-slate-400">
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* PHONE */}
+                  <td className="p-4 text-sm text-slate-600 dark:text-slate-300">
+                    {user.phone}
+                  </td>
+
+                  {/* ROLE */}
+                  <td className="p-4">
                     <RoleBadge
                       role={user.roleId?.name}
                       userId={user._id}
@@ -180,10 +215,23 @@ const Users = () => {
                       onChangeRole={handleAssignRole}
                     />
                   </td>
-                  <td className="p-3">
-                    {user.isActive ? "Active" : "Inactive"}
+
+                  {/* STATUS */}
+                  <td className="p-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span
+                        className={`w-2.5 h-2.5 rounded-full ${
+                          user.isActive ? "bg-green-500" : "bg-red-500"
+                        }`}
+                      />
+                      <span className="dark:text-slate-200">
+                        {user.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
                   </td>
-                  <td className="p-3 text-right">
+
+                  {/* ACTIONS */}
+                  <td className="p-4 text-right">
                     <ActionMenu
                       user={user}
                       hasPermission={hasPermission}

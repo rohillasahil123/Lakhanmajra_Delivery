@@ -142,7 +142,7 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
     const { page = "1", limit = "10", role } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
 
-    const query: any = { isActive: true };
+    const query: any = {};
 
     if (role) {
       const roleQuery = String(role).trim();
