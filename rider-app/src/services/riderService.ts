@@ -1,5 +1,14 @@
 import {apiClient} from './apiClient';
-import {LocationPayload, OrderStatus, RiderOrder, EarningsSummary} from '../types/rider';
+import {
+  LocationPayload,
+  OrderStatus,
+  RiderOrder,
+  EarningsSummary,
+  RiderDocumentField,
+  RiderProfileKycForm,
+  RiderProfilePayload,
+  UploadableRiderFile,
+} from '../types/rider';
 
 export const riderService = {
   async getOrders(): Promise<RiderOrder[]> {
@@ -31,5 +40,36 @@ export const riderService = {
   async getEarnings(): Promise<EarningsSummary> {
     const response = await apiClient.get<{earnings: EarningsSummary}>('/rider/earnings');
     return response.data.earnings;
+  },
+
+  async getProfile(): Promise<RiderProfilePayload> {
+    const response = await apiClient.get<{profile: RiderProfilePayload}>('/rider/profile');
+    return response.data.profile;
+  },
+
+  async updateProfile(payload: RiderProfileKycForm): Promise<RiderProfilePayload> {
+    const response = await apiClient.put<{profile: RiderProfilePayload}>('/rider/profile', payload);
+    return response.data.profile;
+  },
+
+  async uploadDocument(field: RiderDocumentField, file: UploadableRiderFile): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: file.uri,
+      name: file.fileName || `${field}-${Date.now()}.jpg`,
+      type: file.mimeType || 'image/jpeg',
+    } as any);
+
+    const response = await apiClient.post<{url: string}>(
+      `/rider/upload-document?field=${encodeURIComponent(field)}`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+
+    return response.data.url;
   },
 };

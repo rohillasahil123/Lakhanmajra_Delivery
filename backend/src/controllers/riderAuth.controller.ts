@@ -5,6 +5,7 @@ import {Types} from 'mongoose';
 import User from '../models/user.model';
 import Order from '../models/order.model';
 import { emitOrderRealtime } from '../services/realtime.service';
+import { uploadToMinio } from '../services/minio.service';
 
 type RiderFlowStatus = 'Assigned' | 'Accepted' | 'Picked' | 'OutForDelivery' | 'Delivered' | 'Rejected';
 
@@ -114,6 +115,87 @@ const LOCATION_REALTIME_EMIT_MIN_INTERVAL_MS = Number(
 );
 const riderLocationEmitCache = new Map<string, number>();
 
+const riderProfileFields = [
+  'fullName',
+  'dateOfBirth',
+  'phoneNumber',
+  'otpCode',
+  'aadhaarNumber',
+  'aadhaarFrontImage',
+  'aadhaarBackImage',
+  'liveSelfieImage',
+  'dlNumber',
+  'dlExpiryDate',
+  'dlFrontImage',
+  'vehicleNumber',
+  'vehicleType',
+  'rcFrontImage',
+  'insuranceImage',
+  'accountHolderName',
+  'bankAccountNumber',
+  'ifscCode',
+  'cancelledChequeImage',
+  'policeVerificationDocument',
+  'emergencyContactName',
+  'emergencyContactNumber',
+] as const;
+
+type RiderProfileField = (typeof riderProfileFields)[number];
+
+type RiderProfilePayload = Record<RiderProfileField, string>;
+
+const sanitizeText = (value: unknown): string => {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim();
+};
+
+const toProfilePayload = (input: unknown): RiderProfilePayload => {
+  const raw = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+
+  return {
+    fullName: sanitizeText(raw.fullName),
+    dateOfBirth: sanitizeText(raw.dateOfBirth),
+    phoneNumber: sanitizeText(raw.phoneNumber),
+    otpCode: sanitizeText(raw.otpCode),
+    aadhaarNumber: sanitizeText(raw.aadhaarNumber),
+    aadhaarFrontImage: sanitizeText(raw.aadhaarFrontImage),
+    aadhaarBackImage: sanitizeText(raw.aadhaarBackImage),
+    liveSelfieImage: sanitizeText(raw.liveSelfieImage),
+    dlNumber: sanitizeText(raw.dlNumber),
+    dlExpiryDate: sanitizeText(raw.dlExpiryDate),
+    dlFrontImage: sanitizeText(raw.dlFrontImage),
+    vehicleNumber: sanitizeText(raw.vehicleNumber),
+    vehicleType: sanitizeText(raw.vehicleType),
+    rcFrontImage: sanitizeText(raw.rcFrontImage),
+    insuranceImage: sanitizeText(raw.insuranceImage),
+    accountHolderName: sanitizeText(raw.accountHolderName),
+    bankAccountNumber: sanitizeText(raw.bankAccountNumber),
+    ifscCode: sanitizeText(raw.ifscCode).toUpperCase(),
+    cancelledChequeImage: sanitizeText(raw.cancelledChequeImage),
+    policeVerificationDocument: sanitizeText(raw.policeVerificationDocument),
+    emergencyContactName: sanitizeText(raw.emergencyContactName),
+    emergencyContactNumber: sanitizeText(raw.emergencyContactNumber),
+  };
+};
+
+const getMissingFields = (payload: RiderProfilePayload): RiderProfileField[] =>
+  riderProfileFields.filter((field) => !payload[field]);
+
+const getProfileCompletion = (payload: RiderProfilePayload): number => {
+  const completed = riderProfileFields.filter((field) => Boolean(payload[field])).length;
+  return Math.round((completed / riderProfileFields.length) * 100);
+};
+
+const toProfileResponse = (profile: unknown) => {
+  const payload = toProfilePayload(profile);
+  return {
+    ...payload,
+    completion: getProfileCompletion(payload),
+  };
+};
+
 const riderToBackendStatus = (status: RiderFlowStatus): 'processing' | 'confirmed' | 'shipped' | 'delivered' | 'cancelled' => {
   if (status === 'Accepted') return 'confirmed';
   if (status === 'Picked' || status === 'OutForDelivery') return 'shipped';
@@ -205,10 +287,158 @@ export const getRiderMe = async (req: Request, res: Response): Promise<void> => 
         phone: (user as any).phone,
         role: 'rider',
         online: Boolean((user as any).isOnline),
+        profile: toProfileResponse((user as any).riderProfile),
       },
     });
   } catch (error) {
     res.status(500).json({message: 'Unable to validate rider token'});
+  }
+};
+
+export const getRiderProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const rider = await User.findById(riderId).select('_id name phone riderProfile roleId');
+
+    if (!rider) {
+      res.status(404).json({message: 'Rider not found'});
+      return;
+    }
+
+    res.status(200).json({
+      profile: toProfileResponse((rider as any).riderProfile),
+      rider: {
+        id: String(rider._id),
+        name: rider.name,
+        phone: rider.phone,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({message: 'Unable to fetch rider profile'});
+  }
+};
+
+export const updateRiderProfile = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const payload = toProfilePayload(req.body);
+    const missing = getMissingFields(payload);
+
+    if (missing.length > 0) {
+      res.status(400).json({
+        message: 'All rider profile fields are required for production onboarding',
+        missingFields: missing,
+      });
+      return;
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      riderId,
+      {
+        riderProfile: {
+          ...payload,
+          updatedAt: new Date(),
+        },
+        name: payload.fullName,
+        phone: payload.phoneNumber,
+      },
+      {new: true}
+    ).select('_id name phone riderProfile');
+
+    if (!updated) {
+      res.status(404).json({message: 'Rider not found'});
+      return;
+    }
+
+    res.status(200).json({
+      message: 'Rider profile submitted successfully',
+      profile: toProfileResponse((updated as any).riderProfile),
+      rider: {
+        id: String(updated._id),
+        name: updated.name,
+        phone: updated.phone,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({message: 'Unable to update rider profile'});
+  }
+};
+
+const riderDocumentFields = new Set<RiderProfileField>([
+  'aadhaarFrontImage',
+  'aadhaarBackImage',
+  'liveSelfieImage',
+  'dlFrontImage',
+  'rcFrontImage',
+  'insuranceImage',
+  'cancelledChequeImage',
+  'policeVerificationDocument',
+]);
+
+export const uploadRiderDocument = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const field = String(req.query.field || '').trim() as RiderProfileField;
+    if (!field || !riderDocumentFields.has(field)) {
+      res.status(400).json({
+        message: 'Invalid field. Provide a valid rider document field.',
+      });
+      return;
+    }
+
+    const file = req.file as Express.Multer.File | undefined;
+    if (!file) {
+      res.status(400).json({message: 'file is required'});
+      return;
+    }
+
+    const uploadedUrl = await uploadToMinio(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      `rider-documents/${riderId}`
+    );
+
+    const updatePath = `riderProfile.${field}`;
+    const updated = await User.findByIdAndUpdate(
+      riderId,
+      {
+        $set: {
+          [updatePath]: uploadedUrl,
+          'riderProfile.updatedAt': new Date(),
+        },
+      },
+      {new: true}
+    ).select('riderProfile');
+
+    if (!updated) {
+      res.status(404).json({message: 'Rider not found'});
+      return;
+    }
+
+    res.status(200).json({
+      message: 'Document uploaded successfully',
+      field,
+      url: uploadedUrl,
+      profile: toProfileResponse((updated as any).riderProfile),
+    });
+  } catch (error) {
+    res.status(500).json({message: 'Unable to upload rider document'});
   }
 };
 

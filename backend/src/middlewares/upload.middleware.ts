@@ -22,6 +22,32 @@ export const upload = multer({
   },
 });
 
+const riderDocumentFileFilter = (_req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const allowed = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "application/pdf",
+  ];
+
+  if (allowed.includes(file.mimetype)) {
+    cb(null, true);
+    return;
+  }
+
+  cb(new Error("Only JPEG, PNG, WEBP, GIF, or PDF files are allowed"));
+};
+
+export const uploadRiderDocument = multer({
+  storage,
+  fileFilter: riderDocumentFileFilter,
+  limits: {
+    fileSize: 8 * 1024 * 1024,
+    files: 1,
+  },
+});
+
 // Middleware to handle multer errors gracefully
 export const handleUploadError = (err: any, _req: Request, res: Response, next: NextFunction) => {
   if (err instanceof multer.MulterError) {
@@ -34,6 +60,9 @@ export const handleUploadError = (err: any, _req: Request, res: Response, next: 
     return res.status(400).json({ success: false, message: err.message });
   }
   if (err?.message?.includes("images are allowed")) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+  if (err?.message?.includes("PDF files are allowed")) {
     return res.status(400).json({ success: false, message: err.message });
   }
   next(err);

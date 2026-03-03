@@ -64,6 +64,51 @@ export interface RiderProfile {
   online: boolean;
 }
 
+export interface RiderProfileKycForm {
+  fullName: string;
+  dateOfBirth: string;
+  phoneNumber: string;
+  otpCode: string;
+  aadhaarNumber: string;
+  aadhaarFrontImage: string;
+  aadhaarBackImage: string;
+  liveSelfieImage: string;
+  dlNumber: string;
+  dlExpiryDate: string;
+  dlFrontImage: string;
+  vehicleNumber: string;
+  vehicleType: string;
+  rcFrontImage: string;
+  insuranceImage: string;
+  accountHolderName: string;
+  bankAccountNumber: string;
+  ifscCode: string;
+  cancelledChequeImage: string;
+  policeVerificationDocument: string;
+  emergencyContactName: string;
+  emergencyContactNumber: string;
+}
+
+export interface RiderProfilePayload extends RiderProfileKycForm {
+  completion: number;
+}
+
+export type RiderDocumentField =
+  | 'aadhaarFrontImage'
+  | 'aadhaarBackImage'
+  | 'liveSelfieImage'
+  | 'dlFrontImage'
+  | 'rcFrontImage'
+  | 'insuranceImage'
+  | 'cancelledChequeImage'
+  | 'policeVerificationDocument';
+
+export interface UploadableRiderFile {
+  uri: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+}
+
 export interface AuthSession {
   accessToken: string;
   rider: RiderProfile;

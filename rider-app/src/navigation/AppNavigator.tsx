@@ -8,6 +8,7 @@ import {EarningsScreen} from '../screens/EarningsScreen';
 import {InAppMapScreen} from '../screens/InAppMapScreen';
 import {LoginScreen} from '../screens/LoginScreen';
 import {OrderDetailScreen} from '../screens/OrderDetailScreen';
+import {RiderProfileScreen} from '../screens/RiderProfileScreen';
 import {RootStackParamList} from './types';
 import {palette} from '../constants/theme';
 
@@ -32,6 +33,7 @@ export const AppNavigator: React.FC = () => {
         {authenticated ? (
           <>
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="RiderProfile" component={RiderProfileScreen} />
             <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
             <Stack.Screen name="InAppMap" component={InAppMapScreen} />
             <Stack.Screen name="Earnings" component={EarningsScreen} />

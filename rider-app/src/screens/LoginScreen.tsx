@@ -34,6 +34,10 @@ export const LoginScreen: React.FC = () => {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.card}>
+        <View style={styles.brandRow}>
+          <Text style={styles.brandOrange}>Gramin</Text>
+          <Text style={styles.brandGreen}> Delivery Rider</Text>
+        </View>
         <Text style={styles.title}>Rider Login</Text>
         <Text style={styles.subtitle}>Welcome back, sign in to continue deliveries</Text>
         <TextInput
@@ -82,9 +86,24 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   title: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: '700',
     color: palette.textPrimary,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  brandOrange: {
+    color: palette.accent,
+    fontWeight: '800',
+    fontSize: 18,
+  },
+  brandGreen: {
+    color: palette.primary,
+    fontWeight: '800',
+    fontSize: 18,
   },
   subtitle: {
     color: palette.textSecondary,

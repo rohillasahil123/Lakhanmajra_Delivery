@@ -1,6 +1,7 @@
 export type RootStackParamList = {
   Login: undefined;
   Dashboard: undefined;
+  RiderProfile: undefined;
   OrderDetail: {orderId: string};
   InAppMap: {
     orderId: string;
@@ -8,5 +9,5 @@ export type RootStackParamList = {
     destinationLng?: number;
     address: string;
   };
-  Earnings: undefined;
+  Earnings: {initialTab?: 'summary' | 'delivered'} | undefined;
 };

@@ -35,10 +35,12 @@ export const initMinio = async () => {
 export const uploadToMinio = async (
   fileBuffer: Buffer,
   originalName: string,
-  mimeType: string
+  mimeType: string,
+  folder = "products"
 ): Promise<string> => {
   const ext = path.extname(originalName) || ".jpg";
-  const objectName = `products/${uuidv4()}${ext}`;
+  const safeFolder = folder.replace(/[^a-zA-Z0-9/_-]/g, "").replace(/^\/+|\/+$/g, "") || "products";
+  const objectName = `${safeFolder}/${uuidv4()}${ext}`;
 
   await minioClient.putObject(BUCKET, objectName, fileBuffer, fileBuffer.length, {
     "Content-Type": mimeType,

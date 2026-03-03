@@ -1,5 +1,6 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {SafeAreaView, StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {WebView} from 'react-native-webview';
 import * as Location from 'expo-location';

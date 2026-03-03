@@ -44,7 +44,12 @@ apiClient.interceptors.request.use((config) => {
   if (authToken) {
     config.headers.Authorization = `Bearer ${authToken}`;
   }
-  config.headers['Content-Type'] = 'application/json';
+
+  const isFormData = typeof FormData !== 'undefined' && config.data instanceof FormData;
+  if (!isFormData) {
+    config.headers['Content-Type'] = 'application/json';
+  }
+
   return config;
 });
 

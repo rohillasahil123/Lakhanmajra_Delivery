@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react';
-import {ActivityIndicator, Image, SafeAreaView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, StyleSheet, Text, View} from 'react-native';
+import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AppButton} from '../components/AppButton';
 import {RootStackParamList} from '../navigation/types';
