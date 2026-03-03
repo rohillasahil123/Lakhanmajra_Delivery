@@ -20,6 +20,16 @@ interface IUserResponse {
   limit: number;
 }
 
+/* ============================= */
+/* 🔥 NEW FILTER PARAMS TYPE     */
+/* ============================= */
+export interface FetchUsersParams {
+  page?: number;
+  role?: string | null;
+  status?: "active" | "inactive";
+  search?: string;
+}
+
 export const useUsers = () => {
   const [users, setUsers] = useState<IUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -28,15 +38,17 @@ export const useUsers = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchUsers = useCallback(
-    async (params?: { page?: number; role?: string }) => {
+    async (params?: FetchUsersParams) => {
       try {
         setLoading(true);
 
         const res = await api.get("/admin/users", {
           params: {
-            page: params?.page || page,
+            page: params?.page ?? page,
             limit,
-            role: params?.role || undefined,
+            role: params?.role ?? undefined,
+            status: params?.status ?? undefined,
+            search: params?.search ?? undefined,
           },
         });
 

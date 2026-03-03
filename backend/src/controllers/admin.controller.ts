@@ -137,32 +137,52 @@ export const getUsersByRole = async (req: Request, res: Response) => {
 };
 
 // List all users with their roles
+// List all users with their roles
 export const listUsersWithRoles = async (req: Request, res: Response) => {
   try {
-    const { page = "1", limit = "10", role } = req.query as any;
+    const { page = "1", limit = "10", role, status } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
 
     const query: any = {};
 
+    // ---------------- ROLE FILTER ----------------
     if (role) {
       const roleQuery = String(role).trim();
       let roleDoc = null;
 
+      // If ObjectId
       if (/^[0-9a-fA-F]{24}$/.test(roleQuery)) {
         roleDoc = await Role.findById(roleQuery).select("_id");
       }
 
+      // If role name
       if (!roleDoc) {
-        roleDoc = await Role.findOne({ name: roleQuery.toLowerCase() }).select("_id");
+        roleDoc = await Role.findOne({
+          name: roleQuery.toLowerCase(),
+        }).select("_id");
       }
 
       if (!roleDoc) {
-        return success(res, { users: [], total: 0, page: Number(page), limit: Number(limit) }, "Users fetched");
+        return success(
+          res,
+          { users: [], total: 0, page: Number(page), limit: Number(limit) },
+          "Users fetched"
+        );
       }
 
       query.roleId = roleDoc._id;
     }
 
+    // ---------------- STATUS FILTER ----------------
+    if (status === "active") {
+      query.isActive = true;
+    }
+
+    if (status === "inactive") {
+      query.isActive = false;
+    }
+
+    // ---------------- FETCH USERS ----------------
     const users = await User.find(query)
       .populate("roleId")
       .select("-password")
@@ -171,7 +191,11 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
 
     const total = await User.countDocuments(query);
 
-    return success(res, { users, total, page: Number(page), limit: Number(limit) }, "Users fetched");
+    return success(
+      res,
+      { users, total, page: Number(page), limit: Number(limit) },
+      "Users fetched"
+    );
   } catch (err: any) {
     return fail(res, err.message || "Fetch failed", 500);
   }
