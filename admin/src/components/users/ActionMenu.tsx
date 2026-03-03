@@ -1,38 +1,55 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { IUser } from "../../hooks/useUsers";
 
 interface ActionMenuProps {
   user: IUser;
-  roles: { _id: string; name: string }[];
   hasPermission: (perm: string) => boolean;
   onEdit: (user: IUser) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string, isActive: boolean) => void;
-  onAssignRole: (id: string, roleId: string) => void;
 }
 
 const ActionMenu = ({
   user,
-  roles,
   hasPermission,
   onEdit,
   onDelete,
   onToggleStatus,
-  onAssignRole,
 }: ActionMenuProps) => {
   const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 🔥 Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
 
   return (
-    <div className="relative">
+    <div className="relative" ref={menuRef}>
       <button
-        onClick={() => setOpen(!open)}
-        className="px-2 py-1 bg-gray-200 rounded hover:bg-gray-300"
+        onClick={() => setOpen((prev) => !prev)}
+        className="p-2 rounded-full hover:bg-gray-200 transition"
       >
         ⋮
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-48 bg-white border rounded shadow-lg z-20">
+        <div className="absolute right-0 mt-2 w-44 bg-white border rounded-lg shadow-lg z-30 overflow-hidden">
           {hasPermission("users:update") && (
             <button
               onClick={() => {
@@ -67,23 +84,6 @@ const ActionMenu = ({
             >
               {user.isActive ? "Deactivate" : "Activate"}
             </button>
-          )}
-
-          {hasPermission("roles:manage") && (
-            <div className="border-t mt-1">
-              {roles.map((role) => (
-                <button
-                  key={role._id}
-                  onClick={() => {
-                    onAssignRole(user._id, role._id);
-                    setOpen(false);
-                  }}
-                  className="block w-full text-left px-4 py-2 hover:bg-gray-100"
-                >
-                  Set as {role.name}
-                </button>
-              ))}
-            </div>
           )}
         </div>
       )}

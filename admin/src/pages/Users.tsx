@@ -86,7 +86,7 @@ const Users = () => {
   /* ================= RENDER ================= */
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Users</h1>
 
@@ -108,9 +108,8 @@ const Users = () => {
         <div className="flex gap-3 mb-4 flex-wrap">
           <button
             onClick={() => setActiveRole(null)}
-            className={`px-4 py-2 rounded ${
-              !activeRole ? "bg-blue-600 text-white" : "bg-gray-200"
-            }`}
+            className={`px-4 py-2 rounded ${!activeRole ? "bg-blue-600 text-white" : "bg-gray-200"
+              }`}
           >
             All ({summary.total})
           </button>
@@ -119,11 +118,10 @@ const Users = () => {
             <button
               key={role}
               onClick={() => setActiveRole(role)}
-              className={`px-4 py-2 rounded ${
-                activeRole === role
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200"
-              }`}
+              className={`px-4 py-2 rounded ${activeRole === role
+                ? "bg-blue-600 text-white"
+                : "bg-gray-200"
+                }`}
             >
               {role} ({count})
             </button>
@@ -141,8 +139,8 @@ const Users = () => {
       />
 
       {/* Table */}
-      <div className="overflow-x-auto bg-white rounded shadow">
-        <table className="w-full text-left">
+      <div className="overflow-x-auto bg-white rounded-xl shadow">
+        <table className="min-w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
               <th className="p-3">Name</th>
@@ -173,7 +171,14 @@ const Users = () => {
                   <td className="p-3">{user.email}</td>
                   <td className="p-3">{user.phone}</td>
                   <td className="p-3">
-                    <RoleBadge role={user.roleId?.name} />
+                    <RoleBadge
+                      role={user.roleId?.name}
+                      userId={user._id}
+                      isSuperAdmin={user.roleId?.name === "superadmin"}
+                      roles={roles}
+                      hasPermission={hasPermission}
+                      onChangeRole={handleAssignRole}
+                    />
                   </td>
                   <td className="p-3">
                     {user.isActive ? "Active" : "Inactive"}
@@ -181,7 +186,6 @@ const Users = () => {
                   <td className="p-3 text-right">
                     <ActionMenu
                       user={user}
-                      roles={roles}
                       hasPermission={hasPermission}
                       onEdit={(u) => {
                         setEditingUser(u);
@@ -189,7 +193,6 @@ const Users = () => {
                       }}
                       onDelete={handleDelete}
                       onToggleStatus={handleToggleStatus}
-                      onAssignRole={handleAssignRole}
                     />
                   </td>
                 </tr>
