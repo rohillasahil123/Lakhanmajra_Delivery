@@ -12,48 +12,48 @@ interface ISummary {
   total: number;
 }
 
-export const useUserInit = (fetchUsers: Function) => {
+type FetchUsersFn = (params?: { page?: number }) => Promise<void>;
+
+export const useUserInit = (fetchUsers: FetchUsersFn) => {
   const [roles, setRoles] = useState<IRole[]>([]);
   const [summary, setSummary] = useState<ISummary | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const init = async () => {
+      try {
+        setLoading(true);
+
+        const [rolesRes, summaryRes, permRes] = await Promise.all([
+          api.get("/admin/roles"),
+          api.get("/admin/users/summary"),
+          api.get("/auth/permissions"),
+        ]);
+
+        const rolesData = rolesRes.data?.data ?? rolesRes.data ?? [];
+        const summaryData = summaryRes.data?.data ?? summaryRes.data ?? null;
+        const permData =
+          permRes.data?.permissions ??
+          permRes.data?.data?.permissions ??
+          [];
+
+        setRoles(rolesData);
+        setSummary(summaryData);
+        setPermissions(permData);
+
+        await fetchUsers({ page: 1 });
+      } catch (error) {
+        console.error("User init failed", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     init();
-  }, []);
+  }, [fetchUsers]);
 
-  const init = async () => {
-    try {
-      setLoading(true);
-
-      const [rolesRes, summaryRes, permRes] = await Promise.all([
-        api.get("/admin/roles"),
-        api.get("/admin/users/summary"),
-        api.get("/auth/permissions"),
-      ]);
-
-      const rolesData = rolesRes.data?.data ?? rolesRes.data ?? [];
-      const summaryData = summaryRes.data?.data ?? summaryRes.data ?? null;
-      const permData =
-        permRes.data?.permissions ??
-        permRes.data?.data?.permissions ??
-        [];
-
-      setRoles(rolesData);
-      setSummary(summaryData);
-      setPermissions(permData);
-
-      await fetchUsers({ page: 1 });
-    } catch (err) {
-      console.error("User init failed", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const hasPermission = (perm: string) => {
-    return permissions.includes(perm);
-  };
+  const hasPermission = (perm: string) => permissions.includes(perm);
 
   return {
     roles,

@@ -20,9 +20,6 @@ interface IUserResponse {
   limit: number;
 }
 
-/* ============================= */
-/* 🔥 NEW FILTER PARAMS TYPE     */
-/* ============================= */
 export interface FetchUsersParams {
   page?: number;
   role?: string | null;
@@ -38,7 +35,7 @@ export const useUsers = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchUsers = useCallback(
-    async (params?: FetchUsersParams) => {
+    async (params?: FetchUsersParams): Promise<void> => {
       try {
         setLoading(true);
 
@@ -52,15 +49,14 @@ export const useUsers = () => {
           },
         });
 
-        const payload: IUserResponse =
-          res.data?.data ?? res.data;
+        const payload: IUserResponse = res.data?.data ?? res.data;
 
-        setUsers(payload.users || []);
-        setTotal(payload.total || 0);
-        setPage(payload.page || 1);
-        setLimit(payload.limit || 10);
-      } catch (err) {
-        console.error("Fetch users failed", err);
+        setUsers(payload.users ?? []);
+        setTotal(payload.total ?? 0);
+        setPage(payload.page ?? 1);
+        setLimit(payload.limit ?? 10);
+      } catch (error) {
+        console.error("Fetch users failed", error);
       } finally {
         setLoading(false);
       }
@@ -68,12 +64,12 @@ export const useUsers = () => {
     [page, limit]
   );
 
-  const createUser = async (data: any) => {
+  const createUser = async (data: Record<string, unknown>) => {
     const res = await api.post("/admin/users", data);
     return res.data?.data ?? res.data;
   };
 
-  const updateUser = async (id: string, data: any) => {
+  const updateUser = async (id: string, data: Record<string, unknown>) => {
     const res = await api.patch(`/admin/users/${id}`, data);
     return res.data?.data ?? res.data;
   };

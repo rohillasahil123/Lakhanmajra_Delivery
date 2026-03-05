@@ -1,85 +1,77 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
-interface RoleBadgeProps {
-  role?: string;
-  userId?: string;
-  isSuperAdmin?: boolean;
-  roles: { _id: string; name: string }[];
-  hasPermission: (perm: string) => boolean;
-  onChangeRole: (userId: string, roleId: string) => void;
+interface Role {
+  _id: string;
+  name: string;
 }
 
-const RoleBadge = ({
+interface Props {
+  role: string;
+  roles: Role[];
+  userId: string;
+  onChangeRole: (userId: string, roleId: string) => void;
+  hasPermission: (perm: string) => boolean;
+}
+
+const roleColors: Record<string, string> = {
+  superadmin: "bg-red-100 text-red-700",
+  admin: "bg-purple-100 text-purple-700",
+  manager: "bg-blue-100 text-blue-700",
+  vendor: "bg-orange-100 text-orange-700",
+  rider: "bg-yellow-100 text-yellow-700",
+  user: "bg-gray-100 text-gray-700",
+};
+
+export default function RoleBadge({
   role,
-  userId,
-  isSuperAdmin,
   roles,
-  hasPermission,
+  userId,
   onChangeRole,
-}: RoleBadgeProps) => {
+  hasPermission,
+}: Readonly<Props>) {
   const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
-  const roleColors: Record<string, string> = {
-    superadmin: "bg-red-600",
-    admin: "bg-blue-600",
-    manager: "bg-gray-600",
-    vendor: "bg-purple-600",
-    rider: "bg-yellow-500",
-    user: "bg-green-600",
-  };
+  const canEdit = hasPermission("roles:manage") && role !== "superadmin";
 
-  const canEdit =
-    hasPermission("roles:manage") &&
-    role !== "superadmin" &&
-    !isSuperAdmin;
-
-  // 🔥 Close when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
 
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
+  const handleRoleChange = (roleId: string) => {
+    onChangeRole(userId, roleId);
+    setOpen(false);
+  };
 
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
-     <button
-  type="button"
-  onClick={() => canEdit && setOpen((prev) => !prev)}
-  disabled={!canEdit}
-  className={`px-3 py-1 text-white text-xs rounded-full transition
-  ${canEdit ? "cursor-pointer hover:opacity-80" : "cursor-default"}
-  ${roleColors[role] || "bg-gray-400"}
-  `}
->
-  {role}
-</button>
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => canEdit && setOpen((prev) => !prev)}
+        className={`px-2 py-1 text-xs rounded-md font-medium ${
+          roleColors[role] ?? "bg-gray-100 text-gray-700"
+        }`}
+      >
+        {role}
+      </button>
 
       {open && canEdit && (
-        <div className="absolute mt-2 w-40 bg-white shadow-lg rounded-lg border z-30 overflow-hidden">
+        <div className="absolute mt-1 w-32 bg-white border rounded shadow">
           {roles
             .filter((r) => r.name !== "superadmin")
             .map((r) => (
               <button
                 key={r._id}
-                onClick={() => {
-                  onChangeRole(userId!, r._id);
-                  setOpen(false);
-                }}
-                className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition"
+                type="button"
+                onClick={() => handleRoleChange(r._id)}
+                className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
               >
                 {r.name}
               </button>
@@ -88,6 +80,4 @@ const RoleBadge = ({
       )}
     </div>
   );
-};
-
-export default RoleBadge;
+}

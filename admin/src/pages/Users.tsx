@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Role   = "superadmin" | "manager" | "vendor" | "rider" | "user" | "admin";
+type Role = "superadmin" | "manager" | "vendor" | "rider" | "user" | "admin";
 type Status = "Active" | "Inactive";
 
 interface User {
@@ -16,20 +16,20 @@ interface User {
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const USERS: User[] = [
-  { id: 1,  name: "Super Admin", email: "superadmin@example.com",    phone: "0000000000", role: "superadmin", status: "Active",   joined: "Jan 1, 2023"  },
-  { id: 2,  name: "Rohilla",     email: "rohillasahil000@gmail.com", phone: "9991462406", role: "rider",      status: "Active",   joined: "Mar 5, 2023"  },
-  { id: 3,  name: "Sumit",       email: "sumit@gmail.com",           phone: "9958573455", role: "vendor",     status: "Active",   joined: "Apr 12, 2023" },
-  { id: 4,  name: "Poonam",      email: "ponam@gmail.com",           phone: "3265359389", role: "manager",    status: "Active",   joined: "May 20, 2023" },
-  { id: 5,  name: "Pooja",       email: "pooja@example.com",         phone: "9873254321", role: "rider",      status: "Active",   joined: "Jun 3, 2023"  },
-  { id: 6,  name: "Gii",         email: "gii@gmail.com",             phone: "6598689868", role: "user",       status: "Active",   joined: "Jul 14, 2023" },
-  { id: 7,  name: "Meena",       email: "meena@gmail.com",           phone: "8275804009", role: "user",       status: "Active",   joined: "Aug 9, 2023"  },
-  { id: 8,  name: "Sahil",       email: "er@gmail.com",              phone: "3265329835", role: "user",       status: "Active",   joined: "Sep 1, 2023"  },
-  { id: 9,  name: "Sahil R.",    email: "rohillasahil705@gmail.com", phone: "9991462142", role: "user",       status: "Inactive", joined: "Sep 22, 2023" },
-  { id: 10, name: "Ry",          email: "ui@gmail.com",              phone: "9991462403", role: "user",       status: "Active",   joined: "Oct 5, 2023"  },
-  { id: 11, name: "Anjali",      email: "anjali@gmail.com",          phone: "9812345678", role: "rider",      status: "Active",   joined: "Nov 1, 2023"  },
-  { id: 12, name: "Vikram",      email: "vikram@example.com",        phone: "9876543210", role: "user",       status: "Inactive", joined: "Nov 18, 2023" },
-  { id: 13, name: "Priya",       email: "priya@gmail.com",           phone: "8765432109", role: "rider",      status: "Active",   joined: "Dec 2, 2023"  },
-  { id: 14, name: "Rahul",       email: "rahul@example.com",         phone: "7654321098", role: "admin",      status: "Active",   joined: "Dec 20, 2023" },
+  { id: 1, name: "Super Admin", email: "superadmin@example.com", phone: "0000000000", role: "superadmin", status: "Active", joined: "Jan 1, 2023" },
+  { id: 2, name: "Rohilla", email: "rohillasahil000@gmail.com", phone: "9991462406", role: "rider", status: "Active", joined: "Mar 5, 2023" },
+  { id: 3, name: "Sumit", email: "sumit@gmail.com", phone: "9958573455", role: "vendor", status: "Active", joined: "Apr 12, 2023" },
+  { id: 4, name: "Poonam", email: "ponam@gmail.com", phone: "3265359389", role: "manager", status: "Active", joined: "May 20, 2023" },
+  { id: 5, name: "Pooja", email: "pooja@example.com", phone: "9873254321", role: "rider", status: "Active", joined: "Jun 3, 2023" },
+  { id: 6, name: "Gii", email: "gii@gmail.com", phone: "6598689868", role: "user", status: "Active", joined: "Jul 14, 2023" },
+  { id: 7, name: "Meena", email: "meena@gmail.com", phone: "8275804009", role: "user", status: "Active", joined: "Aug 9, 2023" },
+  { id: 8, name: "Sahil", email: "er@gmail.com", phone: "3265329835", role: "user", status: "Active", joined: "Sep 1, 2023" },
+  { id: 9, name: "Sahil R.", email: "rohillasahil705@gmail.com", phone: "9991462142", role: "user", status: "Inactive", joined: "Sep 22, 2023" },
+  { id: 10, name: "Ry", email: "ui@gmail.com", phone: "9991462403", role: "user", status: "Active", joined: "Oct 5, 2023" },
+  { id: 11, name: "Anjali", email: "anjali@gmail.com", phone: "9812345678", role: "rider", status: "Active", joined: "Nov 1, 2023" },
+  { id: 12, name: "Vikram", email: "vikram@example.com", phone: "9876543210", role: "user", status: "Inactive", joined: "Nov 18, 2023" },
+  { id: 13, name: "Priya", email: "priya@gmail.com", phone: "8765432109", role: "rider", status: "Active", joined: "Dec 2, 2023" },
+  { id: 14, name: "Rahul", email: "rahul@example.com", phone: "7654321098", role: "admin", status: "Active", joined: "Dec 20, 2023" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -44,29 +44,29 @@ const AVATAR_COLORS: [string, string][] = [
 
 const ROLE_STYLES: Record<Role, { bg: string; color: string }> = {
   superadmin: { bg: "#f5f3ff", color: "#7c3aed" },
-  manager:    { bg: "#f1f5f9", color: "#475569" },
-  vendor:     { bg: "#ecfeff", color: "#0891b2" },
-  rider:      { bg: "#fffbeb", color: "#d97706" },
-  user:       { bg: "#eef2ff", color: "#3b6ef8" },
-  admin:      { bg: "#fdf2f8", color: "#9d174d" },
+  manager: { bg: "#f1f5f9", color: "#475569" },
+  vendor: { bg: "#ecfeff", color: "#0891b2" },
+  rider: { bg: "#fffbeb", color: "#d97706" },
+  user: { bg: "#eef2ff", color: "#3b6ef8" },
+  admin: { bg: "#fdf2f8", color: "#9d174d" },
 };
 
-type RoleFilter   = "all" | "manager" | "vendor" | "admin" | "rider" | "user" | "superadmin";
+type RoleFilter = "all" | "manager" | "vendor" | "admin" | "rider" | "user" | "superadmin";
 type StatusFilter = "all" | "Active" | "Inactive";
 
 const ROLE_TABS: { key: RoleFilter; label: string }[] = [
-  { key: "all",        label: "All"        },
-  { key: "manager",    label: "Manager"    },
-  { key: "vendor",     label: "Vendor"     },
-  { key: "admin",      label: "Admin"      },
-  { key: "rider",      label: "Rider"      },
-  { key: "user",       label: "User"       },
-  { key: "superadmin", label: "Super Admin"},
+  { key: "all", label: "All" },
+  { key: "manager", label: "Manager" },
+  { key: "vendor", label: "Vendor" },
+  { key: "admin", label: "Admin" },
+  { key: "rider", label: "Rider" },
+  { key: "user", label: "User" },
+  { key: "superadmin", label: "Super Admin" },
 ];
 
 const STATUS_OPTIONS: { value: StatusFilter; label: string; dot?: string }[] = [
-  { value: "all",      label: "All Status"              },
-  { value: "Active",   label: "Active",   dot: "#12b76a" },
+  { value: "all", label: "All Status" },
+  { value: "Active", label: "Active", dot: "#12b76a" },
   { value: "Inactive", label: "Inactive", dot: "#ef4444" },
 ];
 
@@ -74,28 +74,29 @@ const PER_PAGE = 8;
 
 // ── SVG Icons ─────────────────────────────────────────────────────────────────
 const Icons = {
-  Eye:        () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-  Edit:       () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-  Trash:      () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>,
-  Search:     () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-  Plus:       () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  Export:     () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-  ChevDown:   () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>,
-  ChevLeft:   () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>,
-  ChevRight:  () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>,
-  Users:      () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  Eye: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>,
+  Edit: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>,
+  Trash: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></svg>,
+  Search: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>,
+  Plus: () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
+  Export: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>,
+  ChevDown: () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>,
+  ChevLeft: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>,
+  ChevRight: () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>,
+  Users: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>,
 };
 
 // ── Status Dropdown ───────────────────────────────────────────────────────────
 function StatusDropdown({
-  value, onChange,
-}: {
+  value,
+  onChange,
+}: Readonly<{
   value: StatusFilter;
   onChange: (v: StatusFilter) => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const selected = STATUS_OPTIONS.find((o) => o.value === value)!;
+  const selected = STATUS_OPTIONS.find((o) => o.value === value) ?? STATUS_OPTIONS[0];
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -157,7 +158,7 @@ function StatusDropdown({
               {opt.label}
               {value === opt.value && (
                 <span style={{ marginLeft: "auto", color: "#3b6ef8", display: "flex" }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
                 </span>
               )}
             </button>
@@ -170,38 +171,47 @@ function StatusDropdown({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function UsersPage() {
-  const [roleFilter,   setRoleFilter]   = useState<RoleFilter>("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-  const [search,       setSearch]       = useState("");
-  const [page,         setPage]         = useState(1);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
-  const roleCounts = useMemo(() => {
-    const c: Record<string, number> = { all: USERS.length };
-    USERS.forEach((u) => { c[u.role] = (c[u.role] || 0) + 1; });
-    return c;
-  }, []);
 
   const filtered = useMemo(() =>
     USERS.filter((u) => {
-      const matchRole   = roleFilter   === "all" || u.role   === roleFilter;
+      const matchRole = roleFilter === "all" || u.role === roleFilter;
       const matchStatus = statusFilter === "all" || u.status === statusFilter;
-      const matchSearch = !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase());
+
+      const s = search.toLowerCase();
+
+      const matchSearch =
+        s.length === 0 ||
+        u.name.toLowerCase().includes(s) ||
+        u.email.toLowerCase().includes(s);
       return matchRole && matchStatus && matchSearch;
     }),
-  [roleFilter, statusFilter, search]);
+    [roleFilter, statusFilter, search]);
 
-  const totalPages  = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
   const currentPage = Math.min(page, totalPages);
-  const pageSlice   = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+  const pageSlice = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
 
   const go = (n: number) => setPage(n);
-  const handleRole   = (r: RoleFilter)   => { setRoleFilter(r);   setPage(1); };
+  const handleRole = (r: RoleFilter) => { setRoleFilter(r); setPage(1); };
   const handleStatus = (s: StatusFilter) => { setStatusFilter(s); setPage(1); };
-  const handleSearch = (v: string)       => { setSearch(v);        setPage(1); };
+  const handleSearch = (v: string) => { setSearch(v); setPage(1); };
 
   // Active-count badge for tab
-  const activeCount = (key: RoleFilter) =>
-    key === "all" ? USERS.length : USERS.filter((u) => u.role === key).length;
+  const activeCount = (key: RoleFilter) => {
+    if (key === "all") return USERS.length;
+
+    let count = 0;
+    for (const u of USERS) {
+      if (u.role === key) count++;
+    }
+
+    return count;
+  };
 
   return (
     <div style={{
@@ -313,7 +323,7 @@ export default function UsersPage() {
                   width: 210, outline: "none", transition: "all 0.15s",
                 }}
                 onFocus={(e) => { e.target.style.borderColor = "#3b6ef8"; e.target.style.background = "#fff"; e.target.style.boxShadow = "0 0 0 3px rgba(59,110,248,.1)"; }}
-                onBlur={(e)  => { e.target.style.borderColor = "#e8eaf0"; e.target.style.background = "#f5f6fa"; e.target.style.boxShadow = "none"; }}
+                onBlur={(e) => { e.target.style.borderColor = "#e8eaf0"; e.target.style.background = "#f5f6fa"; e.target.style.boxShadow = "none"; }}
               />
             </div>
 
@@ -338,9 +348,15 @@ export default function UsersPage() {
             flexShrink: 0,
           }}>
             <span style={{ fontSize: 11.5, color: "#8b92a9", fontWeight: 500 }}>
-              {filtered.length > 0
-                ? <><strong style={{ color: "#0f1623" }}>{filtered.length}</strong> users found{statusFilter !== "all" ? ` · ${statusFilter}` : ""}{roleFilter !== "all" ? ` · ${roleFilter}` : ""}</>
-                : "No users match your filters"}
+              {filtered.length > 0 ? (
+                <>
+                  <strong>{filtered.length}</strong> users found
+                  {statusFilter === "all" ? "" : ` · ${statusFilter}`}
+                  {roleFilter === "all" ? "" : ` · ${roleFilter}`}
+                </>
+              ) : (
+                "No users match your filters"
+              )}
             </span>
             {(roleFilter !== "all" || statusFilter !== "all" || search) && (
               <button
@@ -351,7 +367,7 @@ export default function UsersPage() {
                   display: "flex", alignItems: "center", gap: 4,
                 }}
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                 Clear filters
               </button>
             )}
@@ -363,11 +379,11 @@ export default function UsersPage() {
               <thead>
                 <tr style={{ borderBottom: "1px solid #e8eaf0", background: "#fafbfc", position: "sticky", top: 0, zIndex: 1 }}>
                   {[
-                    { label: "USER",    align: "left"  },
-                    { label: "PHONE",   align: "left"  },
-                    { label: "ROLE",    align: "left"  },
-                    { label: "STATUS",  align: "left"  },
-                    { label: "JOINED",  align: "left"  },
+                    { label: "USER", align: "left" },
+                    { label: "PHONE", align: "left" },
+                    { label: "ROLE", align: "left" },
+                    { label: "STATUS", align: "left" },
+                    { label: "JOINED", align: "left" },
                     { label: "ACTIONS", align: "right" },
                   ].map((h, i) => (
                     <th key={h.label} style={{
@@ -436,9 +452,19 @@ export default function UsersPage() {
 }
 
 // ── User Row ──────────────────────────────────────────────────────────────────
-function UserRow({ user, avatarBg, avatarFg, roleBg, roleColor }: {
-  user: User; avatarBg: string; avatarFg: string; roleBg: string; roleColor: string;
-}) {
+function UserRow({
+  user,
+  avatarBg,
+  avatarFg,
+  roleBg,
+  roleColor,
+}: Readonly<{
+  user: User;
+  avatarBg: string;
+  avatarFg: string;
+  roleBg: string;
+  roleColor: string;
+}>) {
   const [hov, setHov] = useState(false);
   return (
     <tr
@@ -486,8 +512,8 @@ function UserRow({ user, avatarBg, avatarFg, roleBg, roleColor }: {
       <td style={{ padding: "10px 14px", color: "#8b92a9", fontSize: 12 }}>{user.joined}</td>
       <td style={{ padding: "10px 16px 10px 14px", textAlign: "right" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4, opacity: hov ? 1 : 0, transition: "opacity 0.12s" }}>
-          <ActionBtn title="View">   <Icons.Eye   /> </ActionBtn>
-          <ActionBtn title="Edit">   <Icons.Edit  /> </ActionBtn>
+          <ActionBtn title="View">   <Icons.Eye /> </ActionBtn>
+          <ActionBtn title="Edit">   <Icons.Edit /> </ActionBtn>
           <ActionBtn title="Delete" danger> <Icons.Trash /> </ActionBtn>
         </div>
       </td>
@@ -496,30 +522,62 @@ function UserRow({ user, avatarBg, avatarFg, roleBg, roleColor }: {
 }
 
 // ── Action Button ─────────────────────────────────────────────────────────────
-function ActionBtn({ children, title, danger = false }: { children: React.ReactNode; title: string; danger?: boolean }) {
+function ActionBtn({
+  children,
+  title,
+  danger = false,
+}: Readonly<{
+  children: React.ReactNode;
+  title: string;
+  danger?: boolean;
+}>) {
   const [hov, setHov] = useState(false);
+
+  let btnColor = "#8b92a9";
+  let btnBg = "#fff";
+  let btnBorder = "#e8eaf0";
+
+  if (hov) {
+    btnBg = danger ? "#fff1f2" : "#f5f6fa";
+    btnColor = danger ? "#ef4444" : "#0f1623";
+    btnBorder = danger ? "#fecdd3" : "#e8eaf0";
+  }
+
   return (
     <button
       title={title}
+      type="button"
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{
-        width: 27, height: 27, borderRadius: 7,
-        border: `1px solid ${hov && danger ? "#fecdd3" : "#e8eaf0"}`,
-        background: hov ? (danger ? "#fff1f2" : "#f5f6fa") : "#fff",
-        color: hov ? (danger ? "#ef4444" : "#0f1623") : "#8b92a9",
-        cursor: "pointer", display: "grid", placeItems: "center", transition: "all 0.12s",
+        width: 27,
+        height: 27,
+        borderRadius: 7,
+        border: `1px solid ${btnBorder}`,
+        background: btnBg,
+        color: btnColor,
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+        transition: "all 0.12s",
       }}
     >
       {children}
     </button>
   );
 }
-
 // ── Pagination Button ─────────────────────────────────────────────────────────
-function PagBtn({ children, active = false, disabled = false, onClick }: {
-  children: React.ReactNode; active?: boolean; disabled?: boolean; onClick?: () => void;
-}) {
+function PagBtn({
+  children,
+  active = false,
+  disabled = false,
+  onClick,
+}: Readonly<{
+  children: React.ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
+}>) {
   return (
     <button
       onClick={onClick}

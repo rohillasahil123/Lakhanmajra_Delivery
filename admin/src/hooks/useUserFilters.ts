@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 interface FilterParams {
   page?: number;
   role?: string;
+  search?: string;
 }
 
 export const useUserFilters = (
@@ -10,9 +11,8 @@ export const useUserFilters = (
 ) => {
   const [search, setSearch] = useState("");
   const [activeRole, setActiveRole] = useState<string | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  /* ================= Debounce Search ================= */
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search.trim());
@@ -21,13 +21,13 @@ export const useUserFilters = (
     return () => clearTimeout(timer);
   }, [search]);
 
-  /* ================= Trigger Fetch on Filter Change ================= */
   useEffect(() => {
     fetchUsers({
       page: 1,
-      role: activeRole || undefined,
+      role: activeRole ?? undefined,
+      search: debouncedSearch || undefined,
     });
-  }, [debouncedSearch, activeRole]);
+  }, [debouncedSearch, activeRole, fetchUsers]);
 
   const resetFilters = () => {
     setSearch("");

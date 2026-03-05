@@ -1,62 +1,52 @@
 import { useState, useRef, useEffect } from "react";
 import { IUser } from "../../hooks/useUsers";
 
-interface ActionMenuProps {
+interface Props {
   user: IUser;
-  hasPermission: (perm: string) => boolean;
   onEdit: (user: IUser) => void;
   onDelete: (id: string) => void;
-  onToggleStatus: (id: string, isActive: boolean) => void;
+  onToggleStatus: (id: string, status: boolean) => void;
+  hasPermission: (perm: string) => boolean;
 }
 
-const ActionMenu = ({
+export default function ActionMenu({
   user,
-  hasPermission,
   onEdit,
   onDelete,
   onToggleStatus,
-}: ActionMenuProps) => {
+  hasPermission,
+}: Readonly<Props>) {
   const [open, setOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
 
-  // 🔥 Close when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
 
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [open]);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="p-2 rounded-full hover:bg-gray-200 transition"
+        className="px-2 py-1 rounded hover:bg-gray-200"
       >
         ⋮
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-44 bg-white border rounded-lg shadow-lg z-30 overflow-hidden">
+        <div className="absolute right-0 mt-1 w-40 bg-white border rounded shadow">
           {hasPermission("users:update") && (
             <button
-              onClick={() => {
-                onEdit(user);
-                setOpen(false);
-              }}
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              type="button"
+              onClick={() => onEdit(user)}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
             >
               Edit
             </button>
@@ -64,11 +54,9 @@ const ActionMenu = ({
 
           {hasPermission("users:delete") && (
             <button
-              onClick={() => {
-                onDelete(user._id);
-                setOpen(false);
-              }}
-              className="block w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100"
+              type="button"
+              onClick={() => onDelete(user._id)}
+              className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
             >
               Delete
             </button>
@@ -76,11 +64,9 @@ const ActionMenu = ({
 
           {hasPermission("users:update") && (
             <button
-              onClick={() => {
-                onToggleStatus(user._id, !user.isActive);
-                setOpen(false);
-              }}
-              className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+              type="button"
+              onClick={() => onToggleStatus(user._id, !user.isActive)}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
             >
               {user.isActive ? "Deactivate" : "Activate"}
             </button>
@@ -89,6 +75,4 @@ const ActionMenu = ({
       )}
     </div>
   );
-};
-
-export default ActionMenu;
+}

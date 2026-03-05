@@ -6,14 +6,8 @@ const COLORS = [
   "from-emerald-400 to-emerald-600",
 ];
 
-export default function Avatar({
-  name,
-}: Readonly<{
-  name: string;
-}>) {
-  const index =
-    (name.codePointAt(0) ?? 0) %
-    COLORS.length;
+export default function Avatar({ name }: Readonly<{ name: string }>) {
+  const index = (name.codePointAt(0) ?? 0) % COLORS.length;
 
   return (
     <div

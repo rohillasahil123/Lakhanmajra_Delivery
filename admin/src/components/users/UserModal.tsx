@@ -1,22 +1,35 @@
 import { useState, useEffect } from "react";
 import { IUser } from "../../hooks/useUsers";
 
-interface UserModalProps {
+interface Role {
+  _id: string;
+  name: string;
+}
+
+interface UserForm {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  roleId: string;
+}
+
+interface Props {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
-  roles: { _id: string; name: string }[];
+  onSubmit: (data: UserForm) => Promise<void>;
+  roles: Role[];
   editingUser: IUser | null;
 }
 
-const UserModal = ({
+export default function UserModal({
   open,
   onClose,
   onSubmit,
   roles,
   editingUser,
-}: UserModalProps) => {
-  const [form, setForm] = useState({
+}: Readonly<Props>)  {
+  const [form, setForm] = useState<UserForm>({
     name: "",
     email: "",
     phone: "",
@@ -33,15 +46,7 @@ const UserModal = ({
         email: editingUser.email,
         phone: editingUser.phone,
         password: "",
-        roleId: editingUser.roleId?._id || "",
-      });
-    } else {
-      setForm({
-        name: "",
-        email: "",
-        phone: "",
-        password: "",
-        roleId: "",
+        roleId: editingUser.roleId?._id ?? "",
       });
     }
   }, [editingUser]);
@@ -51,7 +56,7 @@ const UserModal = ({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async () => {
@@ -72,50 +77,15 @@ const UserModal = ({
         </h2>
 
         <div className="space-y-3">
-          <input
-            type="text"
-            name="name"
-            placeholder="Name"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
-
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={form.email}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
-
-          <input
-            type="text"
-            name="phone"
-            placeholder="Phone"
-            value={form.phone}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          />
+          <input name="name" placeholder="Name" value={form.name} onChange={handleChange} className="w-full border px-3 py-2 rounded" />
+          <input name="email" placeholder="Email" value={form.email} onChange={handleChange} className="w-full border px-3 py-2 rounded" />
+          <input name="phone" placeholder="Phone" value={form.phone} onChange={handleChange} className="w-full border px-3 py-2 rounded" />
 
           {!isEditMode && (
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={handleChange}
-              className="w-full border px-3 py-2 rounded"
-            />
+            <input type="password" name="password" placeholder="Password" value={form.password} onChange={handleChange} className="w-full border px-3 py-2 rounded" />
           )}
 
-          <select
-            name="roleId"
-            value={form.roleId}
-            onChange={handleChange}
-            className="w-full border px-3 py-2 rounded"
-          >
+          <select name="roleId" value={form.roleId} onChange={handleChange} className="w-full border px-3 py-2 rounded">
             <option value="">Select Role</option>
             {roles.map((role) => (
               <option key={role._id} value={role._id}>
@@ -126,23 +96,15 @@ const UserModal = ({
         </div>
 
         <div className="flex justify-end gap-2 mt-5">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-300 rounded"
-          >
+          <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-300 rounded">
             Cancel
           </button>
 
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-blue-600 text-white rounded"
-          >
+          <button type="button" onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded">
             {isEditMode ? "Update" : "Create"}
           </button>
         </div>
       </div>
     </div>
   );
-};
-
-export default UserModal;
+}
