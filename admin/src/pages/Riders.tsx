@@ -5,6 +5,26 @@ import { getPermissions } from '../auth';
 type Rider = { _id: string; name: string; email?: string; phone?: string; roleId?: any; isActive?: boolean };
 type Role = { _id: string; name: string };
 
+const AVATAR_COLORS = [
+  '#4CAF50', '#2196F3', '#9C27B0', '#FF5722', '#009688',
+  '#3F51B5', '#E91E63', '#00BCD4', '#FF9800', '#607D8B',
+];
+
+function getAvatarColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(name: string) {
+  return name
+    .split(' ')
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
 export default function Riders() {
   const [riders, setRiders] = useState<Rider[]>([]);
   const [total, setTotal] = useState<number | null>(null);
@@ -13,7 +33,8 @@ export default function Riders() {
   const [limit] = useState(20);
   const [roles, setRoles] = useState<Role[]>([]);
 
-  // create form
+  // create modal
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPhone, setNewPhone] = useState('');
@@ -64,7 +85,8 @@ export default function Riders() {
   const hasPerm = (p: string) => permissions.includes(p);
 
   const createRider = async () => {
-    if (!newName || (!newEmail && !newPhone) || !newPassword) return alert('name, (email or phone), password required');
+    if (!newName || (!newEmail && !newPhone) || !newPassword)
+      return alert('name, (email or phone), password required');
     setCreating(true);
     try {
       const regRes = await api.post('/auth/register', {
@@ -73,18 +95,12 @@ export default function Riders() {
         phone: newPhone || undefined,
         password: newPassword,
       });
-
       const riderId = regRes.data?.user?._id || regRes.data?.user?.id;
       const riderRole = roles.find(r => r.name === 'rider' || r.name === 'Rider');
-
       if (riderId && riderRole) {
         await api.patch(`/auth/users/${riderId}/role`, { roleId: riderRole._id });
       }
-
-      setNewName('');
-      setNewEmail('');
-      setNewPhone('');
-      setNewPassword('');
+      setNewName(''); setNewEmail(''); setNewPhone(''); setNewPassword('');
       await loadRiders(1);
       alert('Rider created');
     } catch (err: any) {
@@ -103,9 +119,7 @@ export default function Riders() {
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditName('');
-    setEditEmail('');
-    setEditPhone('');
+    setEditName(''); setEditEmail(''); setEditPhone('');
   };
 
   const saveEdit = async (riderId: string) => {
@@ -154,128 +168,197 @@ export default function Riders() {
 
   return (
     <div className="p-6">
+      {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-semibold">Riders</h2>
+        <div>
+          <p className="text-sm text-slate-400 mb-0.5">{total ?? 0} riders found</p>
+          <h2 className="text-2xl font-semibold text-slate-800">Riders</h2>
+        </div>
+        {hasPerm('users:create') && (
+          <button
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition text-sm font-medium"
+            onClick={() => setShowCreateModal(true)}
+          >
+            + Create Rider
+          </button>
+        )}
       </div>
 
-      {hasPerm('users:create') && (
-        <div className="mb-4 bg-white p-4 rounded shadow">
-          <div className="flex gap-2 items-center mb-3">
-            <input
-              className="border px-3 py-2 rounded"
-              placeholder="name"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-            />
-            <input
-              className="border px-3 py-2 rounded"
-              placeholder="email"
-              value={newEmail}
-              onChange={e => setNewEmail(e.target.value)}
-            />
-            <input
-              className="border px-3 py-2 rounded"
-              placeholder="phone"
-              value={newPhone}
-              onChange={e => setNewPhone(e.target.value)}
-            />
-            <input
-              className="border px-3 py-2 rounded"
-              placeholder="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-            />
-            <button
-              className="bg-sky-600 text-white px-4 rounded"
-              onClick={createRider}
-              disabled={creating}
-            >
-              {creating ? 'Creating...' : 'Create Rider'}
-            </button>
+      {/* Create Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-[480px]">
+            <h3 className="text-lg font-semibold mb-4 text-slate-800">Create Rider</h3>
+            <div className="flex flex-col gap-3">
+              <input className="border px-3 py-2 rounded text-sm" placeholder="Name" value={newName} onChange={e => setNewName(e.target.value)} />
+              <input className="border px-3 py-2 rounded text-sm" placeholder="Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
+              <input className="border px-3 py-2 rounded text-sm" placeholder="Phone" value={newPhone} onChange={e => setNewPhone(e.target.value)} />
+              <input className="border px-3 py-2 rounded text-sm" placeholder="Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60 text-sm"
+                onClick={() => { createRider(); setShowCreateModal(false); }}
+                disabled={creating}
+              >
+                {creating ? 'Creating...' : 'Create Rider'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="bg-white rounded shadow overflow-auto">
+      {/* Table */}
+      <div className="bg-white rounded-lg shadow overflow-auto">
         <table className="w-full text-left table-auto">
-          <thead className="bg-slate-50 border-b">
-            <tr>
-              <th className="p-3">Name</th>
-              <th className="p-3">Email / Phone</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Actions</th>
+          <thead className="border-b">
+            <tr className="text-xs uppercase tracking-wider text-slate-400">
+              <th className="px-5 py-3 font-medium">User</th>
+              <th className="px-5 py-3 font-medium">Phone</th>
+              <th className="px-5 py-3 font-medium">Role</th>
+              <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {riders.map((r) => (
-              <tr key={r._id} className="border-b last:border-0">
-                {editingId === r._id ? (
-                  <>
-                    <td className="p-3"><input className="border px-2 py-1 rounded w-full" value={editName} onChange={e => setEditName(e.target.value)} /></td>
-                    <td className="p-3">
-                      <div className="flex gap-2">
-                        <input className="border px-2 py-1 rounded flex-1" placeholder="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
-                        <input className="border px-2 py-1 rounded flex-1" placeholder="phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
-                      </div>
-                    </td>
-                    <td className="p-3">{r.isActive ? 'Active' : 'Inactive'}</td>
-                    <td className="p-3">
-                      <div className="flex gap-2">
-                        <button className="px-2 py-1 bg-green-600 text-white text-sm rounded" onClick={() => saveEdit(r._id)} disabled={editUpdating}>Save</button>
-                        <button className="px-2 py-1 bg-slate-300 text-sm rounded" onClick={cancelEdit}>Cancel</button>
-                      </div>
-                    </td>
-                  </>
-                ) : (
-                  <>
-                    <td className="p-3">{r.name}</td>
-                    <td className="p-3">{r.email ?? r.phone}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded text-sm ${r.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {r.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex gap-2">
-                        {hasPerm('users:update') && (
-                          <button className="px-2 py-1 bg-blue-600 text-white text-sm rounded" onClick={() => startEdit(r)}>Edit</button>
-                        )}
-                        {hasPerm('users:update') && (
-                          <button
-                            className="px-2 py-1 bg-amber-600 text-white text-sm rounded"
-                            onClick={() => toggleActive(r._id, r.isActive ?? true)}
+            {riders.map((r) => {
+              const avatarColor = getAvatarColor(r.name);
+              const initials = getInitials(r.name);
+
+              return (
+                <tr key={r._id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
+                  {editingId === r._id ? (
+                    <>
+                      <td className="px-5 py-3">
+                        <input className="border px-2 py-1 rounded w-full text-sm" value={editName} onChange={e => setEditName(e.target.value)} />
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex gap-2">
+                          <input className="border px-2 py-1 rounded flex-1 text-sm" placeholder="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                          <input className="border px-2 py-1 rounded flex-1 text-sm" placeholder="phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">rider</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                          <span className={`w-2 h-2 rounded-full ${r.isActive ? 'bg-green-500' : 'bg-red-400'}`} />
+                          {r.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex gap-2">
+                          <button className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700" onClick={() => saveEdit(r._id)} disabled={editUpdating}>Save</button>
+                          <button className="px-3 py-1 bg-slate-200 text-sm rounded hover:bg-slate-300" onClick={cancelEdit}>Cancel</button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      {/* USER column — avatar + name + email */}
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                            style={{ backgroundColor: avatarColor }}
                           >
-                            {r.isActive ? 'Deactivate' : 'Activate'}
-                          </button>
-                        )}
-                        {hasPerm('users:delete') && (
-                          <button className="px-2 py-1 bg-red-600 text-white text-sm rounded" onClick={() => deleteRider(r._id)}>Delete</button>
-                        )}
-                      </div>
-                    </td>
-                  </>
-                )}
+                            {initials}
+                          </div>
+                          <div>
+                            <div className="font-medium text-slate-800 text-sm leading-tight">{r.name}</div>
+                            {r.email && <div className="text-xs text-slate-400 mt-0.5">{r.email}</div>}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* PHONE column */}
+                      <td className="px-5 py-3 text-sm text-slate-600">{r.phone ?? '—'}</td>
+
+                      {/* ROLE column — colored badge */}
+                      <td className="px-5 py-3">
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          rider
+                        </span>
+                      </td>
+
+                      {/* STATUS column — dot + text */}
+                      <td className="px-5 py-3">
+                        <span className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}>
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${r.isActive ? 'bg-green-500' : 'bg-red-400'}`} />
+                          {r.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+
+                      {/* ACTIONS — icon buttons */}
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1">
+                          {hasPerm('users:update') && (
+                            <button
+                              title="Edit"
+                              className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors"
+                              onClick={() => startEdit(r)}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828A2 2 0 0110 16.414H8v-2a2 2 0 01.586-1.414z" />
+                              </svg>
+                            </button>
+                          )}
+                          {hasPerm('users:update') && (
+                            <button
+                              title={r.isActive ? 'Deactivate' : 'Activate'}
+                              className={`p-1.5 rounded transition-colors ${r.isActive ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-green-600 hover:bg-green-50'}`}
+                              onClick={() => toggleActive(r._id, r.isActive ?? true)}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9" />
+                              </svg>
+                            </button>
+                          )}
+                          {hasPerm('users:delete') && (
+                            <button
+                              title="Delete"
+                              className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                              onClick={() => deleteRider(r._id)}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4h6v3M3 7h18" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+            {riders.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-5 py-10 text-center text-slate-400 text-sm">No riders found</td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
 
+      {/* Pagination */}
       <div className="mt-4 flex justify-between items-center">
-        <div className="text-sm text-slate-500">Total: {total}</div>
-        <div className="flex gap-2">
+        <div className="text-sm text-slate-400">Total: {total}</div>
+        <div className="flex gap-2 items-center">
           <button
             disabled={page === 1}
             onClick={() => loadRiders(Math.max(1, page - 1))}
-            className="px-3 py-1 border rounded disabled:opacity-50"
+            className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-slate-50 text-sm"
           >
             Prev
           </button>
-          <span className="px-3 py-1">{page} / {totalPages}</span>
+          <span className="px-2 text-sm text-slate-500">{page} / {totalPages}</span>
           <button
             disabled={page >= totalPages}
             onClick={() => loadRiders(Math.min(totalPages, page + 1))}
-            className="px-3 py-1 border rounded disabled:opacity-50"
+            className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-slate-50 text-sm"
           >
             Next
           </button>
