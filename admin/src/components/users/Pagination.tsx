@@ -6,26 +6,14 @@ interface PaginationProps {
 }
 
 const Pagination = ({ page, total, limit, onPageChange }: PaginationProps) => {
-  const totalPages = Math.ceil(total / limit);
-
-  if (totalPages <= 1) return null;
 
   const generatePages = () => {
-    const pages: (number | "...")[] = [];
+    const pages: (number | string)[] = [];
+
+    const totalPages = Math.ceil(total / limit);
 
     for (let i = 1; i <= totalPages; i++) {
-      if (
-        i === 1 ||
-        i === totalPages ||
-        Math.abs(i - page) <= 1
-      ) {
-        pages.push(i);
-      } else if (
-        i === page - 2 ||
-        i === page + 2
-      ) {
-        pages.push("...");
-      }
+      pages.push(i);
     }
 
     return [...new Set(pages)];
@@ -35,15 +23,15 @@ const Pagination = ({ page, total, limit, onPageChange }: PaginationProps) => {
 
   return (
     <div className="flex justify-center items-center gap-2 mt-6">
-      {pages.map((p, index) =>
+      {pages.map((p) =>
         p === "..." ? (
-          <span key={index} className="px-2">
+          <span key={`ellipsis-${p}`} className="px-2">
             ...
           </span>
         ) : (
           <button
-            key={index}
-            onClick={() => onPageChange(p)}
+            key={p}
+            onClick={() => onPageChange(Number(p))}
             className={`px-3 py-1 rounded-md text-sm ${
               p === page
                 ? "bg-blue-600 text-white"

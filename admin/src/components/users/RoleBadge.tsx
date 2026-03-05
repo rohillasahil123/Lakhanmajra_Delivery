@@ -56,14 +56,17 @@ const RoleBadge = ({
 
   return (
     <div className="relative inline-block" ref={dropdownRef}>
-      <span
-        onClick={() => canEdit && setOpen((prev) => !prev)}
-        className={`px-3 py-1 text-white text-xs rounded-full transition ${
-          canEdit ? "cursor-pointer hover:opacity-80" : "cursor-default"
-        } ${roleColors[role || "user"] || "bg-gray-400"}`}
-      >
-        {role}
-      </span>
+     <button
+  type="button"
+  onClick={() => canEdit && setOpen((prev) => !prev)}
+  disabled={!canEdit}
+  className={`px-3 py-1 text-white text-xs rounded-full transition
+  ${canEdit ? "cursor-pointer hover:opacity-80" : "cursor-default"}
+  ${roleColors[role] || "bg-gray-400"}
+  `}
+>
+  {role}
+</button>
 
       {open && canEdit && (
         <div className="absolute mt-2 w-40 bg-white shadow-lg rounded-lg border z-30 overflow-hidden">
