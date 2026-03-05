@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import api from "../api/client";
 
 export interface IUser {
@@ -31,21 +31,29 @@ export const useUsers = () => {
   const [users, setUsers] = useState<IUser[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(8);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Use ref to track current state values without causing dependency loops
+  const stateRef = useRef({ page, limit });
 
   const fetchUsers = useCallback(
     async (params?: FetchUsersParams): Promise<void> => {
       try {
         setLoading(true);
+        setError(null);
+
+        const currentPage = params?.page ?? stateRef.current.page;
+        const currentLimit = stateRef.current.limit;
 
         const res = await api.get("/admin/users", {
           params: {
-            page: params?.page ?? page,
-            limit,
-            role: params?.role ?? undefined,
-            status: params?.status ?? undefined,
-            search: params?.search ?? undefined,
+            page: currentPage,
+            limit: currentLimit,
+            role: params?.role || undefined,
+            status: params?.status || undefined,
+            search: params?.search || undefined,
           },
         });
 
@@ -53,40 +61,126 @@ export const useUsers = () => {
 
         setUsers(payload.users ?? []);
         setTotal(payload.total ?? 0);
-        setPage(payload.page ?? 1);
-        setLimit(payload.limit ?? 10);
-      } catch (error) {
-        console.error("Fetch users failed", error);
+        setPage(payload.page ?? currentPage);
+        setLimit(payload.limit ?? currentLimit);
+
+        // Update ref with new state
+        stateRef.current = { page: payload.page ?? currentPage, limit: payload.limit ?? currentLimit };
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to fetch users";
+        console.error("Fetch users error:", errorMsg);
+        setError(errorMsg);
+        setUsers([]);
       } finally {
         setLoading(false);
       }
     },
-    [page, limit]
+    []
   );
 
-  const createUser = async (data: Record<string, unknown>) => {
-    const res = await api.post("/admin/users", data);
-    return res.data?.data ?? res.data;
-  };
+  const createUser = useCallback(
+    async (data: Record<string, unknown>): Promise<IUser> => {
+      try {
+        setError(null);
+        const res = await api.post("/admin/users", data);
+        const newUser = res.data?.data ?? res.data;
+        
+        // Refresh users list
+        await fetchUsers({ page: 1 });
+        
+        return newUser;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to create user";
+        setError(errorMsg);
+        throw err;
+      }
+    },
+    [fetchUsers]
+  );
 
-  const updateUser = async (id: string, data: Record<string, unknown>) => {
-    const res = await api.patch(`/admin/users/${id}`, data);
-    return res.data?.data ?? res.data;
-  };
+  const updateUser = useCallback(
+    async (id: string, data: Record<string, unknown>): Promise<IUser> => {
+      try {
+        setError(null);
+        const res = await api.patch(`/admin/users/${id}`, data);
+        const updatedUser = res.data?.data ?? res.data;
+        
+        // Update local state
+        setUsers((prev) =>
+          prev.map((u) => (u._id === id ? updatedUser : u))
+        );
+        
+        return updatedUser;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to update user";
+        setError(errorMsg);
+        throw err;
+      }
+    },
+    []
+  );
 
-  const deleteUser = async (id: string) => {
-    await api.delete(`/admin/users/${id}`);
-  };
+  const deleteUser = useCallback(
+    async (id: string): Promise<void> => {
+      try {
+        setError(null);
+        await api.delete(`/admin/users/${id}`);
+        
+        // Remove from local state
+        setUsers((prev) => prev.filter((u) => u._id !== id));
+        setTotal((prev) => Math.max(0, prev - 1));
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to delete user";
+        setError(errorMsg);
+        throw err;
+      }
+    },
+    []
+  );
 
-  const toggleStatus = async (id: string, isActive: boolean) => {
-    const res = await api.patch(`/admin/users/${id}/status`, { isActive });
-    return res.data?.data ?? res.data;
-  };
+  const toggleStatus = useCallback(
+    async (id: string, isActive: boolean): Promise<IUser> => {
+      try {
+        setError(null);
+        const res = await api.patch(`/admin/users/${id}/status`, { isActive });
+        const updatedUser = res.data?.data ?? res.data;
+        
+        // Update local state
+        setUsers((prev) =>
+          prev.map((u) => (u._id === id ? updatedUser : u))
+        );
+        
+        return updatedUser;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to toggle status";
+        setError(errorMsg);
+        throw err;
+      }
+    },
+    []
+  );
 
-  const assignRole = async (id: string, roleId: string) => {
-    const res = await api.patch(`/auth/users/${id}/role`, { roleId });
-    return res.data?.data ?? res.data;
-  };
+  const assignRole = useCallback(
+    async (id: string, roleId: string): Promise<IUser> => {
+      try {
+        setError(null);
+        const res = await api.patch(`/admin/users/${id}/role`, { roleId });
+        const updatedUser = res.data?.data ?? res.data;
+        
+        // Update local state
+        setUsers((prev) =>
+          prev.map((u) => (u._id === id ? updatedUser : u))
+        );
+        
+        return updatedUser;
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "Failed to assign role";
+        setError(errorMsg);
+        throw err;
+      }
+    },
+    []
+  );
 
   return {
     users,
@@ -94,6 +188,7 @@ export const useUsers = () => {
     page,
     limit,
     loading,
+    error,
     fetchUsers,
     createUser,
     updateUser,

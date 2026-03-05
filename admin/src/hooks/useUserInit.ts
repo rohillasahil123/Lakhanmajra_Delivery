@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import api from "../api/client";
 
 interface IRole {
@@ -19,8 +19,13 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
   const [summary, setSummary] = useState<ISummary | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const initRef = useRef(false);
 
   useEffect(() => {
+    // Prevent double initialization
+    if (initRef.current) return;
+    initRef.current = true;
+
     const init = async () => {
       try {
         setLoading(true);
@@ -42,9 +47,10 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
         setSummary(summaryData);
         setPermissions(permData);
 
+        // Fetch users after initialization
         await fetchUsers({ page: 1 });
       } catch (error) {
-        console.error("User init failed", error);
+        console.error("User init failed:", error);
       } finally {
         setLoading(false);
       }
@@ -53,7 +59,9 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
     init();
   }, [fetchUsers]);
 
-  const hasPermission = (perm: string) => permissions.includes(perm);
+  const hasPermission = (perm: string): boolean => {
+    return permissions.includes(perm);
+  };
 
   return {
     roles,

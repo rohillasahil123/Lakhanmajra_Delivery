@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface FilterParams {
   page?: number;
@@ -13,27 +13,34 @@ export const useUserFilters = (
   const [activeRole, setActiveRole] = useState<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
+  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search.trim());
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Fetch when filters change
   useEffect(() => {
-    fetchUsers({
-      page: 1,
-      role: activeRole ?? undefined,
-      search: debouncedSearch || undefined,
-    });
+    const handler = async () => {
+      await fetchUsers({
+        page: 1,
+        role: activeRole ?? undefined,
+        search: debouncedSearch || undefined,
+      });
+    };
+
+    handler();
   }, [debouncedSearch, activeRole, fetchUsers]);
 
-  const resetFilters = () => {
+  const resetFilters = useCallback(async () => {
     setSearch("");
     setActiveRole(null);
-    fetchUsers({ page: 1 });
-  };
+    setDebouncedSearch("");
+    await fetchUsers({ page: 1 });
+  }, [fetchUsers]);
 
   return {
     search,
@@ -41,5 +48,6 @@ export const useUserFilters = (
     activeRole,
     setActiveRole,
     resetFilters,
+    debouncedSearch,
   };
 };
