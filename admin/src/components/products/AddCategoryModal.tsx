@@ -71,20 +71,20 @@ export default function AddCategoryModal({ parentCategories, onClose, onCreated 
 
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="text-xs text-slate-500 mb-1 block">Category Name *</label>
-              <input className="border px-3 py-2 rounded w-full text-sm" placeholder="e.g. Vegetables & Fruit"
+              <label htmlFor="cat-name" className="text-xs text-slate-500 mb-1 block">Category Name *</label>
+              <input id="cat-name" className="border px-3 py-2 rounded w-full text-sm" placeholder="e.g. Vegetables & Fruit"
                 value={name} onChange={(e) => setName(e.target.value)} />
             </div>
 
             <div>
-              <label className="text-xs text-slate-500 mb-1 block">Priority</label>
-              <input type="number" className="border px-3 py-2 rounded w-full text-sm"
+              <label htmlFor="cat-priority" className="text-xs text-slate-500 mb-1 block">Priority</label>
+              <input id="cat-priority" type="number" className="border px-3 py-2 rounded w-full text-sm"
                 value={priority} onChange={(e) => setPriority(Number(e.target.value))} />
             </div>
 
             <div>
-              <label className="text-xs text-slate-500 mb-1 block">Parent (for sub-category)</label>
-              <select className="border px-3 py-2 rounded w-full text-sm" value={parent} onChange={(e) => setParent(e.target.value)}>
+              <label htmlFor="cat-parent" className="text-xs text-slate-500 mb-1 block">Parent (for sub-category)</label>
+              <select id="cat-parent" className="border px-3 py-2 rounded w-full text-sm" value={parent} onChange={(e) => setParent(e.target.value)}>
                 <option value="">None (main category)</option>
                 {parentCategories.map((c) => <option key={c._id} value={c._id}>{c.name}</option>)}
               </select>
@@ -93,16 +93,25 @@ export default function AddCategoryModal({ parentCategories, onClose, onCreated 
 
           {/* Image upload */}
           <div>
-            <label className="text-xs text-slate-500 mb-1 block">Image (optional)</label>
+            <span className="text-xs text-slate-500 mb-1 block">Image (optional)</span>
             <div className="flex items-center gap-3">
-              <label className="cursor-pointer px-3 py-2 border rounded text-sm bg-slate-50 hover:bg-slate-100 transition-colors">
+              <label
+                htmlFor="cat-image"
+                className="cursor-pointer px-3 py-2 border rounded text-sm bg-slate-50 hover:bg-slate-100 transition-colors"
+              >
                 📷 Choose Image
-                <input ref={fileRef} type="file" accept="image/*" className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] || null;
-                    setFile(f); setPreview(f ? URL.createObjectURL(f) : '');
-                  }} />
               </label>
+              <input
+                ref={fileRef}
+                id="cat-image"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0] || null;
+                  setFile(f); setPreview(f ? URL.createObjectURL(f) : '');
+                }}
+              />
               {preview && (
                 <div className="relative group">
                   <img src={preview} alt="preview" className="w-12 h-12 object-cover rounded-lg border border-slate-200" />
@@ -122,8 +131,8 @@ export default function AddCategoryModal({ parentCategories, onClose, onCreated 
             </button>
             {showSub && (
               <div className="mt-2">
-                <label className="text-xs text-slate-500 mb-1 block">Sub-category names (comma separated)</label>
-                <input className="border px-3 py-2 rounded w-full text-sm"
+                <label htmlFor="cat-subcats" className="text-xs text-slate-500 mb-1 block">Sub-category names (comma separated)</label>
+                <input id="cat-subcats" className="border px-3 py-2 rounded w-full text-sm"
                   placeholder="e.g. Dal, Chawal, Atta"
                   value={subInput} onChange={(e) => setSubInput(e.target.value)} />
               </div>

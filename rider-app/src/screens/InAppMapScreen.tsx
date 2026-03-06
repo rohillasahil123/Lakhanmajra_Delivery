@@ -253,7 +253,7 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
   const addressParts = address.split(',').map((part) => part.trim()).filter(Boolean);
   const customerName = addressParts[0] || 'Customer';
   const addressLine = addressParts.slice(1).join(', ') || address;
-  const codAmount = Number(orderId.replace(/\D/g, '').slice(-3) || 199);
+  const codAmount = Number(orderId.replaceAll(/\D/g, '').slice(-3) || 199);
 
   return (
     <SafeAreaView style={styles.container}>
