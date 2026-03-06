@@ -6,6 +6,7 @@ import {WebView} from 'react-native-webview';
 import * as Location from 'expo-location';
 import {Ionicons} from '@expo/vector-icons';
 import {RootStackParamList} from '../navigation/types';
+import {createResponsiveStyles, iconSize} from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InAppMap'>;
 
@@ -260,7 +261,7 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#e8f6ee" />
+            <Ionicons name="arrow-back" size={iconSize(22)} color="#e8f6ee" />
           </Pressable>
           <Text style={styles.title}>Navigate to Customer</Text>
         </View>
@@ -277,7 +278,7 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
 
           <View style={styles.guidanceCard}>
             <View style={styles.arrowBox}>
-              <Ionicons name="arrow-up" size={26} color="#ffffff" />
+              <Ionicons name="arrow-up" size={iconSize(26)} color="#ffffff" />
             </View>
             <View style={styles.guidanceMain}>
               <Text style={styles.guidanceTitle}>{routeSummary.nextInstruction}</Text>
@@ -329,28 +330,28 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
 
       <View style={styles.bottomBar}>
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Dashboard')}>
-          <Ionicons name="home-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="home-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Home</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('DeliveredOrders')}>
-          <Ionicons name="receipt-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="receipt-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Orders</Text>
         </Pressable>
 
         <View style={styles.tabItem}>
-          <Ionicons name="map-outline" size={20} color="#1f5a3e" />
+          <Ionicons name="map-outline" size={iconSize(20)} color="#1f5a3e" />
           <Text style={[styles.tabLabel, styles.tabLabelActive]}>Map</Text>
           <View style={styles.activeDot} />
         </View>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Earnings')}>
-          <Ionicons name="wallet-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="wallet-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Earnings</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('RiderProfile')}>
-          <Ionicons name="person-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="person-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Profile</Text>
         </Pressable>
       </View>
@@ -358,7 +359,7 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   container: {
     flex: 1,
     backgroundColor: '#ece9e4',

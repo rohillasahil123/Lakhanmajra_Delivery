@@ -206,21 +206,20 @@ const riderToBackendStatus = (status: RiderFlowStatus): 'processing' | 'confirme
 
 export const riderLogin = async (req: Request, res: Response): Promise<void> => {
   try {
-    const {riderId, password} = req.body as {riderId?: string; password?: string};
+    const {email, password} = req.body as {email?: string; password?: string};
 
-    if (!riderId || !password) {
-      res.status(400).json({message: 'riderId and password are required'});
+    if (!email || !password) {
+      res.status(400).json({message: 'Email and password are required'});
       return;
     }
 
-    const normalizedRiderId = riderId.trim();
-    const riderQuery: any[] = [{phone: normalizedRiderId}, {email: normalizedRiderId.toLowerCase()}];
-
-    if (Types.ObjectId.isValid(normalizedRiderId)) {
-      riderQuery.push({_id: normalizedRiderId});
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !normalizedEmail.includes('@')) {
+      res.status(400).json({message: 'Valid email is required'});
+      return;
     }
 
-    const rider = await User.findOne({$or: riderQuery}).populate('roleId');
+    const rider = await User.findOne({email: normalizedEmail}).populate('roleId');
 
     if (!rider || !rider.isActive) {
       res.status(401).json({message: 'Invalid rider credentials'});
@@ -632,7 +631,7 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
     }
 
     res.status(200).json({order: normalizeRiderOrder(updated)});
-    void emitOrderRealtime(String(updated._id), { event: 'updated' });
+    void emitOrderRealtime(String(updated._id), { event: 'status' });
   } catch (error) {
     res.status(500).json({message: 'Unable to update rider order status'});
   }

@@ -24,9 +24,9 @@ interface RiderMeResponse {
 }
 
 export const authService = {
-  async login(riderId: string, password: string): Promise<AuthSession> {
+  async login(email: string, password: string): Promise<AuthSession> {
     const response = await apiClient.post<RiderLoginResponse>('/rider/login', {
-      riderId,
+      email,
       password,
     });
 

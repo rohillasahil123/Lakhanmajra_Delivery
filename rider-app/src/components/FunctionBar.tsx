@@ -1,13 +1,14 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Alert, Pressable, Text, View} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {Ionicons} from '@expo/vector-icons';
-import {useRiderAuth} from '../context/RiderAuthContext';
 import {RootStackParamList} from '../navigation/types';
-import {palette} from '../constants/theme';
+import {createResponsiveStyles, iconSize} from '../utils/responsive';
+import {riderService} from '../services/riderService';
+import {RiderOrder} from '../types/rider';
 
-type FunctionKey = 'home' | 'earnings' | 'delivered' | 'profile';
+type FunctionKey = 'home' | 'earnings' | 'delivered' | 'profile' | 'map';
 
 interface FunctionBarProps {
   active: FunctionKey;
@@ -15,18 +16,75 @@ interface FunctionBarProps {
 
 const items: {key: FunctionKey; icon: keyof typeof Ionicons.glyphMap; label: string}[] = [
   {key: 'home', icon: 'home-outline', label: 'Home'},
+  {key: 'delivered', icon: 'receipt-outline', label: 'Orders'},
+  {key: 'map', icon: 'map-outline', label: 'Map'},
   {key: 'earnings', icon: 'wallet-outline', label: 'Earnings'},
-  {key: 'delivered', icon: 'checkmark-done-outline', label: 'Delivered'},
   {key: 'profile', icon: 'person-outline', label: 'Profile'},
 ];
 
 export const FunctionBar: React.FC<FunctionBarProps> = ({active}) => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const {logout} = useRiderAuth();
+  const [mapLoading, setMapLoading] = React.useState(false);
 
-  const handleNavigate = (key: FunctionKey) => {
+  const getPreferredMapOrder = (orders: RiderOrder[]): RiderOrder | null => {
+    const statusPriority: RiderOrder['status'][] = ['OutForDelivery', 'Picked', 'Accepted', 'Assigned'];
+
+    for (const status of statusPriority) {
+      const match = orders.find((order) => order.status === status);
+      if (match) {
+        return match;
+      }
+    }
+
+    return orders[0] || null;
+  };
+
+  const openMapFromOrder = async () => {
+    try {
+      setMapLoading(true);
+      const orders = await riderService.getOrders();
+      if (!orders.length) {
+        Alert.alert('No Orders', 'Map open karne ke liye pehle koi order assigned hona chahiye.');
+        return;
+      }
+
+      const target = getPreferredMapOrder(orders);
+      if (!target) {
+        Alert.alert('No Order Found', 'Map destination nahi mila.');
+        return;
+      }
+
+      const line1 = target.deliveryAddress.line1 || '';
+      const city = target.deliveryAddress.city || '';
+      const state = target.deliveryAddress.state || '';
+      const postalCode = target.deliveryAddress.postalCode || '';
+
+      const address = [line1, city, state, postalCode].filter(Boolean).join(', ') || 'Delivery location';
+
+      navigation.navigate('InAppMap', {
+        orderId: target.id,
+        destinationLat: target.deliveryAddress.latitude,
+        destinationLng: target.deliveryAddress.longitude,
+        address,
+      });
+    } catch {
+      Alert.alert('Map Error', 'Map open nahi ho paya. Please thodi der baad try karein.');
+    } finally {
+      setMapLoading(false);
+    }
+  };
+
+  const handleNavigate = async (key: FunctionKey) => {
     if (key === 'home') {
       navigation.navigate('Dashboard');
+      return;
+    }
+
+    if (key === 'map') {
+      if (mapLoading) {
+        return;
+      }
+      await openMapFromOrder();
       return;
     }
 
@@ -44,88 +102,67 @@ export const FunctionBar: React.FC<FunctionBarProps> = ({active}) => {
   };
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.row}>
-        {items.slice(0, 4).map((item) => {
+    <View style={styles.bottomBar}>
+      {items.map((item) => {
           const isActive = active === item.key;
+          const isMapItem = item.key === 'map';
           return (
             <Pressable
               key={item.key}
-              onPress={() => handleNavigate(item.key)}
-              style={({pressed}) => [styles.item, isActive && styles.itemActive, pressed && styles.itemPressed]}>
-              <Ionicons name={item.icon} size={20} color={isActive ? palette.card : palette.textSecondary} />
-              {isActive ? (
-                <>
-                  <View style={styles.activeDot} />
-                  <Text style={styles.activeLabel}>{item.label}</Text>
-                </>
-              ) : null}
+              onPress={() => {
+                handleNavigate(item.key).catch(() => {});
+              }}
+              disabled={isMapItem && mapLoading}
+              style={({pressed}) => [styles.tabItem, pressed && styles.tabItemPressed]}>
+              {isMapItem && mapLoading ? (
+                <ActivityIndicator size="small" color="#1c4f38" />
+              ) : (
+                <Ionicons name={item.icon} size={iconSize(20)} color={isActive ? '#1c4f38' : '#7a7a7a'} />
+              )}
+              <Text style={[styles.tabLabel, isActive ? styles.tabLabelActive : null]}>{item.label}</Text>
+              {isActive ? <View style={styles.activeDot} /> : null}
             </Pressable>
           );
         })}
-
-        <Pressable style={({pressed}) => [styles.item, styles.logoutButton, pressed && styles.itemPressed]} onPress={logout}>
-          <Ionicons name="log-out-outline" size={20} color={palette.accent} />
-        </Pressable>
-      </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  wrapper: {
-    marginHorizontal: 10,
-    marginBottom: 10,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: palette.border,
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    shadowColor: palette.textPrimary,
-    shadowOffset: {width: 0, height: 6},
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  row: {
+const styles = createResponsiveStyles({
+  bottomBar: {
     flexDirection: 'row',
-    gap: 6,
+    backgroundColor: '#f2f2f2',
+    borderTopWidth: 1,
+    borderColor: '#d4d4d4',
+    paddingVertical: 6,
+    paddingHorizontal: 8,
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  item: {
+  tabItem: {
     flex: 1,
-    minHeight: 52,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: palette.border,
+    minHeight: 46,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
-    backgroundColor: palette.background,
+    paddingVertical: 2,
   },
-  itemActive: {
-    backgroundColor: palette.primary,
-    borderColor: palette.primary,
+  tabItemPressed: {
+    opacity: 0.8,
   },
-  itemPressed: {
-    opacity: 0.85,
+  tabLabel: {
+    color: '#7a7a7a',
+    fontSize: 10,
+    marginTop: 2,
   },
-  logoutButton: {
-    borderColor: palette.danger,
-    backgroundColor: palette.card,
+  tabLabelActive: {
+    color: '#1c4f38',
+    fontWeight: '700',
   },
   activeDot: {
-    marginTop: 1,
-    width: 6,
-    height: 6,
+    marginTop: 2,
+    width: 5,
+    height: 5,
     borderRadius: 999,
-    backgroundColor: palette.card,
-  },
-  activeLabel: {
-    color: palette.card,
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    backgroundColor: '#1c4f38',
   },
 });

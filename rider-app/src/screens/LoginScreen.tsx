@@ -11,25 +11,26 @@ import {
 } from 'react-native';
 import {useRiderAuth} from '../context/RiderAuthContext';
 import {extractErrorMessage} from '../utils/errors';
+import {createResponsiveStyles} from '../utils/responsive';
 
 export const LoginScreen: React.FC = () => {
   const {login} = useRiderAuth();
-  const [riderId, setRiderId] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async () => {
-    if (!riderId.trim() || !password.trim()) {
-      setError('Rider ID and password are required');
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required');
       return;
     }
 
     try {
       setLoading(true);
       setError(null);
-      await login(riderId.trim(), password);
+      await login(email.trim().toLowerCase(), password);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -62,15 +63,15 @@ export const LoginScreen: React.FC = () => {
           <Text style={styles.title}>Welcome Rider!</Text>
           <Text style={styles.subtitle}>Login to start your delivery shift</Text>
 
-          <Text style={styles.fieldLabel}>Mobile Number</Text>
+          <Text style={styles.fieldLabel}>Email</Text>
           <View style={styles.inputWrap}>
             <Text style={styles.inputIcon}>◻</Text>
             <TextInput
-              placeholder="+91 98765 43210"
+              placeholder="rider@example.com"
               autoCapitalize="none"
-              keyboardType="phone-pad"
-              value={riderId}
-              onChangeText={setRiderId}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
               placeholderTextColor="#444444"
               style={styles.input}
             />
@@ -104,15 +105,13 @@ export const LoginScreen: React.FC = () => {
             ]}>
             <Text style={styles.loginButtonText}>{loading ? 'Logging in...' : 'Login to Rider App'}</Text>
           </Pressable>
-
-          <Text style={styles.registerText}>New rider? Register here</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   safeArea: {
     flex: 1,
     backgroundColor: '#2d7d4b',

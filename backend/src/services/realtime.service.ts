@@ -203,6 +203,15 @@ export const emitOrderRealtime = async (
       order: plainOrder,
       socketEventId: `${Date.now()}_${orderId}`,
     });
+
+    if (eventType === "status" && riderPayload.status === "OutForDelivery") {
+      socket.to(`user:${customerId}`).emit("user:orderArriving", {
+        event: "arriving",
+        orderId,
+        riderStatus: riderPayload.status,
+        socketEventId: `${Date.now()}_${orderId}_arriving`,
+      });
+    }
   }
 
   if (assignedRiderId) {

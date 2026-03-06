@@ -1,6 +1,9 @@
 import React from 'react';
 import { Product, SortKey } from '../../hooks/useProducts';
 
+const compareByName = (first: string, second: string): number =>
+  first.localeCompare(second, undefined, { sensitivity: 'base' });
+
 interface Props {
   subCategoryGroups: Record<string, Product[]>;
   sortKey: SortKey;
@@ -148,7 +151,7 @@ export default function ProductsTable({
   subCategoryGroups, sortKey, sortOrder, toggleSort,
   hasPerm, onEdit, onDelete, onRemoveImage,
 }: Props) {
-  const subCatNames = Object.keys(subCategoryGroups).sort();
+  const subCatNames = Object.keys(subCategoryGroups).sort(compareByName);
   const totalProducts = Object.values(subCategoryGroups).reduce((sum, arr) => sum + arr.length, 0);
 
   if (totalProducts === 0) {
