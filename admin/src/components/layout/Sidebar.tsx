@@ -16,7 +16,7 @@ const NAV_ITEMS = [
         to: "/",
         label: "Dashboard",
         icon: (
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="3" width="7" height="7" rx="1.5"/>
             <rect x="14" y="3" width="7" height="7" rx="1.5"/>
             <rect x="3" y="14" width="7" height="7" rx="1.5"/>
@@ -30,16 +30,16 @@ const NAV_ITEMS = [
   {
     section: "Management",
     links: [
-      { to: "/users",    label: "Users",    key: "users",    icon: <span>👤</span> },
-      { to: "/riders",   label: "Riders",   key: "riders",   icon: <span>🚴</span> },
-      { to: "/products", label: "Products", key: "products", icon: <span>📦</span> },
-      { to: "/orders",   label: "Orders",   key: "orders",   icon: <span>🧾</span> },
+      { to: "/users",    label: "Users",    key: "users",    icon: <span style={{ fontSize: '12px' }}>👤</span> },
+      { to: "/riders",   label: "Riders",   key: "riders",   icon: <span style={{ fontSize: '12px' }}>🚴</span> },
+      { to: "/products", label: "Products", key: "products", icon: <span style={{ fontSize: '12px' }}>📦</span> },
+      { to: "/orders",   label: "Orders",   key: "orders",   icon: <span style={{ fontSize: '12px' }}>🧾</span> },
     ],
   },
   {
     section: "System",
     links: [
-      { to: "/roles", label: "Roles", key: "roles", icon: <span>🛡</span> },
+      { to: "/roles", label: "Roles", key: "roles", icon: <span style={{ fontSize: '12px' }}>🛡</span> },
     ],
   },
 ];

@@ -144,12 +144,12 @@ export default function Dashboard() {
         {kpis.map((k) => (
           <button
             key={k.title}
-            className="bg-white p-4 rounded shadow flex flex-col text-left hover:ring-2 hover:ring-indigo-200 transition"
+            className="bg-white p-2 rounded shadow flex flex-col text-left hover:ring-2 hover:ring-indigo-200 transition"
             onClick={() => onKpiClick(k.key)}
           >
-            <div className="text-sm text-slate-500">{k.title}</div>
-            <div className="text-2xl font-bold mt-2">{k.value ?? '-'}</div>
-            {k.hint && <div className="text-xs text-slate-400 mt-2">{k.hint}</div>}
+            <div className="text-xs text-slate-500">{k.title}</div>
+            <div className="text-lg font-bold mt-1">{k.value ?? '-'}</div>
+            {k.hint && <div className="text-xs text-slate-400 mt-1">{k.hint}</div>}
           </button>
         ))}
       </div>
