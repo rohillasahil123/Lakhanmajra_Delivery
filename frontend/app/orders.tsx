@@ -1,7 +1,7 @@
 import { ThemedText } from "@/components/themed-text";
 import { resolveImageUrl, API_BASE_URL } from "@/config/api";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -69,6 +69,7 @@ export default function OrdersScreen() {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(
     null,
   );
+  const statusByOrderRef = useRef<Record<string, string>>({});
   const filter = String(params.filter || "all").toLowerCase();
 
   const normalizeStatus = (value: string) =>
@@ -147,8 +148,18 @@ export default function OrdersScreen() {
       try {
         const rows = await getMyOrdersApi();
         setOrders(rows || []);
+        statusByOrderRef.current = (rows || []).reduce<Record<string, string>>(
+          (accumulator, row) => {
+            if (row?._id) {
+              accumulator[row._id] = String(row.status || "").toLowerCase();
+            }
+            return accumulator;
+          },
+          {},
+        );
       } catch {
         setOrders([]);
+        statusByOrderRef.current = {};
       } finally {
         setLoading(false);
       }
@@ -173,6 +184,18 @@ export default function OrdersScreen() {
         const incoming = payload?.order;
         if (!incoming?._id) return;
 
+        const incomingStatus = normalizeStatus(incoming.status || "");
+        const previousStatus = normalizeStatus(
+          statusByOrderRef.current[incoming._id] || "",
+        );
+        statusByOrderRef.current[incoming._id] = incomingStatus;
+
+        if (previousStatus !== incomingStatus) {
+          if (incomingStatus === "delivered") {
+            Alert.alert("Order Delivered", "Aapka order deliver ho gaya hai.");
+          }
+        }
+
         setOrders((prev) => {
           const index = prev.findIndex((row) => row._id === incoming._id);
           if (index === -1) {
@@ -184,12 +207,17 @@ export default function OrdersScreen() {
           return next;
         });
       });
+
+      socket.on("user:orderArriving", () => {
+        Alert.alert("Rider Arriving", "Aapka order ab delivery ke liye aa raha hai.");
+      });
     })();
 
     return () => {
       mounted = false;
       if (socket) {
         socket.off("user:orderUpdated");
+        socket.off("user:orderArriving");
         socket.disconnect();
       }
     };

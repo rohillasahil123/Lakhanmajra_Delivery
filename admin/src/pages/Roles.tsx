@@ -35,6 +35,11 @@ const MODULE_ICONS: Record<string, string> = {
   other: '⚙️',
 };
 
+const compareModuleEntries = (
+  first: [string, unknown],
+  second: [string, unknown]
+): number => first[0].localeCompare(second[0], undefined, {sensitivity: 'base'});
+
 const ROLE_COLORS = [
   { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
   { bg: 'bg-purple-50', border: 'border-purple-200', icon: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500' },
@@ -123,6 +128,7 @@ function CreateRoleModal({
               />
             </div>
 
+<<<<<<< HEAD
             {/* Permissions grouped by module */}
             <div className="col-span-2">
               <label className="text-xs text-slate-500 mb-2 block font-medium uppercase tracking-wide">
@@ -171,6 +177,18 @@ function CreateRoleModal({
                           </label>
                         ))}
                       </div>
+=======
+          {/* Permissions grouped by module */}
+          <div>
+            <label className="text-xs text-slate-500 mb-2 block font-medium uppercase tracking-wide">Permissions ({perms.length} selected)</label>
+            <div className="space-y-3">
+              {Object.entries(groups).sort(compareModuleEntries).map(([module, modulePerms]) => (
+                <div key={module} className="border border-slate-100 rounded-xl overflow-hidden">
+                  <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
+                    <div className="flex items-center gap-2">
+                      <span>{MODULE_ICONS[module] || '⚙️'}</span>
+                      <span className="text-xs font-semibold text-slate-600 capitalize">{module}</span>
+>>>>>>> 8eb5005 (rider app flow intigrated)
                     </div>
                   ))}
               </div>
@@ -354,6 +372,7 @@ function RoleDetailModal({
 
           {activeTab === 'permissions' && (
             <div className="space-y-3">
+<<<<<<< HEAD
               {Object.entries(groups)
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([module, modulePerms]) => {
@@ -363,6 +382,13 @@ function RoleDetailModal({
                   if (!isEditing && grantedInRole.length === 0) {
                     return null;
                   }
+=======
+              {Object.entries(groups).sort(compareModuleEntries).map(([module, modulePerms]) => {
+                const grantedInRole   = modulePerms.filter((p) => rolePermIds.has(p._id));
+                const selectedInEdit  = modulePerms.filter((p) => editPerms.includes(p._id));
+                const displayPerms    = isEditing ? modulePerms : grantedInRole;
+                if (!isEditing && grantedInRole.length === 0) return null;
+>>>>>>> 8eb5005 (rider app flow intigrated)
 
                   return (
                     <div key={module} className="border border-slate-100 rounded-xl overflow-hidden">

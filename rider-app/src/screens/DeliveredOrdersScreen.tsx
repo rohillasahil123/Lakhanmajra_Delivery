@@ -8,6 +8,7 @@ import {riderService} from '../services/riderService';
 import {RiderOrder} from '../types/rider';
 import {extractErrorMessage} from '../utils/errors';
 import {palette} from '../constants/theme';
+import {createResponsiveStyles} from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DeliveredOrders'>;
 
@@ -79,7 +80,7 @@ export const DeliveredOrdersScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   container: {
     flex: 1,
     backgroundColor: palette.background,

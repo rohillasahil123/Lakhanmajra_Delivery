@@ -1,6 +1,7 @@
 import React from 'react';
 import {ActivityIndicator, Pressable, StyleSheet, Text} from 'react-native';
 import {palette} from '../constants/theme';
+import {createResponsiveStyles} from '../utils/responsive';
 
 interface AppButtonProps {
   title: string;
@@ -40,7 +41,7 @@ export const AppButton: React.FC<AppButtonProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   button: {
     minHeight: 48,
     borderRadius: 12,

@@ -1,6 +1,7 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -21,10 +22,22 @@ import {riderService} from '../services/riderService';
 import {OrderStatus, RiderOrder} from '../types/rider';
 import {extractErrorMessage} from '../utils/errors';
 import {assertValidTransition} from '../utils/orderStateMachine';
+import {createResponsiveStyles, iconSize} from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>;
 
 const ONGOING_STATUSES: OrderStatus[] = ['Accepted', 'Picked', 'OutForDelivery'];
+const NEXT_STATUS_MAP: Partial<Record<OrderStatus, OrderStatus>> = {
+  Accepted: 'Picked',
+  Picked: 'OutForDelivery',
+  OutForDelivery: 'Delivered',
+};
+
+const STATUS_BUTTON_LABEL: Partial<Record<OrderStatus, string>> = {
+  Accepted: 'Mark Picked',
+  Picked: 'Arriving to Customer',
+  OutForDelivery: 'Mark Delivered',
+};
 
 const timeAgo = (isoDate: string): string => {
   const source = new Date(isoDate).getTime();
@@ -196,13 +209,32 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
     });
   };
 
+  const callCustomer = async (phone?: string) => {
+    const normalized = String(phone || '').trim();
+    if (!normalized) {
+      setError('Customer contact number not available');
+      return;
+    }
+
+    const dialUrl = `tel:${normalized}`;
+    const supported = await Linking.canOpenURL(dialUrl);
+    if (!supported) {
+      setError('Unable to open phone dialer');
+      return;
+    }
+
+    await Linking.openURL(dialUrl);
+  };
+
   const openActiveOrderMap = () => {
-    if (!activeOrder) {
+    const mapTargetOrder = activeOrder || newOrder;
+
+    if (!mapTargetOrder) {
       setError('No active order available for map navigation');
       return;
     }
 
-    openOrderLocation(activeOrder).catch(() => {});
+    openOrderLocation(mapTargetOrder).catch(() => {});
   };
 
   if (loading) {
@@ -222,7 +254,7 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
         </View>
 
         <View style={styles.statusPill}>
-          <Text style={styles.statusLabel}>Status:</Text>
+          {/* <Text style={styles.statusLabel}>Status:</Text> */}
           <View style={[styles.onlineBadge, online ? styles.onlineBadgeOn : styles.onlineBadgeOff]}>
             <Text style={styles.onlineBadgeText}>{online ? 'ONLINE' : 'OFFLINE'}</Text>
           </View>
@@ -318,6 +350,32 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
                 <Text style={styles.progressLeft}>Picked up</Text>
                 <Text style={styles.progressRight}>Delivering...</Text>
               </View>
+
+              <View style={styles.activeActionsRow}>
+                <Pressable
+                  style={[styles.activeCallButton, transitionLoadingOrderId === activeOrder.id ? styles.activeActionDisabled : null]}
+                  disabled={transitionLoadingOrderId === activeOrder.id}
+                  onPress={() => {
+                    callCustomer(activeOrder.customer.phone).catch(() => {});
+                  }}>
+                  <Text style={styles.activeCallText}>Call Customer</Text>
+                </Pressable>
+
+                {NEXT_STATUS_MAP[activeOrder.status] ? (
+                  <Pressable
+                    style={[styles.activeNextButton, transitionLoadingOrderId === activeOrder.id ? styles.activeActionDisabled : null]}
+                    disabled={transitionLoadingOrderId === activeOrder.id}
+                    onPress={() => {
+                      applyTransition(activeOrder, NEXT_STATUS_MAP[activeOrder.status] as OrderStatus).catch(() => {});
+                    }}>
+                    <Text style={styles.activeNextText}>
+                      {transitionLoadingOrderId === activeOrder.id
+                        ? 'Updating...'
+                        : STATUS_BUTTON_LABEL[activeOrder.status] || 'Update Status'}
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
             </>
           ) : (
             <Text style={styles.emptyText}>No active order right now.</Text>
@@ -368,28 +426,28 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
 
       <View style={styles.bottomBar}>
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Dashboard')}>
-          <Ionicons name="home-outline" size={20} color="#1c4f38" />
+          <Ionicons name="home-outline" size={iconSize(20)} color="#1c4f38" />
           <Text style={[styles.tabLabel, styles.tabLabelActive]}>Home</Text>
           <View style={styles.activeDot} />
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('DeliveredOrders')}>
-          <Ionicons name="receipt-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="receipt-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Orders</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={openActiveOrderMap}>
-          <Ionicons name="map-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="map-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Map</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Earnings')}>
-          <Ionicons name="wallet-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="wallet-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Earnings</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('RiderProfile')}>
-          <Ionicons name="person-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="person-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Profile</Text>
         </Pressable>
       </View>
@@ -408,7 +466,7 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   container: {
     flex: 1,
     backgroundColor: '#e6e4df',
@@ -430,18 +488,18 @@ const styles = StyleSheet.create({
   },
   greeting: {
     color: '#c6e7d8',
-    fontSize: 26,
+    fontSize: 22,
   },
   riderName: {
     color: '#ffffff',
-    fontSize: 40,
+    fontSize: 26,
     fontWeight: '700',
     marginTop: 2,
   },
   statusPill: {
     backgroundColor: '#2d7d57',
     borderRadius: 28,
-    paddingHorizontal: 10,
+    paddingHorizontal: 5,
     paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
@@ -449,10 +507,10 @@ const styles = StyleSheet.create({
   },
   statusLabel: {
     color: '#d7efe2',
-    fontSize: 20,
+    fontSize: 16,
   },
   onlineBadge: {
-    borderRadius: 999,
+    borderRadius:13,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
@@ -464,8 +522,8 @@ const styles = StyleSheet.create({
   },
   onlineBadgeText: {
     color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '400',
   },
   switch: {
     transform: [{scaleX: 0.9}, {scaleY: 0.9}],
@@ -473,7 +531,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 8,
+    paddingBottom: 6,
   },
   errorText: {
     color: '#b42318',
@@ -484,20 +542,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f3f3',
     borderRadius: 18,
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: -30,
+    paddingVertical: 14,
+    marginTop: -4,
     borderWidth: 1,
     borderColor: '#d8d8d8',
   },
   summaryHeading: {
     color: '#1f4f39',
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '700',
   },
   summaryDivider: {
-    height: 1,
+    height: 1, 
     backgroundColor: '#c2c2c2',
-    marginVertical: 8,
+    marginVertical: 6,
   },
   summaryRow: {
     flexDirection: 'row',
@@ -508,12 +566,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   summaryValue: {
-    fontSize: 40,
+    fontSize: 20,
     color: '#1d4f3b',
     fontWeight: '700',
   },
   summaryLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#7a7a7a',
     textAlign: 'center',
     marginTop: 2,
@@ -531,7 +589,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: '#f4d91b',
     borderRadius: 999,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     marginBottom: 4,
   },
@@ -542,27 +600,27 @@ const styles = StyleSheet.create({
   },
   newOrderId: {
     color: '#ffffff',
-    fontSize: 37,
+    fontSize: 15,
     fontWeight: '800',
   },
   newOrderMeta: {
     color: '#d9f4e6',
-    fontSize: 21,
+    fontSize: 15,
     marginTop: 2,
   },
   newOrderAmount: {
     color: '#fbe96a',
-    fontSize: 24,
+    fontSize: 15,
     fontWeight: '700',
     marginTop: 2,
   },
   acceptButton: {
     alignSelf: 'flex-end',
-    marginTop: 8,
+    marginTop: 4,
     backgroundColor: '#f4cd22',
     borderRadius: 999,
-    paddingHorizontal: 24,
-    height: 42,
+    paddingHorizontal: 22,
+    height: 35,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -578,10 +636,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   sectionTitle: {
-    fontSize: 34,
+    fontSize: 22,
     fontWeight: '700',
     color: '#1f1f1f',
-    marginTop: 12,
+    marginTop: 10,
     marginBottom: 6,
   },
   activeOrderCard: {
@@ -589,7 +647,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: '#d0d0d0',
-    padding: 10,
+    padding: 4,
   },
   activeTopRow: {
     flexDirection: 'row',
@@ -655,6 +713,42 @@ const styles = StyleSheet.create({
   progressRight: {
     color: '#7f7f7f',
     fontSize: 12,
+  },
+  activeActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  activeCallButton: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#d1d1d1',
+    borderRadius: 12,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeCallText: {
+    color: '#1f3f34',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  activeNextButton: {
+    flex: 1,
+    backgroundColor: '#1f6b45',
+    borderRadius: 12,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activeNextText: {
+    color: '#ffffff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  activeActionDisabled: {
+    opacity: 0.7,
   },
   quickActionsRow: {
     flexDirection: 'row',

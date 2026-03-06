@@ -16,6 +16,7 @@ import {riderService} from '../services/riderService';
 import {OrderStatus, RiderOrder} from '../types/rider';
 import {extractErrorMessage} from '../utils/errors';
 import {assertValidTransition, getAllowedTransitions} from '../utils/orderStateMachine';
+import {createResponsiveStyles, iconSize} from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'OrderDetail'>;
 
@@ -122,7 +123,7 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
       <View style={styles.topHeader}>
         <View style={styles.headerLeft}>
           <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={22} color="#d6efe2" />
+            <Ionicons name="arrow-back" size={iconSize(22)} color="#d6efe2" />
           </Pressable>
           <Text style={styles.headerTitle}>Order Details</Text>
         </View>
@@ -226,28 +227,28 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
       <View style={styles.bottomBar}>
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Dashboard')}>
-          <Ionicons name="home-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="home-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Home</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('DeliveredOrders')}>
-          <Ionicons name="receipt-outline" size={20} color="#1c4f38" />
+          <Ionicons name="receipt-outline" size={iconSize(20)} color="#1c4f38" />
           <Text style={[styles.tabLabel, styles.tabLabelActive]}>Orders</Text>
           <View style={styles.activeDot} />
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={openNavigation}>
-          <Ionicons name="map-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="map-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Map</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Earnings')}>
-          <Ionicons name="wallet-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="wallet-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Earnings</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('RiderProfile')}>
-          <Ionicons name="person-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="person-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Profile</Text>
         </Pressable>
       </View>
@@ -255,7 +256,7 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   container: {
     flex: 1,
     backgroundColor: '#ece9e4',

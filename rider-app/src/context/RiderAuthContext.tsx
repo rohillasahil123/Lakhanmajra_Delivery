@@ -8,7 +8,7 @@ type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated';
 interface RiderAuthContextType {
   status: AuthStatus;
   session: AuthSession | null;
-  login: (riderId: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   setOnlineState: (online: boolean) => void;
 }
@@ -70,8 +70,8 @@ export const RiderAuthProvider: React.FC<React.PropsWithChildren> = ({children})
     };
   }, []);
 
-  const login = async (riderId: string, password: string): Promise<void> => {
-    const nextSession = await authService.login(riderId, password);
+  const login = async (email: string, password: string): Promise<void> => {
+    const nextSession = await authService.login(email, password);
     setSession(nextSession);
     setStatus('authenticated');
   };

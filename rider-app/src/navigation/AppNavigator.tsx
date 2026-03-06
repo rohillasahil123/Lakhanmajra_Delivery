@@ -12,6 +12,7 @@ import {OrderDetailScreen} from '../screens/OrderDetailScreen';
 import {RiderProfileScreen} from '../screens/RiderProfileScreen';
 import {RootStackParamList} from './types';
 import {palette} from '../constants/theme';
+import {createResponsiveStyles} from '../utils/responsive';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -48,7 +49,7 @@ export const AppNavigator: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   loaderContainer: {
     flex: 1,
     justifyContent: 'center',

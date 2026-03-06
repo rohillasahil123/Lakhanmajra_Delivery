@@ -22,6 +22,7 @@ import {riderService} from '../services/riderService';
 import {RiderDocumentField, RiderProfileKycForm} from '../types/rider';
 import {palette} from '../constants/theme';
 import {extractErrorMessage} from '../utils/errors';
+import {createResponsiveStyles} from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'RiderProfile'>;
 
@@ -169,7 +170,7 @@ const uploadFieldSet = new Set<FieldKey>(uploadFieldKeys);
 type UploadSource = 'camera' | 'gallery';
 
 export const RiderProfileScreen: React.FC<Props> = () => {
-  const {session} = useRiderAuth();
+  const {session, logout} = useRiderAuth();
   const [form, setForm] = useState<RiderProfileKycForm>(() =>
     createInitialForm(session?.rider.name ?? '', session?.rider.phone ?? '')
   );
@@ -310,6 +311,21 @@ export const RiderProfileScreen: React.FC<Props> = () => {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert('Logout', 'Kya aap logout karna chahte hain?', [
+      {text: 'Cancel', style: 'cancel'},
+      {
+        text: 'Logout',
+        style: 'destructive',
+        onPress: () => {
+          logout().catch(() => {
+            setError('Unable to logout. Please try again.');
+          });
+        },
+      },
+    ]);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardWrap}>
@@ -381,6 +397,7 @@ export const RiderProfileScreen: React.FC<Props> = () => {
 
           <View style={styles.actionRow}>
             <AppButton title={loading ? 'Loading...' : 'Submit Profile'} onPress={handleSubmit} loading={saving} disabled={loading} />
+            <AppButton title="Logout" onPress={handleLogout} variant="danger" disabled={saving} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -389,7 +406,7 @@ export const RiderProfileScreen: React.FC<Props> = () => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   container: {
     flex: 1,
     backgroundColor: palette.background,

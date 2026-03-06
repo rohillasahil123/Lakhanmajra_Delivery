@@ -7,6 +7,7 @@ import {RootStackParamList} from '../navigation/types';
 import {riderService} from '../services/riderService';
 import {EarningsSummary} from '../types/rider';
 import {extractErrorMessage} from '../utils/errors';
+import {createResponsiveStyles, iconSize} from '../utils/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Earnings'>;
 
@@ -187,28 +188,28 @@ export const EarningsScreen: React.FC<Props> = ({navigation}) => {
 
       <View style={styles.bottomBar}>
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Dashboard')}>
-          <Ionicons name="home-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="home-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Home</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('DeliveredOrders')}>
-          <Ionicons name="receipt-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="receipt-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Orders</Text>
         </Pressable>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Dashboard')}>
-          <Ionicons name="map-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="map-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Map</Text>
         </Pressable>
 
         <View style={styles.tabItem}>
-          <Ionicons name="wallet-outline" size={20} color="#1f5a3e" />
+          <Ionicons name="wallet-outline" size={iconSize(20)} color="#1f5a3e" />
           <Text style={[styles.tabLabel, styles.tabLabelActive]}>Earnings</Text>
           <View style={styles.activeDot} />
         </View>
 
         <Pressable style={styles.tabItem} onPress={() => navigation.navigate('RiderProfile')}>
-          <Ionicons name="person-outline" size={20} color="#7a7a7a" />
+          <Ionicons name="person-outline" size={iconSize(20)} color="#7a7a7a" />
           <Text style={styles.tabLabel}>Profile</Text>
         </Pressable>
       </View>
@@ -216,7 +217,7 @@ export const EarningsScreen: React.FC<Props> = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   container: {
     flex: 1,
     backgroundColor: '#ece9e4',

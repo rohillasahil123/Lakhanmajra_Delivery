@@ -3,6 +3,7 @@ import {Image, StyleSheet, Text, View} from 'react-native';
 import {RiderOrder} from '../types/rider';
 import {palette} from '../constants/theme';
 import {AppButton} from './AppButton';
+import {createResponsiveStyles} from '../utils/responsive';
 
 interface OrderCardProps {
   order: RiderOrder;
@@ -111,7 +112,7 @@ export const OrderCard: React.FC<OrderCardProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   card: {
     backgroundColor: palette.card,
     borderRadius: 16,
