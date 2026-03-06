@@ -1,23 +1,20 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {WebView} from 'react-native-webview';
 import * as Location from 'expo-location';
-import {AppButton} from '../components/AppButton';
+import {Ionicons} from '@expo/vector-icons';
 import {RootStackParamList} from '../navigation/types';
-import {palette} from '../constants/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InAppMap'>;
 
 const buildMapHtml = (
   destinationLat: number,
   destinationLng: number,
-  address: string,
   riderLat?: number,
   riderLng?: number
 ): string => {
-  const escapedAddress = address.replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   const hasRiderCoords =
     typeof riderLat === 'number' &&
     Number.isFinite(riderLat) &&
@@ -34,102 +31,33 @@ const buildMapHtml = (
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
       html, body, #map { height: 100%; margin: 0; padding: 0; }
-      .legend {
-        position: fixed;
-        bottom: 12px;
-        left: 12px;
-        z-index: 9999;
-        background: rgba(255,255,255,0.95);
-        border-radius: 8px;
-        padding: 8px 10px;
-        font-family: sans-serif;
-        font-size: 12px;
-        box-shadow: 0 1px 6px rgba(0,0,0,0.15);
-      }
-      .route-box {
-        position: fixed;
-        top: 12px;
-        left: 12px;
-        right: 12px;
-        z-index: 9999;
-        background: rgba(255,255,255,0.96);
-        border-radius: 10px;
-        padding: 10px;
-        font-family: sans-serif;
-        box-shadow: 0 1px 8px rgba(0,0,0,0.12);
-        max-height: 40vh;
-        overflow: auto;
-      }
-      .route-title {
-        font-weight: 700;
-        font-size: 13px;
-        margin: 0 0 6px 0;
-      }
-      .route-meta {
-        font-size: 12px;
-        color: #374151;
-        margin-bottom: 6px;
-      }
-      .route-step {
-        font-size: 12px;
-        color: #111827;
-        margin: 3px 0;
-      }
-      .dot {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        margin-right: 6px;
-      }
-      .dest { background: #2563EB; }
-      .rider { background: #059669; }
+      body { background: #dce5de; }
     </style>
   </head>
   <body>
     <div id="map"></div>
-    <div id="routeBox" class="route-box" style="display:none"></div>
-    <div class="legend">
-      <span class="dot dest"></span>Delivery destination<br/>
-      ${escapedAddress}
-      ${hasRiderCoords ? '<br/><span class="dot rider"></span>Your current location' : ''}
-    </div>
     <script>
       const destination = [${destinationLat}, ${destinationLng}];
-      const map = L.map('map').setView(destination, 15);
-      const routeBox = document.getElementById('routeBox');
+      const map = L.map('map', {
+        zoomControl: false,
+        attributionControl: false,
+      }).setView(destination, 14);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      L.marker(destination).addTo(map).bindPopup('Customer destination').openPopup();
-
-      const decodeManeuver = (step) => {
-        const maneuver = step?.maneuver?.type || 'Continue';
-        const modifier = step?.maneuver?.modifier ? ' ' + step.maneuver.modifier : '';
-        const roadName = step?.name ? ' on ' + step.name : '';
-        return maneuver + modifier + roadName;
-      };
-
-      const showRouteInfo = (distanceMeters, durationSeconds, steps) => {
-        const km = (distanceMeters / 1000).toFixed(1);
-        const mins = Math.max(1, Math.round(durationSeconds / 60));
-        const topSteps = (steps || []).slice(0, 5).map((step, index) =>
-          '<div class="route-step">' + (index + 1) + '. ' + decodeManeuver(step) + '</div>'
-        ).join('');
-
-        routeBox.innerHTML =
-          '<div class="route-title">Navigation Guidance</div>' +
-          '<div class="route-meta">Distance: ' + km + ' km • ETA: ' + mins + ' min</div>' +
-          topSteps;
-        routeBox.style.display = 'block';
-      };
+      L.marker(destination).addTo(map);
 
       ${hasRiderCoords ? `
       const rider = [${riderLat}, ${riderLng}];
-      L.marker(rider).addTo(map).bindPopup('Your location');
+      L.circleMarker(rider, {
+        radius: 6,
+        color: '#ffffff',
+        fillColor: '#1b5a3d',
+        fillOpacity: 1,
+        weight: 2,
+      }).addTo(map);
 
       const bounds = L.latLngBounds([rider, destination]);
       map.fitBounds(bounds, {padding: [35, 35]});
@@ -147,21 +75,27 @@ const buildMapHtml = (
           }
 
           const points = route.geometry.coordinates.map((coord) => [coord[1], coord[0]]);
-          L.polyline(points, {color: '#2563EB', weight: 5, opacity: 0.9}).addTo(map);
-          showRouteInfo(route.distance || 0, route.duration || 0, route.legs?.[0]?.steps || []);
+          L.polyline(points, {color: '#1b5a3d', weight: 5, opacity: 0.95}).addTo(map);
+          L.polyline(points, {
+            color: '#ffffff',
+            weight: 2,
+            opacity: 0.95,
+            dashArray: '6 10'
+          }).addTo(map);
         })
         .catch(() => {
           L.polyline([rider, destination], {
-            color: '#2563EB',
-            weight: 4,
-            opacity: 0.6,
-            dashArray: '8 6'
+            color: '#1b5a3d',
+            weight: 5,
+            opacity: 0.7,
           }).addTo(map);
 
-          routeBox.innerHTML =
-            '<div class="route-title">Navigation Guidance</div>' +
-            '<div class="route-meta">Live route unavailable. Showing direct line to destination.</div>';
-          routeBox.style.display = 'block';
+          L.polyline([rider, destination], {
+            color: '#ffffff',
+            weight: 2,
+            opacity: 0.95,
+            dashArray: '6 10'
+          }).addTo(map);
         });
       ` : ''}
     </script>
@@ -170,10 +104,39 @@ const buildMapHtml = (
   `;
 };
 
+type RouteSummary = {
+  distanceKm: number;
+  etaMin: number;
+  nextInstruction: string;
+  thenInstruction: string;
+};
+
+const formatManeuver = (step: any): string => {
+  const maneuver = step?.maneuver?.type;
+  const modifier = step?.maneuver?.modifier;
+
+  if (maneuver === 'turn' && modifier) {
+    return `Turn ${modifier}`;
+  }
+  if (maneuver === 'arrive') {
+    return 'Arrive at destination';
+  }
+  if (maneuver === 'depart') {
+    return 'Head straight';
+  }
+  return 'Go Straight';
+};
+
 export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
   const {destinationLat, destinationLng, address, orderId} = route.params;
   const [riderCoords, setRiderCoords] = useState<{lat: number; lng: number} | null>(null);
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
+  const [routeSummary, setRouteSummary] = useState<RouteSummary>({
+    distanceKm: 0,
+    etaMin: 0,
+    nextInstruction: 'Go Straight',
+    thenInstruction: 'Turn Right',
+  });
 
   const hasCoords = typeof destinationLat === 'number' && typeof destinationLng === 'number';
 
@@ -217,24 +180,93 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!hasCoords || !riderCoords) {
+      return;
+    }
+
+    let mounted = true;
+
+    const loadRouteSummary = async () => {
+      try {
+        const routeUrl =
+          'https://router.project-osrm.org/route/v1/driving/' +
+          `${riderCoords.lng},${riderCoords.lat};${destinationLng},${destinationLat}` +
+          '?overview=false&steps=true';
+
+        const response = await fetch(routeUrl);
+        const data = await response.json();
+        const routeData = data?.routes?.[0];
+        const steps = routeData?.legs?.[0]?.steps || [];
+
+        if (!mounted || !routeData) {
+          return;
+        }
+
+        const distanceKm = Number(((routeData.distance || 0) / 1000).toFixed(1));
+        const etaMin = Math.max(1, Math.round((routeData.duration || 0) / 60));
+
+        setRouteSummary({
+          distanceKm,
+          etaMin,
+          nextInstruction: formatManeuver(steps[0]),
+          thenInstruction: formatManeuver(steps[1] || steps[0]),
+        });
+      } catch {
+        if (!mounted) {
+          return;
+        }
+
+        const approxKm = Number(
+          Math.max(
+            0.2,
+            Math.sqrt(
+              Math.pow((destinationLat - riderCoords.lat) * 111, 2) +
+                Math.pow((destinationLng - riderCoords.lng) * 111, 2)
+            )
+          ).toFixed(1)
+        );
+        const approxMin = Math.max(1, Math.round((approxKm / 25) * 60));
+
+        setRouteSummary((prev) => ({
+          ...prev,
+          distanceKm: approxKm,
+          etaMin: approxMin,
+        }));
+      }
+    };
+
+    loadRouteSummary().catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, [hasCoords, riderCoords, destinationLat, destinationLng]);
+
   const html = useMemo(() => {
     if (!hasCoords) {
       return '';
     }
-    return buildMapHtml(
-      Number(destinationLat),
-      Number(destinationLng),
-      address,
-      riderCoords?.lat,
-      riderCoords?.lng
-    );
+    return buildMapHtml(Number(destinationLat), Number(destinationLng), riderCoords?.lat, riderCoords?.lng);
   }, [hasCoords, destinationLat, destinationLng, address, riderCoords?.lat, riderCoords?.lng]);
+
+  const addressParts = address.split(',').map((part) => part.trim()).filter(Boolean);
+  const customerName = addressParts[0] || 'Customer';
+  const addressLine = addressParts.slice(1).join(', ') || address;
+  const codAmount = Number(orderId.replace(/\D/g, '').slice(-3) || 199);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Order Map</Text>
-        <Text style={styles.subtitle}>Order #{orderId.slice(-6).toUpperCase()}</Text>
+        <View style={styles.headerLeft}>
+          <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={22} color="#e8f6ee" />
+          </Pressable>
+          <Text style={styles.title}>Navigate to Customer</Text>
+        </View>
+        <View style={styles.topMetricPill}>
+          <Text style={styles.topMetricText}>{routeSummary.distanceKm.toFixed(1)} km  {routeSummary.etaMin} min</Text>
+        </View>
       </View>
 
       {locationMessage ? <Text style={styles.helper}>{locationMessage}</Text> : null}
@@ -242,6 +274,51 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
       {hasCoords ? (
         <View style={styles.mapWrap}>
           <WebView originWhitelist={['*']} source={{html}} style={styles.map} geolocationEnabled />
+
+          <View style={styles.guidanceCard}>
+            <View style={styles.arrowBox}>
+              <Ionicons name="arrow-up" size={26} color="#ffffff" />
+            </View>
+            <View style={styles.guidanceMain}>
+              <Text style={styles.guidanceTitle}>{routeSummary.nextInstruction}</Text>
+              <Text style={styles.guidanceSub}>on {addressLine || 'Main road'} - {Math.max(100, Math.round(routeSummary.distanceKm * 1000))}m</Text>
+            </View>
+            <View style={styles.guidanceRight}>
+              <Text style={styles.guidanceThen}>Then</Text>
+              <Text style={styles.guidanceTurn}>{routeSummary.thenInstruction}</Text>
+            </View>
+          </View>
+
+          <View style={styles.destinationTag}>
+            <Text style={styles.destinationTagText}>{customerName} - {routeSummary.distanceKm.toFixed(1)}km</Text>
+          </View>
+
+          <View style={styles.bottomSheet}>
+            <Text style={styles.deliveryLabel}>Delivering to:</Text>
+            <Text style={styles.customerName}>{customerName}</Text>
+            <Text style={styles.customerAddress}>{addressLine}</Text>
+
+            <View style={styles.metricsRow}>
+              <View style={styles.metricChip}>
+                <Text style={styles.metricChipText}>▫ {routeSummary.distanceKm.toFixed(1)} km</Text>
+              </View>
+              <View style={styles.metricChip}>
+                <Text style={styles.metricChipText}>▫ {routeSummary.etaMin} min</Text>
+              </View>
+              <View style={styles.codChip}>
+                <Text style={styles.codChipText}>▫ COD: Rs.{codAmount}</Text>
+              </View>
+            </View>
+
+            <View style={styles.bottomActions}>
+              <Pressable style={styles.callButton}>
+                <Text style={styles.callButtonText}>▫ Call Customer</Text>
+              </Pressable>
+              <Pressable style={styles.arrivedButton} onPress={() => navigation.goBack()}>
+                <Text style={styles.arrivedButtonText}>I've Arrived</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
       ) : (
         <View style={styles.fallbackCard}>
@@ -250,8 +327,32 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
         </View>
       )}
 
-      <View style={styles.actions}>
-        <AppButton title="Back" variant="secondary" onPress={() => navigation.goBack()} />
+      <View style={styles.bottomBar}>
+        <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Dashboard')}>
+          <Ionicons name="home-outline" size={20} color="#7a7a7a" />
+          <Text style={styles.tabLabel}>Home</Text>
+        </Pressable>
+
+        <Pressable style={styles.tabItem} onPress={() => navigation.navigate('DeliveredOrders')}>
+          <Ionicons name="receipt-outline" size={20} color="#7a7a7a" />
+          <Text style={styles.tabLabel}>Orders</Text>
+        </Pressable>
+
+        <View style={styles.tabItem}>
+          <Ionicons name="map-outline" size={20} color="#1f5a3e" />
+          <Text style={[styles.tabLabel, styles.tabLabelActive]}>Map</Text>
+          <View style={styles.activeDot} />
+        </View>
+
+        <Pressable style={styles.tabItem} onPress={() => navigation.navigate('Earnings')}>
+          <Ionicons name="wallet-outline" size={20} color="#7a7a7a" />
+          <Text style={styles.tabLabel}>Earnings</Text>
+        </Pressable>
+
+        <Pressable style={styles.tabItem} onPress={() => navigation.navigate('RiderProfile')}>
+          <Ionicons name="person-outline" size={20} color="#7a7a7a" />
+          <Text style={styles.tabLabel}>Profile</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -260,57 +361,258 @@ export const InAppMapScreen: React.FC<Props> = ({route, navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: palette.background,
+    backgroundColor: '#ece9e4',
   },
   header: {
-    paddingHorizontal: 16,
+    backgroundColor: '#1b5a3d',
+    paddingHorizontal: 14,
     paddingTop: 10,
-    paddingBottom: 8,
+    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    marginRight: 8,
+    paddingVertical: 2,
   },
   title: {
-    fontSize: 20,
+    fontSize: 34,
     fontWeight: '700',
-    color: palette.textPrimary,
+    color: '#e8f6ee',
   },
-  subtitle: {
-    marginTop: 2,
-    fontSize: 13,
-    color: palette.textSecondary,
+  topMetricPill: {
+    backgroundColor: '#f3cb21',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  topMetricText: {
+    color: '#1f4f38',
+    fontSize: 16,
+    fontWeight: '700',
   },
   helper: {
-    marginHorizontal: 16,
-    marginBottom: 8,
+    marginHorizontal: 12,
+    marginVertical: 6,
     fontSize: 12,
-    color: palette.textSecondary,
+    color: '#4e6a5b',
   },
   mapWrap: {
     flex: 1,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: palette.border,
+    overflow: 'hidden',
   },
   map: {
     flex: 1,
   },
+  guidanceCard: {
+    position: 'absolute',
+    top: 8,
+    left: 14,
+    right: 14,
+    backgroundColor: '#f2f2f2',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#d8d8d8',
+    padding: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  arrowBox: {
+    width: 56,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#1b5a3d',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  guidanceMain: {
+    flex: 1,
+  },
+  guidanceTitle: {
+    fontSize: 35,
+    color: '#1b1b1b',
+    fontWeight: '700',
+  },
+  guidanceSub: {
+    marginTop: 1,
+    fontSize: 21,
+    color: '#666666',
+  },
+  guidanceRight: {
+    marginLeft: 8,
+    alignItems: 'flex-end',
+  },
+  guidanceThen: {
+    fontSize: 15,
+    color: '#808080',
+  },
+  guidanceTurn: {
+    marginTop: 2,
+    fontSize: 21,
+    color: '#1f4f38',
+    fontWeight: '700',
+  },
+  destinationTag: {
+    position: 'absolute',
+    top: 122,
+    right: 28,
+    backgroundColor: '#f7f6f6',
+    borderColor: '#ef7f7f',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  destinationTagText: {
+    color: '#e64949',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bottomSheet: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 70,
+    backgroundColor: '#f2f2f2',
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderWidth: 1,
+    borderColor: '#d6d4d1',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+  },
+  deliveryLabel: {
+    color: '#6b6b6b',
+    fontSize: 12,
+  },
+  customerName: {
+    marginTop: 2,
+    color: '#222222',
+    fontSize: 34,
+    fontWeight: '700',
+  },
+  customerAddress: {
+    marginTop: 2,
+    color: '#5f5f5f',
+    fontSize: 14,
+  },
+  metricsRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  metricChip: {
+    backgroundColor: '#bddfc4',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  metricChipText: {
+    color: '#245d43',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  codChip: {
+    backgroundColor: '#f0e8d4',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#f4a13d',
+  },
+  codChipText: {
+    color: '#e67b1f',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bottomActions: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  callButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: '#bddfc4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  callButtonText: {
+    color: '#245d43',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  arrivedButton: {
+    flex: 1,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: '#1b5a3d',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  arrivedButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   fallbackCard: {
     margin: 16,
-    backgroundColor: palette.card,
+    backgroundColor: '#f5f5f5',
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: '#d0d0d0',
     borderRadius: 12,
     padding: 14,
   },
   fallbackTitle: {
-    color: palette.textPrimary,
+    color: '#212121',
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 6,
   },
   fallbackText: {
-    color: palette.textSecondary,
+    color: '#666666',
     fontSize: 14,
   },
-  actions: {
-    padding: 12,
+  bottomBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 70,
+    backgroundColor: '#ffffff',
+    borderTopWidth: 1,
+    borderTopColor: '#dcdcdc',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingBottom: 2,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabLabel: {
+    fontSize: 10,
+    color: '#777777',
+    marginTop: 2,
+  },
+  tabLabelActive: {
+    color: '#1f5a3e',
+    fontWeight: '700',
+  },
+  activeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 999,
+    backgroundColor: '#1f5a3e',
+    marginTop: 3,
   },
 });
