@@ -140,7 +140,7 @@ export const getUsersByRole = async (req: Request, res: Response) => {
 // List all users with their roles
 export const listUsersWithRoles = async (req: Request, res: Response) => {
   try {
-    const { page = "1", limit = "10", role, status } = req.query as any;
+    const { page = "1", limit = "10", role, status, search } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
 
     const query: any = {};
@@ -180,6 +180,22 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
 
     if (status === "inactive") {
       query.isActive = false;
+    }
+
+    // ---------------- SEARCH FILTER ----------------
+    if (typeof search !== 'undefined') {
+      const s = String(search || "").trim();
+      if (s.length > 0) {
+        // escape regex special chars to avoid injection and unintended patterns
+        const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(escapeRegex(s), "i");
+
+        query.$or = [
+          { name: regex },
+          { email: regex },
+          { phone: regex },
+        ];
+      }
     }
 
     // ---------------- FETCH USERS ----------------

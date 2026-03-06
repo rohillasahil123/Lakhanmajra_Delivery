@@ -4,19 +4,22 @@ interface FilterParams {
   page?: number;
   role?: string;
   search?: string;
+  status?: "active" | "inactive";
 }
 
 export const useUserFilters = (
   fetchUsers: (params?: FilterParams) => Promise<void>
 ) => {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState<string>("");
   const [activeRole, setActiveRole] = useState<string | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
 
-  // Debounce search input
+  // Debounce search input with trimming
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearch(search.trim());
+      const trimmed = search.trim();
+      // Only update if search actually changed to prevent unnecessary fetches
+      setDebouncedSearch(trimmed);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -28,7 +31,7 @@ export const useUserFilters = (
       await fetchUsers({
         page: 1,
         role: activeRole ?? undefined,
-        search: debouncedSearch || undefined,
+        search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
       });
     };
 

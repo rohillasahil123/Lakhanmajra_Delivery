@@ -543,7 +543,7 @@ export default function UsersPage() {
   } = useUsers();
 
   const { roles, summary, hasPermission, loading: initLoading } = useUserInit(fetchUsers);
-  const { search, setSearch, activeRole, setActiveRole, resetFilters } = useUserFilters(fetchUsers);
+  const { search, setSearch, activeRole, setActiveRole, resetFilters, debouncedSearch } = useUserFilters(fetchUsers);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
@@ -551,12 +551,18 @@ export default function UsersPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Handle page change
+  // Handle page change - use debouncedSearch for consistency
   const handlePageChange = useCallback(
     (newPage: number) => {
-      fetchUsers({ page: newPage, role: activeRole || undefined, search });
+      const statusParam = statusFilter !== "all" ? (statusFilter === "active" ? "active" : "inactive") : undefined;
+      fetchUsers({ 
+        page: newPage, 
+        role: activeRole || undefined, 
+        search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
+        status: statusParam,
+      });
     },
-    [fetchUsers, activeRole, search]
+    [fetchUsers, activeRole, debouncedSearch, statusFilter]
   );
 
   // Handle role filter change
@@ -567,27 +573,25 @@ export default function UsersPage() {
     [setActiveRole]
   );
 
-  // Handle status filter change
+  // Handle status filter change - use debouncedSearch for consistency
   const handleStatusFilter = useCallback((status: string) => {
     setStatusFilter(status);
-    // Fetch with active status if filtering
     if (status !== "all") {
       const isActive = status === "active";
       fetchUsers({ 
         page: 1, 
         role: activeRole || undefined,
-        search: search || undefined,
-        status: isActive ? "active" : "inactive"
+        search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
+        status: isActive ? "active" : "inactive",
       });
     } else {
-      // Fetch all statuses
       fetchUsers({ 
         page: 1, 
         role: activeRole || undefined,
-        search: search || undefined
+        search: debouncedSearch.length > 0 ? debouncedSearch : undefined,
       });
     }
-  }, [fetchUsers, activeRole, search]);
+  }, [fetchUsers, activeRole, debouncedSearch]);
 
   // Handle create user
   const handleCreateUser = async (data: Record<string, unknown>) => {

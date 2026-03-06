@@ -47,25 +47,42 @@ export const useUsers = () => {
         const currentPage = params?.page ?? stateRef.current.page;
         const currentLimit = stateRef.current.limit;
 
+        // Build query params, only including defined non-empty values
+        const queryParams: Record<string, unknown> = {
+          page: currentPage,
+          limit: currentLimit,
+        };
+
+        if (params?.role) {
+          queryParams.role = params.role;
+        }
+        if (params?.status) {
+          queryParams.status = params.status;
+        }
+        if (params?.search && params.search.trim().length > 0) {
+          queryParams.search = params.search.trim();
+        }
+
         const res = await api.get("/admin/users", {
-          params: {
-            page: currentPage,
-            limit: currentLimit,
-            role: params?.role || undefined,
-            status: params?.status || undefined,
-            search: params?.search || undefined,
-          },
+          params: queryParams,
         });
 
         const payload: IUserResponse = res.data?.data ?? res.data;
 
-        setUsers(payload.users ?? []);
+        if (!payload || !Array.isArray(payload.users)) {
+          throw new Error("Invalid user response format");
+        }
+
+        setUsers(payload.users);
         setTotal(payload.total ?? 0);
         setPage(payload.page ?? currentPage);
         setLimit(payload.limit ?? currentLimit);
 
         // Update ref with new state
-        stateRef.current = { page: payload.page ?? currentPage, limit: payload.limit ?? currentLimit };
+        stateRef.current = { 
+          page: payload.page ?? currentPage, 
+          limit: payload.limit ?? currentLimit,
+        };
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Failed to fetch users";
         console.error("Fetch users error:", errorMsg);

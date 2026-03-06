@@ -12,7 +12,14 @@ interface ISummary {
   total: number;
 }
 
-type FetchUsersFn = (params?: { page?: number }) => Promise<void>;
+interface FetchUsersParams {
+  page?: number;
+  role?: string;
+  search?: string;
+  status?: "active" | "inactive";
+}
+
+type FetchUsersFn = (params?: FetchUsersParams) => Promise<void>;
 
 export const useUserInit = (fetchUsers: FetchUsersFn) => {
   const [roles, setRoles] = useState<IRole[]>([]);
@@ -36,12 +43,19 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
           api.get("/auth/permissions"),
         ]);
 
-        const rolesData = rolesRes.data?.data ?? rolesRes.data ?? [];
+        const rolesData = Array.isArray(rolesRes.data?.data) 
+          ? rolesRes.data.data 
+          : Array.isArray(rolesRes.data) 
+            ? rolesRes.data 
+            : [];
+
         const summaryData = summaryRes.data?.data ?? summaryRes.data ?? null;
-        const permData =
-          permRes.data?.permissions ??
-          permRes.data?.data?.permissions ??
-          [];
+
+        const permData = Array.isArray(permRes.data?.permissions)
+          ? permRes.data.permissions
+          : Array.isArray(permRes.data?.data?.permissions)
+            ? permRes.data.data.permissions
+            : [];
 
         setRoles(rolesData);
         setSummary(summaryData);
@@ -50,7 +64,8 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
         // Fetch users after initialization
         await fetchUsers({ page: 1 });
       } catch (error) {
-        console.error("User init failed:", error);
+        const errorMsg = error instanceof Error ? error.message : "User initialization failed";
+        console.error("User init failed:", errorMsg);
       } finally {
         setLoading(false);
       }
