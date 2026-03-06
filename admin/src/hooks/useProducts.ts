@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
 
@@ -40,7 +40,7 @@ export type Category = {
   parentCategory?: string | { _id?: string } | null;
 };
 
-export type SortKey = 'name' | 'price' | 'stock' | null;
+export type SortKey    = 'name' | 'price' | 'stock' | null;
 export type StockFilter = 'all' | 'out';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -62,64 +62,48 @@ export const createEmptyVariant = (): ProductVariant => ({
   label: '', price: '', mrp: '', discount: '', stock: '', isDefault: false,
 });
 
-export const toNumber = (value: string): number | null => {
-  if (value.trim() === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
+export const toNumber = (v: string): number | null => {
+  if (v.trim() === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 };
 
-export const calculateDiscountPercent = (mrpValue: string, priceValue: string): string => {
-  const mrp   = toNumber(mrpValue);
-  const price = toNumber(priceValue);
-  if (mrp === null || price === null || mrp <= 0 || price < 0 || price > mrp) return '';
-  return String(Math.round(((mrp - price) / mrp) * 100));
+export const calculateDiscountPercent = (mrpVal: string, priceVal: string): string => {
+  const m = toNumber(mrpVal), p = toNumber(priceVal);
+  if (m === null || p === null || m <= 0 || p < 0 || p > m) return '';
+  return String(Math.round(((m - p) / m) * 100));
 };
 
-export const getRefId = (
-  ref: string | { _id?: string; name?: string } | null | undefined,
-): string => {
+export const getRefId = (ref: string | { _id?: string; name?: string } | null | undefined): string => {
   if (!ref) return '';
   if (typeof ref === 'string') return ref;
   return ref._id || '';
 };
 
-export const getRefName = (
-  ref: string | { _id?: string; name?: string } | null | undefined,
-): string => {
+export const getRefName = (ref: string | { _id?: string; name?: string } | null | undefined): string => {
   if (!ref) return '';
   if (typeof ref === 'object' && ref.name) return ref.name;
   return '';
 };
 
-export const normalizeVariantsForPayload = (
-  rawVariants: ProductVariant[],
-  selectedUnit?: string,
-) => {
-  const cleaned = rawVariants
-    .map((v) => {
-      const label    = v.label.trim();
-      const priceVal = toNumber(v.price);
-      const stockVal = toNumber(v.stock);
-      const mrpVal   = toNumber(v.mrp);
-      if (!label || priceVal === null || stockVal === null) return null;
-      const resolvedMrp = mrpVal === null ? priceVal : mrpVal;
-      return {
-        ...(v._id ? { _id: v._id } : {}),
-        label,
-        price:     priceVal,
-        mrp:       resolvedMrp,
-        discount:  Number(calculateDiscountPercent(String(resolvedMrp), String(priceVal)) || 0),
-        stock:     Math.max(0, Math.floor(stockVal)),
-        unit:      String(v.unit || selectedUnit || 'piece').toLowerCase(),
-        unitType:  label,
-        isDefault: Boolean(v.isDefault),
-      };
-    })
-    .filter(Boolean) as Array<any>;
+export const normalizeVariantsForPayload = (raw: ProductVariant[], selectedUnit?: string) => {
+  const cleaned = raw.map((v) => {
+    const label = v.label.trim(), pv = toNumber(v.price), sv = toNumber(v.stock), mv = toNumber(v.mrp);
+    if (!label || pv === null || sv === null) return null;
+    const rm = mv === null ? pv : mv;
+    return {
+      ...(v._id ? { _id: v._id } : {}),
+      label, price: pv, mrp: rm,
+      discount: Number(calculateDiscountPercent(String(rm), String(pv)) || 0),
+      stock: Math.max(0, Math.floor(sv)),
+      unit: String(v.unit || selectedUnit || 'piece').toLowerCase(),
+      unitType: label, isDefault: Boolean(v.isDefault),
+    };
+  }).filter(Boolean) as any[];
 
-  if (cleaned.length === 0) return [];
-  const defIdx = cleaned.findIndex((v) => v.isDefault);
-  return cleaned.map((v, i) => ({ ...v, isDefault: i === (defIdx >= 0 ? defIdx : 0) }));
+  if (!cleaned.length) return [];
+  const di = cleaned.findIndex((v) => v.isDefault);
+  return cleaned.map((v, i) => ({ ...v, isDefault: i === (di >= 0 ? di : 0) }));
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -136,70 +120,66 @@ export function useProducts() {
   const [sortOrder,       setSortOrder]       = useState<'asc' | 'desc'>('asc');
   const [refreshing,      setRefreshing]      = useState(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<Date | null>(null);
+  const [selectedCatId,   setSelectedCatId]   = useState<string | null>(null);
+  const [creating,        setCreating]        = useState(false);
+  const [updating,        setUpdating]        = useState(false);
+  const [importing,       setImporting]       = useState(false);
 
-  // selected category for drill-down view
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const LIMIT = 50;
 
-  // busy flags
-  const [creating,  setCreating]  = useState(false);
-  const [updating,  setUpdating]  = useState(false);
-  const [importing, setImporting] = useState(false);
+  // ── Category helpers ──────────────────────────────────────────────────────
 
-  const LIMIT = 50; // load more per page when inside a category
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  const getParentCategoryId = (cat: Category): string | null => {
-    if (!cat.parentCategory) return null;
-    if (typeof cat.parentCategory === 'string') return cat.parentCategory;
-    return cat.parentCategory._id || null;
+  const getParentCategoryId = (c: Category): string | null => {
+    if (!c.parentCategory) return null;
+    if (typeof c.parentCategory === 'string') return c.parentCategory;
+    return c.parentCategory._id || null;
   };
 
   const parentCategories = categories.filter((c) => !getParentCategoryId(c));
-  const subCategoriesOf  = (parentId: string) =>
-    categories.filter((c) => getParentCategoryId(c) === parentId);
+  const subCategoriesOf  = (pid: string) => categories.filter((c) => getParentCategoryId(c) === pid);
 
-  const getCategoryLabel = (product: Product): string => {
-    const direct = getRefName(product.categoryId);
-    if (direct) return direct;
-    const id = getRefId(product.categoryId);
-    return categories.find((c) => c._id === id)?.name || '—';
+  const getCategoryLabel = (p: Product): string => {
+    const d = getRefName(p.categoryId);
+    if (d) return d;
+    return categories.find((c) => c._id === getRefId(p.categoryId))?.name || '—';
   };
 
-  const getSubCategoryLabel = (product: Product): string => {
-    const direct = getRefName(product.subcategoryId);
-    if (direct) return direct;
-    const id = getRefId(product.subcategoryId);
-    return categories.find((c) => c._id === id)?.name || '—';
+  const getSubCategoryLabel = (p: Product): string => {
+    const d = getRefName(p.subcategoryId);
+    if (d) return d;
+    return categories.find((c) => c._id === getRefId(p.subcategoryId))?.name || '—';
   };
 
-  // ── Load all products ─────────────────────────────────────────────────────
+  // ── Load products ─────────────────────────────────────────────────────────
 
   const load = async (pageNum = 1) => {
     try {
       const q = new URLSearchParams();
-      q.set('page',  String(pageNum));
-      q.set('limit', String(LIMIT));
-      q.set('_ts',   String(Date.now()));
-      if (search.trim())         q.set('q',           search.trim());
+      q.set('page', String(pageNum)); q.set('limit', String(LIMIT)); q.set('_ts', String(Date.now()));
+      if (search.trim())         q.set('q', search.trim());
       if (stockFilter === 'out') q.set('stockStatus', 'out');
-
       const res  = await api.get(`/products?${q.toString()}`);
       const data = res.data?.data ?? res.data;
-      const rows = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
-      setAllItems(rows);
+      setAllItems(Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []);
       setTotal(data?.total ?? 0);
       setPage(pageNum);
       setLastRefreshedAt(new Date());
-    } catch (err) {
-      console.error(err);
-      setAllItems([]);
-    }
+    } catch (err) { console.error(err); setAllItems([]); }
   };
+
+  // ── Load categories (called externally after modal changes) ───────────────
+
+  const reloadCategories = useCallback(async () => {
+    try {
+      const res  = await api.get('/categories');
+      const data = res.data?.data ?? res.data ?? [];
+      setCategories(Array.isArray(data) ? data : []);
+    } catch { /* silent */ }
+  }, []);
 
   const manualRefresh = async () => {
     setRefreshing(true);
-    try { await load(page); }
+    try { await Promise.all([load(page), reloadCategories()]); }
     finally { setRefreshing(false); }
   };
 
@@ -209,9 +189,7 @@ export function useProducts() {
     (async () => {
       try {
         setPermissions(await getPermissions());
-        const catsRes = await api.get('/categories');
-        const apiCats = catsRes.data?.data ?? catsRes.data ?? [];
-        setCategories(Array.isArray(apiCats) ? apiCats : []);
+        await reloadCategories();
         await load(1);
       } catch (err) { console.error(err); }
     })();
@@ -227,18 +205,21 @@ export function useProducts() {
     return () => clearInterval(id);
   }, [page, search, stockFilter, creating, updating, importing]);
 
-  // ── Filtering & sorting ───────────────────────────────────────────────────
+  // ── Sort ──────────────────────────────────────────────────────────────────
 
-  // Products filtered by selected category
-  const categoryProducts: Product[] = selectedCategoryId
-    ? allItems.filter((p) => getRefId(p.categoryId) === selectedCategoryId)
+  const toggleSort = (key: Exclude<SortKey, null>) => {
+    if (sortKey === key) { setSortOrder((p) => (p === 'asc' ? 'desc' : 'asc')); return; }
+    setSortKey(key); setSortOrder('asc');
+  };
+
+  // ── Derived data ──────────────────────────────────────────────────────────
+
+  const categoryProducts = selectedCatId
+    ? allItems.filter((p) => getRefId(p.categoryId) === selectedCatId)
     : allItems;
 
-  // Client-side search within selected category view
-  const searchedProducts: Product[] = search.trim()
-    ? categoryProducts.filter((p) =>
-        p.name.toLowerCase().includes(search.toLowerCase()),
-      )
+  const searchedProducts = search.trim()
+    ? categoryProducts.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
     : categoryProducts;
 
   const sortedItems = [...searchedProducts].sort((a, b) => {
@@ -246,32 +227,21 @@ export function useProducts() {
     const dir = sortOrder === 'asc' ? 1 : -1;
     if (sortKey === 'name')  return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) * dir;
     if (sortKey === 'price') return ((a.price ?? 0) - (b.price ?? 0)) * dir;
-    const aNull = a.stock == null, bNull = b.stock == null;
-    if (aNull && bNull) return 0;
-    if (aNull) return 1;
-    if (bNull) return -1;
+    const an = a.stock == null, bn = b.stock == null;
+    if (an && bn) return 0; if (an) return 1; if (bn) return -1;
     return ((a.stock as number) - (b.stock as number)) * dir;
   });
 
-  const toggleSort = (key: Exclude<SortKey, null>) => {
-    if (sortKey === key) { setSortOrder((p) => (p === 'asc' ? 'desc' : 'asc')); return; }
-    setSortKey(key);
-    setSortOrder('asc');
-  };
-
-  // Count products per parent category
-  const categoryProductCount = (catId: string): number =>
+  const categoryProductCount = (catId: string) =>
     allItems.filter((p) => getRefId(p.categoryId) === catId).length;
 
-  // Sub-category breakdown within selected category
   const subCategoryGroups: Record<string, Product[]> = sortedItems.reduce<Record<string, Product[]>>(
     (acc, p) => {
-      const subName = getSubCategoryLabel(p) || 'General';
-      if (!acc[subName]) acc[subName] = [];
-      acc[subName].push(p);
+      const sub = getSubCategoryLabel(p) || 'General';
+      if (!acc[sub]) acc[sub] = [];
+      acc[sub].push(p);
       return acc;
-    },
-    {},
+    }, {},
   );
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -282,70 +252,59 @@ export function useProducts() {
     subcategoryId: string; description: string; tags: string;
     variants: ProductVariant[]; files: File[];
   }) => {
-    const normalized    = normalizeVariantsForPayload(payload.variants, payload.unit);
-    const defaultVar    = normalized.find((v) => v.isDefault) || normalized[0];
-    const resolvedPrice = payload.price || (defaultVar ? String(defaultVar.price) : '');
-    if (!payload.name || !resolvedPrice || !payload.catId)
-      throw new Error('Name, price, and category are required');
+    const norm  = normalizeVariantsForPayload(payload.variants, payload.unit);
+    const defV  = norm.find((v) => v.isDefault) || norm[0];
+    const price = payload.price || (defV ? String(defV.price) : '');
+    if (!payload.name || !price) throw new Error('Name and price are required');
 
     setCreating(true);
     try {
       const fd = new FormData();
-      fd.append('name',     payload.name);
-      fd.append('price',    resolvedPrice);
-      fd.append('categoryId', payload.catId);
+      fd.append('name', payload.name); fd.append('price', price);
+      if (payload.catId)        fd.append('categoryId',    payload.catId);
       if (payload.subcategoryId) fd.append('subcategoryId', payload.subcategoryId);
-      if (payload.mrp)         fd.append('mrp',         payload.mrp);
-      if (payload.discount)    fd.append('discount',    payload.discount);
-      if (payload.stock)       fd.append('stock',       payload.stock);
-      if (normalized.length)   fd.append('variants',    JSON.stringify(normalized));
+      if (payload.mrp)          fd.append('mrp',           payload.mrp);
+      if (payload.discount)     fd.append('discount',      payload.discount);
+      if (payload.stock)        fd.append('stock',         payload.stock);
+      if (norm.length)          fd.append('variants',      JSON.stringify(norm));
       fd.append('unit', payload.unit);
-      if (payload.unitType)    fd.append('unitType',    payload.unitType);
-      if (payload.description) fd.append('description', payload.description);
-      if (payload.tags)        fd.append('tags',        payload.tags);
+      if (payload.unitType)     fd.append('unitType',      payload.unitType);
+      if (payload.description)  fd.append('description',   payload.description);
+      if (payload.tags)         fd.append('tags',          payload.tags);
       payload.files.forEach((f) => fd.append('images', f));
       await api.post('/products', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       await load(1);
     } finally { setCreating(false); }
   };
 
-  const updateProduct = async (
-    productId: string,
-    payload: {
-      name: string; price: string; mrp: string; discount: string;
-      stock: string; catId: string; subcategoryId: string;
-      existingImages: string[]; newFiles: File[];
-      variants: ProductVariant[]; unit: string;
-    },
-  ) => {
-    const normalized    = normalizeVariantsForPayload(payload.variants, payload.unit);
-    const defaultVar    = normalized.find((v) => v.isDefault) || normalized[0];
-    const resolvedPrice = payload.price || (defaultVar ? String(defaultVar.price) : '');
+  const updateProduct = async (productId: string, payload: {
+    name: string; price: string; mrp: string; discount: string;
+    stock: string; catId: string; subcategoryId: string;
+    existingImages: string[]; newFiles: File[];
+    variants: ProductVariant[]; unit: string;
+  }) => {
+    const norm  = normalizeVariantsForPayload(payload.variants, payload.unit);
+    const defV  = norm.find((v) => v.isDefault) || norm[0];
+    const price = payload.price || (defV ? String(defV.price) : '');
     if (!payload.name.trim()) throw new Error('Product name is required');
-    if (!resolvedPrice)       throw new Error('Price is required');
+    if (!price)               throw new Error('Price is required');
 
     setUpdating(true);
     try {
       if (payload.newFiles.length > 0) {
         const fd = new FormData();
-        fd.append('name',  payload.name.trim());
-        fd.append('price', String(Number(resolvedPrice)));
+        fd.append('name', payload.name.trim()); fd.append('price', String(Number(price)));
         if (payload.mrp.trim())      fd.append('mrp',      String(Number(payload.mrp)));
         if (payload.discount.trim()) fd.append('discount', String(Number(payload.discount)));
         if (payload.stock.trim())    fd.append('stock',    String(Number(payload.stock)));
-        fd.append('variants', JSON.stringify(normalized));
-        if (payload.catId)           fd.append('categoryId',   payload.catId);
+        fd.append('variants', JSON.stringify(norm));
+        if (payload.catId)           fd.append('categoryId',    payload.catId);
         fd.append('subcategoryId',   payload.subcategoryId || '');
         if (payload.existingImages.length) fd.append('images', payload.existingImages.join(','));
         payload.newFiles.forEach((f) => fd.append('images', f));
         await api.patch(`/products/${productId}`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       } else {
-        const body: any = {
-          name:          payload.name.trim(),
-          price:         Number(resolvedPrice),
-          variants:      normalized,
-          subcategoryId: payload.subcategoryId,
-        };
+        const body: any = { name: payload.name.trim(), price: Number(price), variants: norm, subcategoryId: payload.subcategoryId };
         if (payload.mrp.trim())      body.mrp      = Number(payload.mrp);
         if (payload.discount.trim()) body.discount = Number(payload.discount);
         if (payload.stock.trim())    body.stock    = Number(payload.stock);
@@ -370,13 +329,11 @@ export function useProducts() {
     setImporting(true);
     try {
       const lines = csvText.trim().split('\n');
-      const importItems = lines
-        .map((line) => {
-          const parts = line.split('\t');
-          if (parts.length < 2) return null;
-          return { name: parts[0], price: Number(parts[1]), stock: parts[2] ? Number(parts[2]) : undefined, category: parts[3], description: parts[4] };
-        })
-        .filter(Boolean);
+      const importItems = lines.map((l) => {
+        const p = l.split('\t');
+        if (p.length < 2) return null;
+        return { name: p[0], price: Number(p[1]), stock: p[2] ? Number(p[2]) : undefined, category: p[3], description: p[4] };
+      }).filter(Boolean);
       const res = await api.post('/products/import', { items: importItems });
       await load(1);
       return res.data?.data?.imported ?? 0;
@@ -385,12 +342,10 @@ export function useProducts() {
 
   const hasPerm = (p: string) => permissions.includes(p);
 
-  // ── Return ────────────────────────────────────────────────────────────────
-
   return {
     allItems, sortedItems, subCategoryGroups,
     categories, parentCategories, subCategoriesOf,
-    selectedCategoryId, setSelectedCategoryId,
+    selectedCatId, setSelectedCatId,
     categoryProductCount,
     permissions, hasPerm,
     page, total, totalPages: Math.ceil(total / LIMIT), LIMIT,
@@ -399,7 +354,7 @@ export function useProducts() {
     sortKey, sortOrder, toggleSort,
     refreshing, lastRefreshedAt,
     creating, updating, importing,
-    load, manualRefresh,
+    load, manualRefresh, reloadCategories,
     createProduct, updateProduct,
     deleteProduct, removeProductImage,
     importCSV,
