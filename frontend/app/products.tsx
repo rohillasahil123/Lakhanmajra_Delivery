@@ -7,9 +7,11 @@ import {
   Image,
   SafeAreaView,
   ScrollView,
+  Text,
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { fetchCategories, fetchProducts } from '@/services/catalogService';
@@ -45,6 +47,11 @@ function ProductImage({ images, name }: { images?: string[]; name: string }) {
 // ───────────────── Screen ─────────────────
 export default function ProductsScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 380;
+  const horizontalPadding = isCompact ? 8 : 12;
+  const cardGap = 8;
+  const cardWidth = (width - horizontalPadding * 2 - cardGap * 3) / 2;
 
   const params = useLocalSearchParams<{
     categoryId?: string;
@@ -56,6 +63,7 @@ export default function ProductsScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
+  const [subCategories, setSubCategories] = useState<any[]>([]);
   const [selectedSubCategoryId, setSelectedSubCategoryId] =
     useState<string>('all');
 
@@ -89,8 +97,11 @@ export default function ProductsScreen() {
 
         const categoryList = Array.isArray(cats) ? cats : [];
         let prods = Array.isArray(allProducts) ? allProducts : [];
+        let derivedSubCategories: any[] = [];
 
         if (catId) {
+          derivedSubCategories = categoryList.filter((c: any) => getParentCategoryId(c) === catId);
+
           const relatedIds = new Set<string>([catId]);
 
           categoryList.forEach((c: any) => {
@@ -109,10 +120,20 @@ export default function ProductsScreen() {
         if (!mounted) return;
 
         setProducts(prods);
-        setSelectedSubCategoryId(incomingSub || 'all');
+        setSubCategories(derivedSubCategories);
+
+        const normalizedIncomingSub = incomingSub || 'all';
+        const validSubIds = new Set(derivedSubCategories.map((c: any) => getId(c)).filter(Boolean));
+        const nextSubCategoryId =
+          normalizedIncomingSub === 'all' || validSubIds.has(normalizedIncomingSub)
+            ? normalizedIncomingSub
+            : 'all';
+
+        setSelectedSubCategoryId(nextSubCategoryId);
       } catch {
         if (!mounted) return;
         setProducts([]);
+        setSubCategories([]);
         setSelectedSubCategoryId('all');
       }
     })();
@@ -263,9 +284,61 @@ export default function ProductsScreen() {
         />
       </View>
 
-      <ScrollView>
+      {subCategories.length > 0 && (
+        <View style={styles.subCategoryStripWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.subCategoryStripContent}
+          >
+            <TouchableOpacity
+              style={[
+                styles.subCategoryChip,
+                selectedSubCategoryId === 'all' && styles.subCategoryChipActive,
+              ]}
+              onPress={() => setSelectedSubCategoryId('all')}
+            >
+              <Text
+                style={[
+                  styles.subCategoryChipText,
+                  selectedSubCategoryId === 'all' && styles.subCategoryChipTextActive,
+                ]}
+              >
+                All
+              </Text>
+            </TouchableOpacity>
+
+            {subCategories.map((subCategory: any) => {
+              const subId = getId(subCategory);
+              const isActive = selectedSubCategoryId === subId;
+
+              return (
+                <TouchableOpacity
+                  key={subId}
+                  style={[styles.subCategoryChip, isActive && styles.subCategoryChipActive]}
+                  onPress={() => setSelectedSubCategoryId(subId)}
+                >
+                  <Text style={[styles.subCategoryChipText, isActive && styles.subCategoryChipTextActive]}>
+                    {subCategory.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      <View style={styles.countContainer}>
+        <Text style={styles.countText}>{visibleProducts.length} products</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.productsGrid}>
-          {visibleProducts.map(renderProduct)}
+          {visibleProducts.map((product) => (
+            <View key={product._id || product.id} style={{ width: cardWidth, marginBottom: cardGap }}>
+              {renderProduct(product)}
+            </View>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -274,7 +347,7 @@ export default function ProductsScreen() {
 
 // ✅ styles unchanged (keep your existing StyleSheet)
 const styles = StyleSheet.create({
-  safe:                    { flex: 1, backgroundColor: '#F9FAFB', paddingVertical: 40 },
+  safe:                    { flex: 1, backgroundColor: '#F9FAFB' },
   header:                  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 4, backgroundColor: '#0E7A3D', elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
   backButton:              { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
   backIcon:                { fontSize: 28, color: '#FFFFFF', fontWeight: '600' },
@@ -294,8 +367,9 @@ const styles = StyleSheet.create({
   countContainer:          { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F9FAFB' },
   countText:               { fontSize: 13, color: '#6B7280', fontWeight: '500' },
   container:               { flex: 1 },
-  productsGrid:            { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 12, paddingTop: 8 },
-  productCard:             { width: '48%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 10, margin: 4, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, position: 'relative' },
+  scrollContent:           { paddingBottom: 20 },
+  productsGrid:            { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 8, paddingTop: 8 },
+  productCard:             { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, position: 'relative' },
   discountBadge:           { position: 'absolute', top: 8, right: 8, backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, zIndex: 1 },
   discountText:            { fontSize: 9, fontWeight: '700', color: '#FFFFFF' },
   productImageContainer:   { backgroundColor: '#F9FAFB', borderRadius: 8, height: 100, justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden' },

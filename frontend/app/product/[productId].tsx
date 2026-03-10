@@ -9,6 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { fetchCategories } from '@/services/catalogService';
@@ -51,6 +52,9 @@ const buildImageArray = (product: any): string[] => {
 // ───────────────── Main Component ─────────────────
 export default function ProductDetailDynamic() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 380;
+  const imageHeight = Math.min(320, Math.max(220, width * 0.72));
   const params = useLocalSearchParams();
   const productId = params.productId as string;
 
@@ -176,7 +180,7 @@ export default function ProductDetailDynamic() {
       >
 
         {/* Image */}
-        <View style={styles.imageContainer}>
+        <View style={[styles.imageContainer, { height: imageHeight }]}>
           {currentImage && !imgErrored ? (
             <Image
               source={{ uri: currentImage }}
@@ -195,7 +199,7 @@ export default function ProductDetailDynamic() {
 
         {/* Info */}
         <View style={styles.infoSection}>
-          <ThemedText style={styles.productName}>
+          <ThemedText style={[styles.productName, { fontSize: isCompact ? 20 : 22 }]}>
             {product.name}
           </ThemedText>
 
@@ -228,9 +232,9 @@ export default function ProductDetailDynamic() {
           </View>
 
           {/* ✅ FIXED PRICE BLOCK */}
-          <View style={styles.priceRow}>
+          <View style={[styles.priceRow, isCompact && styles.priceRowCompact]}>
             <View>
-              <ThemedText style={styles.price}>
+                <ThemedText style={[styles.price, { fontSize: isCompact ? 24 : 28 }]}>
                 ₹{activePrice}
               </ThemedText>
 
@@ -269,6 +273,7 @@ export default function ProductDetailDynamic() {
                       key={variantId}
                       style={[
                         styles.variantChip,
+                        { minWidth: isCompact ? 80 : 92 },
                         isSelected && styles.variantChipActive,
                       ]}
                       onPress={() => setSelectedVariantId(variantId)}
@@ -348,6 +353,7 @@ const styles = StyleSheet.create({
   stockChipTextIn: { color: '#166534' },
   stockChipTextOut: { color: '#991B1B' },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  priceRowCompact: { gap: 8, flexWrap: 'wrap' },
   price: { fontSize: 28, fontWeight: '800', color: '#0E7A3D' },
   originalPrice: { fontSize: 16, color: '#9CA3AF', textDecorationLine: 'line-through' },
   savingsContainer: { backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },

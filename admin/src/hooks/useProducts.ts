@@ -55,6 +55,7 @@ export const UNIT_VARIANTS: Record<string, string[]> = {
 };
 
 export const AUTO_REFRESH_MS = 10_000;
+export const AUTO_REFRESH_EDITING_MS = 30_000;
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -74,10 +75,10 @@ export const calculateDiscountPercent = (mrpVal: string, priceVal: string): stri
   return String(Math.round(((m - p) / m) * 100));
 };
 
-export const getRefId = (ref: string | { _id?: string; name?: string } | null | undefined): string => {
+export const getRefId = (ref: string | { _id?: string; id?: string; name?: string } | null | undefined): string => {
   if (!ref) return '';
   if (typeof ref === 'string') return ref;
-  return ref._id || '';
+  return ref._id || ref.id || '';
 };
 
 export const getRefName = (ref: string | { _id?: string; name?: string } | null | undefined): string => {
@@ -108,7 +109,7 @@ export const normalizeVariantsForPayload = (raw: ProductVariant[], selectedUnit?
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useProducts() {
+export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   const [allItems,        setAllItems]        = useState<Product[]>([]);
   const [categories,      setCategories]      = useState<Category[]>([]);
   const [permissions,     setPermissions]     = useState<string[]>([]);
@@ -132,7 +133,7 @@ export function useProducts() {
   const getParentCategoryId = (c: Category): string | null => {
     if (!c.parentCategory) return null;
     if (typeof c.parentCategory === 'string') return c.parentCategory;
-    return c.parentCategory._id || null;
+    return c.parentCategory._id || (c.parentCategory as any).id || null;
   };
 
   const parentCategories = categories.filter((c) => !getParentCategoryId(c));
@@ -200,10 +201,10 @@ export function useProducts() {
   // ── Auto-refresh ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (creating || updating || importing) return;
-    const id = setInterval(() => load(page), AUTO_REFRESH_MS);
+    if (creating || updating || importing || autoRefreshMs <= 0) return;
+    const id = setInterval(() => load(page), autoRefreshMs);
     return () => clearInterval(id);
-  }, [page, search, stockFilter, creating, updating, importing]);
+  }, [page, search, stockFilter, creating, updating, importing, autoRefreshMs]);
 
   // ── Sort ──────────────────────────────────────────────────────────────────
 

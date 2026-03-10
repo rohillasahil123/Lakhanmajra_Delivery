@@ -17,7 +17,7 @@ export default function EditCategoryModal({ category, parentCategories, subCateg
   const [parent,    setParent]    = useState(() => {
     if (!category.parentCategory) return '';
     if (typeof category.parentCategory === 'string') return category.parentCategory;
-    return category.parentCategory._id || '';
+    return category.parentCategory._id || category.parentCategory.id || '';
   });
   const [preview,   setPreview]   = useState(category.image || '');
   const [file,      setFile]      = useState<File | null>(null);

@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "nodemon --watch src --exec ts-node src/server.ts",
     "seed:rbac": "ts-node scripts/seedRolesAndPermissions.ts",
+    "seed:products": "ts-node src/scripts/seedProducts.ts",
     "seed": "npm run seed:rbac"
   },
   "dependencies": {

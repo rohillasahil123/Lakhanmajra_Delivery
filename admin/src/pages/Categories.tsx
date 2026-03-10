@@ -222,8 +222,9 @@ export default function Categories() {
 
   const mainCategories = items.filter((category) => !getParentCategoryId(category));
   const subCategories = items.filter((category) => !!getParentCategoryId(category));
-  const displayItems = mainCategories.slice((page - 1) * limit, page * limit);
   const totalPages = Math.max(1, Math.ceil(mainCategories.length / limit));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const displayItems = mainCategories.slice((currentPage - 1) * limit, currentPage * limit);
 
   return (
     <div className="p-6">
@@ -243,7 +244,10 @@ export default function Categories() {
           <button
             type="button"
             className={`px-3 py-1.5 border rounded text-sm ${activeList === 'subcategory' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white text-slate-700 border-slate-300'}`}
-            onClick={() => setActiveList('subcategory')}
+            onClick={() => {
+              setActiveList('subcategory');
+              setPage(1);
+            }}
           >
             Sub-category
           </button>
@@ -457,16 +461,16 @@ export default function Categories() {
         <div className="text-sm text-slate-500">Main Categories: {mainCategories.length}</div>
         <div className="flex gap-2">
           <button
-            disabled={page === 1}
-            onClick={() => setPage(Math.max(1, page - 1))}
+            disabled={currentPage === 1}
+            onClick={() => setPage(Math.max(1, currentPage - 1))}
             className="px-3 py-1 border rounded disabled:opacity-50"
           >
             Prev
           </button>
-          <span className="px-3 py-1">{page} / {totalPages}</span>
+          <span className="px-3 py-1">{currentPage} / {totalPages}</span>
           <button
-            disabled={page >= totalPages}
-            onClick={() => setPage(Math.min(totalPages, page + 1))}
+            disabled={currentPage >= totalPages}
+            onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
             className="px-3 py-1 border rounded disabled:opacity-50"
           >
             Next

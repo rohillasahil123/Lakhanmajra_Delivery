@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useProducts, Product, Category } from '../hooks/useProducts';
+import { useProducts, Product, Category, AUTO_REFRESH_MS } from '../hooks/useProducts';
 import CreateProductModal from '../components/products/CreateProductModal';
 import EditProductModal from '../components/products/EditProductModal';
 import ProductsTable from '../components/products/ProductsTable';
@@ -74,6 +74,14 @@ function CategoryCard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function Products() {
+  const [showAddProduct,   setShowAddProduct]   = useState(false);
+  const [editProduct,      setEditProduct]      = useState<Product | null>(null);
+  const [showAddCategory,  setShowAddCategory]  = useState(false);
+  const [editCategory,     setEditCategory]     = useState<Category | null>(null);
+
+  const isProductFormOpen = showAddProduct || Boolean(editProduct);
+  const activeAutoRefreshMs = isProductFormOpen ? 0 : AUTO_REFRESH_MS;
+
   const {
     sortedItems, subCategoryGroups,
     categories, parentCategories, subCategoriesOf,
@@ -89,13 +97,7 @@ export default function Products() {
     createProduct, updateProduct,
     deleteProduct, removeProductImage,
     importCSV,
-  } = useProducts();
-
-  // modals
-  const [showAddProduct,   setShowAddProduct]   = useState(false);
-  const [editProduct,      setEditProduct]      = useState<Product | null>(null);
-  const [showAddCategory,  setShowAddCategory]  = useState(false);
-  const [editCategory,     setEditCategory]     = useState<Category | null>(null);
+  } = useProducts(activeAutoRefreshMs);
 
   // CSV
   const [csvText, setCsvText] = useState('');
@@ -130,7 +132,9 @@ export default function Products() {
   const ActionBar = () => (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="text-right hidden sm:block">
-        <div className="text-xs text-slate-400">Auto-refresh: 10s</div>
+        <div className="text-xs text-slate-400">
+          Auto-refresh: {isProductFormOpen ? 'Paused (product form open)' : `${Math.round(activeAutoRefreshMs / 1000)}s`}
+        </div>
         {lastRefreshedAt && <div className="text-xs text-slate-400">Updated {lastRefreshedAt.toLocaleTimeString()}</div>}
       </div>
 

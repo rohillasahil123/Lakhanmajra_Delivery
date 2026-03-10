@@ -9,6 +9,7 @@ import {
     ScrollView,
     StyleSheet,
     TouchableOpacity,
+    useWindowDimensions,
     View,
 } from 'react-native';
 
@@ -16,6 +17,8 @@ import {
 
 export default function CartScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 380;
   const cartItems = useCart((s) => s.items);
   const increaseQuantity = useCart((s) => s.increase);
   const decreaseQuantity = useCart((s) => s.decrease);
@@ -188,17 +191,17 @@ export default function CartScreen() {
               </View>
             </View>
 
-            <View style={{ height: 100 }} />
+            <View style={{ height: isCompact ? 132 : 116 }} />
           </ScrollView>
 
           {/* Fixed Bottom Checkout Button */}
           <View style={styles.bottomContainer}>
-            <View style={styles.bottomContent}>
+            <View style={[styles.bottomContent, isCompact && styles.bottomContentCompact]}>
               <View>
                 <ThemedText style={styles.bottomLabel}>{itemCount} items</ThemedText>
                 <ThemedText style={styles.bottomTotal}>₹{totalPayable}</ThemedText>
               </View>
-              <TouchableOpacity style={styles.checkoutButton} onPress={goToCheckout}>
+              <TouchableOpacity style={[styles.checkoutButton, isCompact && styles.checkoutButtonCompact]} onPress={goToCheckout}>
                 <ThemedText style={styles.checkoutButtonText}>
                   Proceed to Checkout
                 </ThemedText>
@@ -215,13 +218,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-     marginTop: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-     marginTop: 20,
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#0E7A3D',
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
   },
   cartItem: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -355,6 +356,7 @@ const styles = StyleSheet.create({
   },
   itemActions: {
     alignItems: 'center',
+    marginLeft: 8,
   },
   quantityContainer: {
     flexDirection: 'row',
@@ -455,11 +457,15 @@ const styles = StyleSheet.create({
   },
   bottomContent: {
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: 10,
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  bottomContentCompact: {
+    flexWrap: 'wrap',
   },
   bottomLabel: {
     fontSize: 13,
@@ -481,6 +487,10 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
+  },
+  checkoutButtonCompact: {
+    width: '100%',
+    alignItems: 'center',
   },
   checkoutButtonText: {
     fontSize: 15,

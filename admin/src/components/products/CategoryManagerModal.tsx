@@ -57,7 +57,7 @@ export default function CategoryManagerModal({ onClose, onCategoriesChanged }: P
   const getParentId = (c: Category): string => {
     if (!c.parentCategory) return '';
     if (typeof c.parentCategory === 'string') return c.parentCategory;
-    return c.parentCategory._id || '';
+    return c.parentCategory._id || (c.parentCategory as any).id || '';
   };
 
   const nameById = (id: string) => items.find((c) => c._id === id)?.name || '-';

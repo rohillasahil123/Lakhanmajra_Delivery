@@ -24,7 +24,10 @@ export const initMinio = async () => {
       console.log(`✅ MinIO bucket '${BUCKET}' ready`);
     }
   } catch (err) {
-    console.error("❌ MinIO init error:", err);
+    const endpoint = process.env.MINIO_ENDPOINT || "minio";
+    const port = process.env.MINIO_PORT || "9000";
+    console.error(`❌ MinIO init error (${endpoint}:${port}):`, err);
+    throw err;
   }
 };
 

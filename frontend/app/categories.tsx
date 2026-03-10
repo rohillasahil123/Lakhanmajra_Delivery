@@ -1,12 +1,13 @@
 import { ThemedText } from '@/components/themed-text';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { fetchCategories } from '@/services/catalogService';
@@ -16,6 +17,8 @@ import { resolveImageUrl } from '@/config/api';
 
 export default function CategoriesScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 380;
 
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -23,6 +26,25 @@ export default function CategoriesScreen() {
     if (!category?.parentCategory) return '';
     if (typeof category.parentCategory === 'string') return category.parentCategory;
     return category.parentCategory?._id || '';
+  };
+
+  const getCategoryIcon = (categoryName: string): keyof typeof MaterialCommunityIcons.glyphMap => {
+    const n = String(categoryName || '').toLowerCase();
+    if (n.includes('veg') || n.includes('fruit')) return 'carrot';
+    if (n.includes('bakery') || n.includes('bread')) return 'bread-slice';
+    if (n.includes('atta') || n.includes('rice') || n.includes('pulse') || n.includes('dal')) return 'rice';
+    if (n.includes('dairy') || n.includes('milk')) return 'cup';
+    if (n.includes('masala') || n.includes('spice')) return 'chili-mild';
+    if (n.includes('snack') || n.includes('namkeen')) return 'french-fries';
+    if (n.includes('personal') || n.includes('care') || n.includes('soap') || n.includes('perfume')) return 'spray-bottle';
+    if (n.includes('oil') || n.includes('ghee')) return 'bottle-tonic';
+    if (n.includes('instant') || n.includes('ready')) return 'silverware-fork-knife';
+    if (n.includes('beverage') || n.includes('drink')) return 'coffee';
+    if (n.includes('household') || n.includes('clean')) return 'broom';
+    if (n.includes('dry') || n.includes('nut')) return 'peanut';
+    if (n.includes('stationery')) return 'pencil';
+    if (n.includes('baby')) return 'baby-face-outline';
+    return 'shape-outline';
   };
 
   const mainCategories = categories.filter((category) => !getParentCategoryId(category));
@@ -61,11 +83,11 @@ export default function CategoriesScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingVertical: isCompact ? 14 : 18 }] }>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>All Categories</ThemedText>
+        <ThemedText style={[styles.headerTitle, { fontSize: isCompact ? 18 : 20 }]}>All Categories</ThemedText>
         <TouchableOpacity onPress={() => router.push('/search')}>
           <ThemedText style={styles.searchIcon}>🔍</ThemedText>
         </TouchableOpacity>
@@ -76,8 +98,8 @@ export default function CategoriesScreen() {
         <View style={styles.categoriesGrid}>
           {mainCategories.map((category: any) => (
             (() => {
-              const imageUrl = resolveImageUrl(category.image);
               const categoryId = category._id || category.id;
+              const iconName = getCategoryIcon(category.name);
 
               return (
             <View key={categoryId}>
@@ -88,21 +110,18 @@ export default function CategoriesScreen() {
                 <View
                   style={[
                     styles.categoryIconContainer,
+                    { width: isCompact ? 52 : 60, height: isCompact ? 52 : 60 },
                     { backgroundColor: (category.color || '#F3F4F6') + '20' },
                   ]}
                 >
-                  {imageUrl ? (
-                    <Image
-                      source={{ uri: imageUrl }}
-                      style={styles.categoryImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <ThemedText style={styles.categoryIcon}>{category.icon || category.emoji || '📦'}</ThemedText>
-                  )}
+                  <MaterialCommunityIcons
+                    name={iconName}
+                    size={isCompact ? 24 : 30}
+                    color="#0E7A3D"
+                  />
                 </View>
                 <View style={styles.categoryInfo}>
-                  <ThemedText style={styles.categoryName}>{category.name}</ThemedText>
+                  <ThemedText style={[styles.categoryName, { fontSize: isCompact ? 14 : 16 }]}>{category.name}</ThemedText>
                   <ThemedText style={styles.categoryCount}>
                     {category.itemCount || ''}
                   </ThemedText>
@@ -131,7 +150,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 40,
+    paddingVertical: 18,
     backgroundColor: '#0E7A3D',
     elevation: 4,
     shadowColor: '#000',
@@ -172,7 +191,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOpacity: 0.05,
@@ -190,11 +209,6 @@ const styles = StyleSheet.create({
   },
   categoryIcon: {
     fontSize: 32,
-  },
-  categoryImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 10,
   },
   categoryInfo: {
     flex: 1,

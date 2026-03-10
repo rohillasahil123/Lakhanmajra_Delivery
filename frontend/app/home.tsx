@@ -1,4 +1,5 @@
 import { ThemedText } from '@/components/themed-text';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import useCart from '@/stores/cartStore';
 import useLocationStore from '@/stores/locationStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,7 +18,6 @@ import {
   View,
   useWindowDimensions,
   FlatList,
-  Dimensions,
 } from 'react-native';/*  */
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
 import catalogService, { fetchCategories, fetchProducts, fetchOffers } from '@/services/catalogService';
@@ -52,6 +52,25 @@ const getParentCategoryId = (category: any): string => {
   if (!category?.parentCategory) return '';
   if (typeof category.parentCategory === 'string') return category.parentCategory;
   return category.parentCategory?._id || '';
+};
+
+const getCategoryIcon = (categoryName: string): keyof typeof MaterialCommunityIcons.glyphMap => {
+  const n = String(categoryName || '').toLowerCase();
+  if (n.includes('veg') || n.includes('fruit')) return 'carrot';
+  if (n.includes('bakery') || n.includes('bread')) return 'bread-slice';
+  if (n.includes('atta') || n.includes('rice') || n.includes('pulse') || n.includes('dal')) return 'rice';
+  if (n.includes('dairy') || n.includes('milk')) return 'cup';
+  if (n.includes('masala') || n.includes('spice')) return 'chili-mild';
+  if (n.includes('snack') || n.includes('namkeen')) return 'french-fries';
+  if (n.includes('personal') || n.includes('care') || n.includes('soap') || n.includes('perfume')) return 'spray-bottle';
+  if (n.includes('oil') || n.includes('ghee')) return 'bottle-tonic';
+  if (n.includes('instant') || n.includes('ready')) return 'silverware-fork-knife';
+  if (n.includes('beverage') || n.includes('drink')) return 'coffee';
+  if (n.includes('household') || n.includes('clean')) return 'broom';
+  if (n.includes('dry') || n.includes('nut')) return 'peanut';
+  if (n.includes('stationery')) return 'pencil';
+  if (n.includes('baby')) return 'baby-face-outline';
+  return 'shape-outline';
 };
 
 // Color Scheme
@@ -480,10 +499,10 @@ export default function HomeScreen() {
         {/* Categories — horizontal FlatList single-row */}
         <View>
           {(() => {
-            const visibleOnScreen = 5; // how many cards fit before scrolling
+            const visibleOnScreen = width < 380 ? 4 : 5; // how many cards fit before scrolling
             const gap = 12;
             const horizontalPadding = 32; // 16 left + 16 right
-            const winW = Dimensions.get('window').width;
+            const winW = width;
             const cardSize = Math.floor((winW - horizontalPadding - (visibleOnScreen - 1) * gap) / visibleOnScreen);
 
             return (
@@ -504,15 +523,11 @@ export default function HomeScreen() {
                       { backgroundColor: getCategoryColor(item.name), width: cardSize, height: cardSize, marginRight: gap, transform: [{ scale: pressed ? 0.96 : 1 }] },
                     ]}
                   >
-                    {item.image ? (
-                      <Image
-                        source={{ uri: resolveImageUrl(item.image) }}
-                        style={styles.categoryImage}
-                        resizeMode="cover"
-                      />
-                    ) : (
-                      <ThemedText style={styles.categoryIcon}>{item.icon || '🥬'}</ThemedText>
-                    )}
+                    <MaterialCommunityIcons
+                      name={getCategoryIcon(item?.name)}
+                      size={30}
+                      color="#0E7A3D"
+                    />
                   </Pressable>
                 )}
                 ListEmptyComponent={<View style={{ height: 8 }} />}

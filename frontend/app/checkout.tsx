@@ -9,6 +9,7 @@ import {
     ScrollView,
     StyleSheet,
     TouchableOpacity,
+    useWindowDimensions,
     View
 } from 'react-native';
 
@@ -18,6 +19,9 @@ import { createOrderApi, getOrderEligibilityApi, OrderEligibility } from '@/serv
 
 export default function CheckoutScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 380;
+  const qrSize = Math.min(220, Math.max(150, width - 120));
   const params = useLocalSearchParams();
   const cartItems = useCart((s) => s.items);
   const clearCart = useCart((s) => s.clear);
@@ -67,7 +71,7 @@ export default function CheckoutScreen() {
       payload: `upi://pay?pa=${upiId}&pn=Lakhanmajra%20Delivery&am=${totalPayable.toFixed(2)}&cu=INR&tn=${txnId}`,
     };
   }, [qrNonce, totalPayable]);
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(qrPaymentData.payload)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${Math.round(qrSize)}x${Math.round(qrSize)}&data=${encodeURIComponent(qrPaymentData.payload)}`;
 
   useEffect(() => {
     const addressParam = getParamText(params.address).trim();
@@ -269,7 +273,7 @@ export default function CheckoutScreen() {
 
           {effectivePaymentMethod === 'online' ? (
             <View style={styles.qrSection}>
-              <Image source={{ uri: qrCodeUrl }} style={styles.qrImage} resizeMode="contain" />
+              <Image source={{ uri: qrCodeUrl }} style={[styles.qrImage, { width: qrSize, height: qrSize }]} resizeMode="contain" />
               <ThemedText style={styles.qrTitle}>Demo QR (Random)</ThemedText>
               <ThemedText style={styles.qrMeta}>UPI ID: {qrPaymentData.upiId}</ThemedText>
               <ThemedText style={styles.qrMeta}>Amount: ₹{totalPayable}</ThemedText>
@@ -328,7 +332,7 @@ export default function CheckoutScreen() {
         </View>
 
         {/* Spacer for bottom button */}
-        <View style={{ height: 100 }} />
+        <View style={{ height: isCompact ? 132 : 112 }} />
       </ScrollView>
 
       {/* Fixed Bottom Button */}
@@ -345,13 +349,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F3F4F6',
-   marginTop: 20,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-     marginTop: 20,
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: '#0E7A3D',
@@ -567,7 +569,9 @@ const styles = StyleSheet.create({
   billRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    gap: 10,
+    flexWrap: 'wrap',
     marginBottom: 12,
   },
   billLabel: {
@@ -644,7 +648,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     shadowColor: '#000',
