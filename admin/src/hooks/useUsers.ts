@@ -138,14 +138,12 @@ export const useUsers = () => {
   );
 
   const deleteUser = useCallback(
-    async (id: string): Promise<void> => {
+    async (id: string): Promise<string> => {
       try {
         setError(null);
-        await api.delete(`/admin/users/${id}`);
-        
-        // Remove from local state
-        setUsers((prev) => prev.filter((u) => u._id !== id));
-        setTotal((prev) => Math.max(0, prev - 1));
+        const res = await api.delete(`/admin/users/${id}`);
+        const deletedId = String(res?.data?.data?.deletedId || id);
+        return deletedId;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : "Failed to delete user";
         setError(errorMsg);

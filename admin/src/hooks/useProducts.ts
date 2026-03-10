@@ -316,9 +316,11 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     } finally { setUpdating(false); }
   };
 
-  const deleteProduct = async (id: string) => {
-    await api.delete(`/products/${id}`);
+  const deleteProduct = async (id: string): Promise<string> => {
+    const res = await api.delete(`/products/${id}`);
     await load(page);
+    const payload = res?.data?.data;
+    return String(payload?.deletedId || payload?.deleted?._id || id);
   };
 
   const removeProductImage = async (productId: string, imageUrl: string) => {

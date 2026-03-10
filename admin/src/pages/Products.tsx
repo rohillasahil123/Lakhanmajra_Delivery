@@ -5,6 +5,7 @@ import EditProductModal from '../components/products/EditProductModal';
 import ProductsTable from '../components/products/ProductsTable';
 import AddCategoryModal from '../components/products/AddCategoryModal';
 import EditCategoryModal from '../components/products/EditCategoryModal';
+import Toast from '../components/users/Toast';
 import api from '../api/client';
 
 // ─── Color palette for category cards ────────────────────────────────────────
@@ -103,6 +104,7 @@ export default function Products() {
   const [csvText, setCsvText] = useState('');
   const [showCsv, setShowCsv] = useState(false);
   const [csvMsg,  setCsvMsg]  = useState('');
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const selectedCategory = parentCategories.find((c) => c._id === selectedCatId) ?? null;
 
@@ -111,8 +113,10 @@ export default function Products() {
     try {
       await api.delete(`/categories/${cat._id}`);
       await reloadCategories();
+      console.info('Category deleted', { categoryId: cat._id, categoryName: cat.name });
+      setToast({ message: `Category deleted: ${cat.name}`, type: 'success' });
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Delete failed');
+      setToast({ message: err?.response?.data?.message || 'Category delete failed', type: 'error' });
     }
   };
 
@@ -282,6 +286,14 @@ export default function Products() {
         )}
 
         <Modals />
+
+        {toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={() => setToast(null)}
+          />
+        )}
       </div>
     );
   }
@@ -337,13 +349,26 @@ export default function Products() {
         hasPerm={hasPerm}
         onEdit={(p) => setEditProduct(p)}
         onDelete={async (id) => {
-          try { await deleteProduct(id); }
-          catch (err: any) { alert(err?.response?.data?.message || 'Delete failed'); }
+          try {
+            const deletedId = await deleteProduct(id);
+            console.info('Product deleted permanently', { deletedId });
+            setToast({ message: `Product deleted (ID: ${deletedId})`, type: 'success' });
+          }
+          catch (err: any) {
+            const message = err?.response?.data?.message || 'Delete failed';
+            setToast({ message, type: 'error' });
+          }
         }}
         onRemoveImage={async (pid, url) => {
           if (!confirm('Remove this image?')) return;
-          try { await removeProductImage(pid, url); }
-          catch (err: any) { alert(err?.response?.data?.message || 'Image delete failed'); }
+          try {
+            await removeProductImage(pid, url);
+            console.info('Product image deleted', { productId: pid, imageUrl: url });
+            setToast({ message: 'Product image deleted', type: 'success' });
+          }
+          catch (err: any) {
+            setToast({ message: err?.response?.data?.message || 'Image delete failed', type: 'error' });
+          }
         }}
       />
 
@@ -360,6 +385,14 @@ export default function Products() {
       </div>
 
       <Modals />
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

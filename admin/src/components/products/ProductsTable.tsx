@@ -38,6 +38,7 @@ function ProductRow({ p, hasPerm, onEdit, onDelete, onRemoveImage }: {
   onRemoveImage: (pid: string, url: string) => void;
 }) {
   const hasVariants = Array.isArray((p as any).variants) && (p as any).variants.length > 0;
+  const productId = String((p as any)?._id || (p as any)?.id || '');
 
   return (
     <tr className="border-b last:border-0 hover:bg-slate-50 transition-colors">
@@ -54,7 +55,10 @@ function ProductRow({ p, hasPerm, onEdit, onDelete, onRemoveImage }: {
                 />
                 {hasPerm('products:update') && (
                   <button
-                    onClick={() => onRemoveImage(p._id, img)}
+                    onClick={() => {
+                      if (!productId) return;
+                      onRemoveImage(productId, img);
+                    }}
                     title="Remove image"
                     className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                   >×</button>
@@ -134,7 +138,13 @@ function ProductRow({ p, hasPerm, onEdit, onDelete, onRemoveImage }: {
             <button
               title="Delete"
               className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-              onClick={() => { if (confirm('Delete this product?')) onDelete(p._id); }}
+              onClick={() => {
+                if (!productId) {
+                  alert('Unable to delete: product id missing');
+                  return;
+                }
+                if (confirm('Delete this product?')) onDelete(productId);
+              }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4h6v3M3 7h18" />

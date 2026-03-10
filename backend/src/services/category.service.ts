@@ -129,6 +129,9 @@ export const deleteCategory = async (req: Request, res: Response) => {
     const category = await Category.findByIdAndDelete(id);
     if (!category) return fail(res, "Category not found", 404);
 
+    const stillExists = await Category.findById(id);
+    if (stillExists) return fail(res, "Category could not be deleted from DB", 500);
+
     recordAudit({
       actorId: (req as any).user?.id,
       action: "delete",
@@ -137,7 +140,14 @@ export const deleteCategory = async (req: Request, res: Response) => {
       after: { deleted: true },
     }).catch(() => {});
 
-    return success(res, category, "Category deleted permanently");
+    return success(
+      res,
+      {
+        deletedId: String((category as any)?._id || id),
+        deleted: category,
+      },
+      "Category deleted permanently"
+    );
   } catch (error: any) {
     return fail(res, error.message || "Delete failed", 500);
   }

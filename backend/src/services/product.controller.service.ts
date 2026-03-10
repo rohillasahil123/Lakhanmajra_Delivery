@@ -421,6 +421,9 @@ export const deleteProduct = async (req: Request, res: Response) => {
     const deleted = await service.deleteProductById(id);
     if (!deleted) return fail(res, "Product not found", 404);
 
+    const stillExists = await service.getProductByIdForDelete(id);
+    if (stillExists) return fail(res, "Product could not be deleted from DB", 500);
+
     // Cleanup image objects in background (best effort, do not block DB delete)
     if (imageUrls.length > 0) {
       Promise.allSettled(imageUrls.map((url) => deleteFromMinio(url))).catch(() => {});
@@ -434,7 +437,14 @@ export const deleteProduct = async (req: Request, res: Response) => {
       after: { deleted: true },
     }).catch(() => {});
 
-    return success(res, deleted, "Product deleted permanently");
+    return success(
+      res,
+      {
+        deletedId: String((deleted as any)?._id || id),
+        deleted,
+      },
+      "Product deleted permanently"
+    );
   } catch (err: any) {
     return fail(res, err.message || "Delete failed", 500);
   }

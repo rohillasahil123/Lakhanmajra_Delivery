@@ -533,7 +533,12 @@ export const deleteUser = async (req: Request, res: Response) => {
     // Delete user
     await User.findByIdAndDelete(id);
 
-    return success(res, null, 'User deleted successfully');
+    const stillExists = await User.findById(id);
+    if (stillExists) {
+      return fail(res, 'User could not be deleted from DB', 500);
+    }
+
+    return success(res, { deletedId: id }, 'User deleted successfully');
   } catch (err: any) {
     return fail(res, err.message || 'User deletion failed', 500);
   }
