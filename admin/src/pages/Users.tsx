@@ -632,8 +632,9 @@ export default function UsersPage() {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
 
     try {
-      await deleteUser(userId);
-      setToast({ message: "User deleted successfully", type: "success" });
+      const deletedId = await deleteUser(userId);
+      console.info("User deleted permanently", { deletedId });
+      setToast({ message: `User deleted (ID: ${deletedId})`, type: "success" });
       await fetchUsers({ page: 1, role: activeRole || undefined });
     } catch (err) {
       setToast({ message: "Failed to delete user", type: "error" });
