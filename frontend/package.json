@@ -8,8 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:css": "tailwindcss -i ./styles/tailwind.css -o ./styles/tailwind-output.css --watch",
-    "build:css:once": "tailwindcss -i ./styles/tailwind.css -o ./styles/tailwind-output.css --minify",
+    "build:css": "tailwindcss -i ./src/styles/tailwind.css -o ./src/styles/tailwind-output.css --watch",
+    "build:css:once": "tailwindcss -i ./src/styles/tailwind.css -o ./src/styles/tailwind-output.css --minify",
     "lint": "expo lint"
   },
   "dependencies": {
