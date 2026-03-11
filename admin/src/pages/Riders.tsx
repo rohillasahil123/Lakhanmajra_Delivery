@@ -21,6 +21,11 @@ type RiderProfile = {
 };
 
 type Rider = { _id: string; name: string; email?: string; phone?: string; roleId?: any; isActive?: boolean; riderProfile?: RiderProfile };
+type KycStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected';
+type RiderWithKyc = Rider & {
+  kycStatus?: KycStatus;
+  kycRejectReason?: string;
+};
 type Role = { _id: string; name: string };
 
 const riderKycFields: Array<keyof RiderProfile> = [
@@ -74,7 +79,7 @@ function getInitials(name: string) {
 }
 
 export default function Riders() {
-  const [riders, setRiders] = useState<Rider[]>([]);
+  const [riders, setRiders] = useState<RiderWithKyc[]>([]);
   const [total, setTotal] = useState<number | null>(null);
   const [permissions, setPermissions] = useState<string[]>([]);
   const [page, setPage] = useState(1);
@@ -95,10 +100,11 @@ export default function Riders() {
   const [editEmail, setEditEmail] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editUpdating, setEditUpdating] = useState(false);
+  const [reviewingKycId, setReviewingKycId] = useState<string | null>(null);
 
   const loadRiders = async (pageNum = 1) => {
     try {
-      const res = await api.get(`/admin/users?role=rider&page=${pageNum}&limit=${limit}`);
+      const res = await api.get(`/admin/users/rider-kyc?status=all&page=${pageNum}&limit=${limit}`);
       const data = res.data?.data ?? res.data;
       const riderRows = Array.isArray(data?.users)
         ? data.users
@@ -107,7 +113,7 @@ export default function Riders() {
         : Array.isArray(data)
         ? data
         : [];
-      setRiders(riderRows);
+      setRiders(riderRows as RiderWithKyc[]);
       setTotal(data?.total ?? 0);
       setPage(pageNum);
     } catch (err) {
@@ -212,6 +218,54 @@ export default function Riders() {
     }
   };
 
+  const reviewKyc = async (riderId: string, status: 'approved' | 'rejected') => {
+    let reason = '';
+    if (status === 'rejected') {
+      reason = prompt('Reject reason (required):', 'Document not clear') || '';
+      if (!reason.trim()) {
+        alert('Reject reason required');
+        return;
+      }
+    }
+
+    try {
+      setReviewingKycId(riderId);
+      await api.patch(`/admin/users/${riderId}/kyc-review`, {
+        status,
+        reason: reason.trim() || undefined,
+      });
+      await loadRiders(page);
+      alert(status === 'approved' ? 'KYC approved' : 'KYC rejected');
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'KYC review failed');
+    } finally {
+      setReviewingKycId(null);
+    }
+  };
+
+  const renderKycStatusBadge = (status?: KycStatus) => {
+    const normalized = status || 'not_submitted';
+    const className =
+      normalized === 'approved'
+        ? 'bg-emerald-100 text-emerald-700'
+        : normalized === 'pending'
+        ? 'bg-amber-100 text-amber-700'
+        : normalized === 'rejected'
+        ? 'bg-rose-100 text-rose-700'
+        : 'bg-slate-100 text-slate-700';
+
+    const label =
+      normalized === 'approved'
+        ? 'Approved'
+        : normalized === 'pending'
+        ? 'Pending'
+        : normalized === 'rejected'
+        ? 'Rejected'
+        : 'Not Submitted';
+
+    return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${className}`}>{label}</span>;
+  };
+
   const totalPages = Math.ceil((total || 0) / limit);
 
   return (
@@ -266,6 +320,7 @@ export default function Riders() {
               <th className="px-5 py-3 font-medium">Phone</th>
               <th className="px-5 py-3 font-medium">Role</th>
               <th className="px-5 py-3 font-medium">KYC</th>
+              <th className="px-5 py-3 font-medium">KYC Review</th>
               <th className="px-5 py-3 font-medium">Status</th>
               <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
@@ -276,6 +331,7 @@ export default function Riders() {
               const initials = getInitials(r.name);
               const kycCompletion = getKycCompletion(r);
               const kycComplete = kycCompletion === 100;
+              const kycStatus = r.kycStatus || 'not_submitted';
 
               return (
                 <tr key={r._id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
@@ -298,6 +354,7 @@ export default function Riders() {
                           {kycComplete ? 'Complete (100%)' : `Incomplete (${kycCompletion}%)`}
                         </span>
                       </td>
+                      <td className="px-5 py-3">{renderKycStatusBadge(kycStatus)}</td>
                       <td className="px-5 py-3">
                         <span className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}>
                           <span className={`w-2 h-2 rounded-full ${r.isActive ? 'bg-green-500' : 'bg-red-400'}`} />
@@ -346,6 +403,15 @@ export default function Riders() {
                         </span>
                       </td>
 
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-2">
+                          {renderKycStatusBadge(kycStatus)}
+                          {kycStatus === 'rejected' && r.kycRejectReason ? (
+                            <span className="text-xs text-rose-600">{r.kycRejectReason}</span>
+                          ) : null}
+                        </div>
+                      </td>
+
                       {/* STATUS column — dot + text */}
                       <td className="px-5 py-3">
                         <span className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}>
@@ -379,6 +445,26 @@ export default function Riders() {
                               </svg>
                             </button>
                           )}
+                          {hasPerm('users:update') && kycStatus === 'pending' && (
+                            <button
+                              title="Approve KYC"
+                              className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              onClick={() => reviewKyc(r._id, 'approved')}
+                              disabled={reviewingKycId === r._id}
+                            >
+                              ✓
+                            </button>
+                          )}
+                          {hasPerm('users:update') && kycStatus === 'pending' && (
+                            <button
+                              title="Reject KYC"
+                              className="p-1.5 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                              onClick={() => reviewKyc(r._id, 'rejected')}
+                              disabled={reviewingKycId === r._id}
+                            >
+                              ✕
+                            </button>
+                          )}
                           {hasPerm('users:delete') && (
                             <button
                               title="Delete"
@@ -399,7 +485,7 @@ export default function Riders() {
             })}
             {riders.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-slate-400 text-sm">No riders found</td>
+                <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm">No riders found</td>
               </tr>
             )}
           </tbody>

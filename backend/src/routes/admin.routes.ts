@@ -10,6 +10,8 @@ import {
   listUsersWithRoles,
   updateUserStatus,
   getUserSummary,
+  listRiderKycQueue,
+  reviewRiderKyc,
   getDashboardMetrics,
   getAuditLogs,
   createUser,
@@ -42,6 +44,8 @@ router.get('/roles/:id/users', protect, requirePermission('users:view'), getUser
 
 router.get('/users', protect, requirePermission('users:view'), listUsersWithRoles);
 router.get('/users/summary', protect, requirePermission('users:view'), getUserSummary);
+router.get('/users/rider-kyc', protect, requirePermission('users:view'), listRiderKycQueue);
+router.patch('/users/:id/kyc-review', protect, requireRole('superadmin'), reviewRiderKyc);
 
 // User management (superadmin only)
 router.post('/users', protect, requireRole('superadmin'), createUser);

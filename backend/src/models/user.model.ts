@@ -13,6 +13,10 @@ export interface IUser extends Document {
   roleId: Types.ObjectId; // reference to Role
   isActive: boolean;
   isOnline: boolean;
+  kycStatus?: 'not_submitted' | 'pending' | 'approved' | 'rejected';
+  kycRejectReason?: string;
+  kycReviewedAt?: Date | null;
+  kycReviewedBy?: Types.ObjectId | null;
   riderProfile?: {
     fullName: string;
     dateOfBirth: string;
@@ -91,6 +95,24 @@ const UserSchema = new Schema<IUser>(
     isOnline: {
       type: Boolean,
       default: false,
+    },
+    kycStatus: {
+      type: String,
+      enum: ['not_submitted', 'pending', 'approved', 'rejected'],
+      default: 'not_submitted',
+    },
+    kycRejectReason: {
+      type: String,
+      default: '',
+    },
+    kycReviewedAt: {
+      type: Date,
+      default: null,
+    },
+    kycReviewedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
     },
     riderProfile: {
       type: RiderProfileSchema,

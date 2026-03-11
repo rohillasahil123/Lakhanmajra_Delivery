@@ -4,9 +4,12 @@ import jwt from 'jsonwebtoken';
 import {randomInt} from 'crypto';
 import {Types} from 'mongoose';
 import User from '../models/user.model';
+import {Role} from '../models/role.model';
 import Order from '../models/order.model';
+import {Audit} from '../models/audit.model';
 import { emitOrderRealtime } from '../services/realtime.service';
 import { uploadToMinio } from '../services/minio.service';
+import {createWorker} from 'tesseract.js';
 
 type RiderFlowStatus = 'Assigned' | 'Accepted' | 'Picked' | 'OutForDelivery' | 'Delivered' | 'Rejected';
 
@@ -130,6 +133,36 @@ const riderProfileOtpStore = new Map<string, {otp: string; expiresAt: number}>()
 
 const createProfileOtp = (): string => String(randomInt(100000, 1000000));
 
+const toObjectIdOrNull = (value: string): Types.ObjectId | null => {
+  if (!Types.ObjectId.isValid(value)) {
+    return null;
+  }
+  return new Types.ObjectId(value);
+};
+
+const writeAudit = async (input: {
+  actorId?: string | null;
+  action: string;
+  resource: string;
+  resourceId?: string | null;
+  before?: unknown;
+  after?: unknown;
+  meta?: unknown;
+}) => {
+  try {
+    await Audit.create({
+      actorId: input.actorId && Types.ObjectId.isValid(input.actorId) ? new Types.ObjectId(input.actorId) : null,
+      action: input.action,
+      resource: input.resource,
+      resourceId: input.resourceId || null,
+      before: input.before,
+      after: input.after,
+      meta: input.meta,
+    });
+  } catch {
+  }
+};
+
 const riderProfileFields = [
   'fullName',
   'dateOfBirth',
@@ -159,26 +192,232 @@ const sanitizeText = (value: unknown): string => {
   return value.trim();
 };
 
+const isValidHttpUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const formatDdMmYyyy = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear());
+  return `${day}-${month}-${year}`;
+};
+
+const parseDdMmYyyy = (value: string): Date | null => {
+  const trimmed = value.trim();
+  const ddMmYyyyMatch = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+  const yyyyMmDdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!ddMmYyyyMatch && !yyyyMmDdMatch) {
+    return null;
+  }
+
+  const day = Number(ddMmYyyyMatch ? ddMmYyyyMatch[1] : yyyyMmDdMatch?.[3]);
+  const month = Number(ddMmYyyyMatch ? ddMmYyyyMatch[2] : yyyyMmDdMatch?.[2]);
+  const year = Number(ddMmYyyyMatch ? ddMmYyyyMatch[3] : yyyyMmDdMatch?.[1]);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
 const toProfilePayload = (input: unknown): RiderProfilePayload => {
   const raw = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  const normalizedDob = parseDdMmYyyy(sanitizeText(raw.dateOfBirth));
+  const normalizedDlExpiry = parseDdMmYyyy(sanitizeText(raw.dlExpiryDate));
 
   return {
-    fullName: sanitizeText(raw.fullName),
-    dateOfBirth: sanitizeText(raw.dateOfBirth),
-    phoneNumber: sanitizeText(raw.phoneNumber),
+    fullName: sanitizeText(raw.fullName)
+      .replace(/[^a-zA-Z\s]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .slice(0, 60),
+    dateOfBirth: normalizedDob ? formatDdMmYyyy(normalizedDob) : sanitizeText(raw.dateOfBirth),
+    phoneNumber: sanitizeText(raw.phoneNumber).replace(/\D/g, '').slice(0, 10),
     otpCode: sanitizeText(raw.otpCode),
-    aadhaarNumber: sanitizeText(raw.aadhaarNumber),
+    aadhaarNumber: sanitizeText(raw.aadhaarNumber).replace(/\D/g, '').slice(0, 12),
     aadhaarFrontImage: sanitizeText(raw.aadhaarFrontImage),
     aadhaarBackImage: sanitizeText(raw.aadhaarBackImage),
     liveSelfieImage: sanitizeText(raw.liveSelfieImage),
-    dlNumber: sanitizeText(raw.dlNumber),
-    dlExpiryDate: sanitizeText(raw.dlExpiryDate),
+    dlNumber: sanitizeText(raw.dlNumber).replace(/[^a-zA-Z0-9/-]/g, '').toUpperCase().slice(0, 20),
+    dlExpiryDate: normalizedDlExpiry ? formatDdMmYyyy(normalizedDlExpiry) : sanitizeText(raw.dlExpiryDate),
     dlFrontImage: sanitizeText(raw.dlFrontImage),
-    vehicleNumber: sanitizeText(raw.vehicleNumber),
-    vehicleType: sanitizeText(raw.vehicleType),
+    vehicleNumber: sanitizeText(raw.vehicleNumber).replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12),
+    vehicleType: sanitizeText(raw.vehicleType)
+      .replace(/[^a-zA-Z\s-]/g, '')
+      .replace(/\s{2,}/g, ' ')
+      .slice(0, 25),
     rcFrontImage: sanitizeText(raw.rcFrontImage),
     insuranceImage: sanitizeText(raw.insuranceImage),
   };
+};
+
+const validateProfilePayload = (payload: RiderProfilePayload): string | null => {
+  if (!/^[a-zA-Z\s]{3,60}$/.test(payload.fullName)) {
+    return 'Full Name must be 3-60 letters.';
+  }
+
+  const dob = parseDdMmYyyy(payload.dateOfBirth);
+  if (!dob) {
+    return 'Date of Birth must be in valid DD-MM-YYYY format.';
+  }
+
+  const today = new Date();
+  const minAdultDate = new Date();
+  minAdultDate.setFullYear(today.getFullYear() - 18);
+  if (dob.getTime() > minAdultDate.getTime()) {
+    return 'Rider age must be at least 18 years.';
+  }
+
+  if (!/^\d{10}$/.test(payload.phoneNumber)) {
+    return 'Phone Number must be exactly 10 digits.';
+  }
+
+  if (!/^\d{12}$/.test(payload.aadhaarNumber)) {
+    return 'Aadhaar Number must be exactly 12 digits.';
+  }
+
+  if (!/^[A-Z0-9/-]{6,20}$/.test(payload.dlNumber)) {
+    return 'Driving License Number must be 6-20 characters.';
+  }
+
+  const dlExpiry = parseDdMmYyyy(payload.dlExpiryDate);
+  if (!dlExpiry) {
+    return 'DL Expiry Date must be in valid DD-MM-YYYY format.';
+  }
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  if (dlExpiry.getTime() < startOfToday.getTime()) {
+    return 'DL Expiry Date must be today or future date.';
+  }
+
+  if (!/^[A-Z]{2}\d{1,2}[A-Z]{1,3}\d{4}$/.test(payload.vehicleNumber)) {
+    return 'Vehicle Number format invalid. Example: HR12AB1234';
+  }
+
+  if (!/^[a-zA-Z\s-]{2,25}$/.test(payload.vehicleType)) {
+    return 'Vehicle Type must be 2-25 letters.';
+  }
+
+  const urlFields: Array<keyof RiderProfilePayload> = [
+    'aadhaarFrontImage',
+    'aadhaarBackImage',
+    'liveSelfieImage',
+    'dlFrontImage',
+    'rcFrontImage',
+    'insuranceImage',
+  ];
+
+  for (const field of urlFields) {
+    if (!isValidHttpUrl(payload[field])) {
+      return `${field} must be a valid http/https URL.`;
+    }
+  }
+
+  if (!/^\d{6}$/.test(payload.otpCode)) {
+    return 'OTP must be 6 digits.';
+  }
+
+  return null;
+};
+
+const findDuplicateKycSignals = async (riderId: string, payload: RiderProfilePayload): Promise<string[]> => {
+  const conflicts: string[] = [];
+  const riderObjectId = toObjectIdOrNull(riderId);
+
+  if (!riderObjectId) {
+    return conflicts;
+  }
+
+  const riderRole = await Role.findOne({name: 'rider'}).select('_id').lean();
+  if (!riderRole?._id) {
+    return conflicts;
+  }
+
+  const existingPhone = await User.findOne({
+    _id: {$ne: riderObjectId},
+    roleId: riderRole._id,
+    phone: payload.phoneNumber,
+  })
+    .select('_id name phone')
+    .lean();
+
+  if (existingPhone) {
+    conflicts.push(`Phone already used by another rider (${String((existingPhone as any).name || 'Unknown')})`);
+  }
+
+  const existingAadhaar = await User.findOne({
+    _id: {$ne: riderObjectId},
+    roleId: riderRole._id,
+    'riderProfile.aadhaarNumber': payload.aadhaarNumber,
+  })
+    .select('_id name riderProfile.aadhaarNumber')
+    .lean();
+
+  if (existingAadhaar) {
+    conflicts.push(`Aadhaar already used by another rider (${String((existingAadhaar as any).name || 'Unknown')})`);
+  }
+
+  const existingDl = await User.findOne({
+    _id: {$ne: riderObjectId},
+    roleId: riderRole._id,
+    'riderProfile.dlNumber': payload.dlNumber,
+  })
+    .select('_id name riderProfile.dlNumber')
+    .lean();
+
+  if (existingDl) {
+    conflicts.push(`DL number already used by another rider (${String((existingDl as any).name || 'Unknown')})`);
+  }
+
+  const imageFields: Array<keyof RiderProfilePayload> = [
+    'aadhaarFrontImage',
+    'aadhaarBackImage',
+    'liveSelfieImage',
+    'dlFrontImage',
+    'rcFrontImage',
+    'insuranceImage',
+  ];
+
+  for (const field of imageFields) {
+    const value = payload[field];
+    if (!value) continue;
+
+    const docReuse = await User.findOne({
+      _id: {$ne: riderObjectId},
+      roleId: riderRole._id,
+      [`riderProfile.${field}`]: value,
+    })
+      .select('_id name')
+      .lean();
+
+    if (docReuse) {
+      conflicts.push(`${field} appears reused from another rider (${String((docReuse as any).name || 'Unknown')})`);
+    }
+  }
+
+  return conflicts;
+};
+
+const runOcrForImageUrl = async (imageUrl: string): Promise<string> => {
+  const worker = await createWorker('eng');
+  try {
+    const result = await worker.recognize(imageUrl);
+    return String(result.data.text || '');
+  } finally {
+    await worker.terminate();
+  }
 };
 
 const getMissingFields = (payload: RiderProfilePayload): RiderProfileField[] =>
@@ -347,6 +586,29 @@ export const updateRiderProfile = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    const validationError = validateProfilePayload(payload);
+    if (validationError) {
+      res.status(400).json({message: validationError});
+      return;
+    }
+
+    const fraudConflicts = await findDuplicateKycSignals(riderId, payload);
+    if (fraudConflicts.length > 0) {
+      await writeAudit({
+        actorId: riderId,
+        action: 'kyc_profile_rejected_duplicate',
+        resource: 'rider_kyc',
+        resourceId: riderId,
+        meta: {fraudConflicts},
+      });
+
+      res.status(409).json({
+        message: 'Duplicate or suspicious KYC data detected',
+        conflicts: fraudConflicts,
+      });
+      return;
+    }
+
     const otpRecord = riderProfileOtpStore.get(riderId);
     if (!otpRecord) {
       res.status(400).json({message: 'Request verification OTP first'});
@@ -373,6 +635,10 @@ export const updateRiderProfile = async (req: Request, res: Response): Promise<v
         },
         name: payload.fullName,
         phone: payload.phoneNumber,
+        kycStatus: 'pending',
+        kycRejectReason: '',
+        kycReviewedAt: null,
+        kycReviewedBy: null,
       },
       {new: true}
     ).select('_id name phone riderProfile');
@@ -383,6 +649,15 @@ export const updateRiderProfile = async (req: Request, res: Response): Promise<v
     }
 
     riderProfileOtpStore.delete(riderId);
+
+    await writeAudit({
+      actorId: riderId,
+      action: 'kyc_profile_submitted',
+      resource: 'rider_kyc',
+      resourceId: riderId,
+      after: payload,
+      meta: {kycStatus: 'pending'},
+    });
 
     res.status(200).json({
       message: 'Rider profile submitted successfully',
@@ -423,6 +698,14 @@ export const requestRiderProfileOtp = async (req: Request, res: Response): Promi
     console.log(`\n🔐 Your verification OTP for ${maskedPhone}: ${otp}`);
     console.log(`⏰ Expires in ${expiresInMinutes} minute(s)\n`);
 
+    await writeAudit({
+      actorId: riderId,
+      action: 'kyc_otp_requested',
+      resource: 'rider_kyc',
+      resourceId: riderId,
+      meta: {maskedPhone, expiresInMinutes},
+    });
+
     res.status(200).json({
       message: `Your verification OTP is ${otp}`,
       otp,
@@ -430,6 +713,57 @@ export const requestRiderProfileOtp = async (req: Request, res: Response): Promi
     });
   } catch (error) {
     res.status(500).json({message: 'Unable to generate verification OTP'});
+  }
+};
+
+export const ocrRiderDocumentPrefill = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const {field, imageUrl} = req.body as {field?: 'aadhaarNumber' | 'dlNumber'; imageUrl?: string};
+
+    if (!field || !['aadhaarNumber', 'dlNumber'].includes(field)) {
+      res.status(400).json({message: 'field must be aadhaarNumber or dlNumber'});
+      return;
+    }
+
+    if (!imageUrl || !isValidHttpUrl(String(imageUrl))) {
+      res.status(400).json({message: 'Valid imageUrl is required'});
+      return;
+    }
+
+    const extractedText = await runOcrForImageUrl(String(imageUrl));
+
+    let detectedValue = '';
+    if (field === 'aadhaarNumber') {
+      const aadhaarMatch = extractedText.replace(/\s+/g, ' ').match(/\b\d{4}\s?\d{4}\s?\d{4}\b/);
+      detectedValue = aadhaarMatch ? aadhaarMatch[0].replace(/\D/g, '').slice(0, 12) : '';
+    } else {
+      const normalized = extractedText.toUpperCase().replace(/\s+/g, '');
+      const dlMatch = normalized.match(/[A-Z]{2}\d{2}\d{4}\d{7}/) || normalized.match(/[A-Z0-9/-]{8,20}/);
+      detectedValue = dlMatch ? dlMatch[0].replace(/[^A-Z0-9/-]/g, '').slice(0, 20) : '';
+    }
+
+    await writeAudit({
+      actorId: riderId,
+      action: 'kyc_ocr_prefill_attempt',
+      resource: 'rider_kyc',
+      resourceId: riderId,
+      meta: {field, detected: Boolean(detectedValue)},
+    });
+
+    res.status(200).json({
+      field,
+      detectedValue,
+      extractedText: extractedText.slice(0, 2000),
+      message: detectedValue ? 'OCR value detected' : 'No confident value detected',
+    });
+  } catch (error) {
+    res.status(500).json({message: 'Unable to process OCR prefill'});
   }
 };
 

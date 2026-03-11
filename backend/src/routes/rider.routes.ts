@@ -4,6 +4,7 @@ import {
 	getRiderMe,
 	getRiderOrderById,
 	getRiderOrders,
+	ocrRiderDocumentPrefill,
 	requestRiderProfileOtp,
 	riderLogin,
 	uploadRiderDocument,
@@ -22,6 +23,7 @@ router.post('/login', authLimiter, riderLogin);
 router.get('/me', verifyRiderToken, getRiderMe);
 router.get('/profile', verifyRiderToken, getRiderProfile);
 router.post('/profile/request-otp', verifyRiderToken, requestRiderProfileOtp);
+router.post('/profile/ocr-prefill', verifyRiderToken, ocrRiderDocumentPrefill);
 router.put('/profile', verifyRiderToken, updateRiderProfile);
 router.post('/upload-document', verifyRiderToken, riderDocumentUploader.single('file'), handleUploadError, uploadRiderDocument);
 router.get('/orders', verifyRiderToken, getRiderOrders);

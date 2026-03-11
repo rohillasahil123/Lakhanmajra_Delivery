@@ -52,6 +52,14 @@ export const riderService = {
     return response.data;
   },
 
+  async ocrProfilePrefill(field: 'aadhaarNumber' | 'dlNumber', imageUrl: string): Promise<{detectedValue: string; message: string}> {
+    const response = await apiClient.post<{detectedValue: string; message: string}>('/rider/profile/ocr-prefill', {
+      field,
+      imageUrl,
+    });
+    return response.data;
+  },
+
   async updateProfile(payload: RiderProfileKycForm): Promise<RiderProfilePayload> {
     const response = await apiClient.put<{profile: RiderProfilePayload}>('/rider/profile', payload);
     return response.data.profile;

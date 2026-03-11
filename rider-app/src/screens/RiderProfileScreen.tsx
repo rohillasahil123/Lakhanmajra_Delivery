@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {AppButton} from '../components/AppButton';
@@ -34,6 +35,8 @@ type FieldConfig = {
   label: string;
   placeholder: string;
   keyboardType?: 'default' | 'number-pad' | 'phone-pad';
+  maxLength?: number;
+  autoCapitalize?: 'none' | 'words' | 'characters';
 };
 
 type SectionConfig = {
@@ -41,6 +44,36 @@ type SectionConfig = {
   description: string;
   fields: FieldConfig[];
 };
+
+const isValidHttpUrl = (value: string): boolean => {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
+const normalizeDigits = (value: string, maxLength: number): string =>
+  value.replace(/\D/g, '').slice(0, maxLength);
+
+const normalizeName = (value: string): string =>
+  value
+    .replace(/[^a-zA-Z\s]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .slice(0, 60);
+
+const normalizeDlNumber = (value: string): string =>
+  value.replace(/[^a-zA-Z0-9/-]/g, '').toUpperCase().slice(0, 20);
+
+const normalizeVehicleNumber = (value: string): string =>
+  value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 12);
+
+const normalizeVehicleType = (value: string): string =>
+  value
+    .replace(/[^a-zA-Z\s-]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .slice(0, 25);
 
 const formatDobDisplay = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, '0');
@@ -50,14 +83,16 @@ const formatDobDisplay = (date: Date): string => {
 };
 
 const parseDobDisplay = (dob: string): Date | null => {
-  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dob);
-  if (!match) {
+  const trimmed = dob.trim();
+  const ddMmYyyyMatch = /^(\d{2})-(\d{2})-(\d{4})$/.exec(trimmed);
+  const yyyyMmDdMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (!ddMmYyyyMatch && !yyyyMmDdMatch) {
     return null;
   }
 
-  const day = Number(match[1]);
-  const month = Number(match[2]);
-  const year = Number(match[3]);
+  const day = Number(ddMmYyyyMatch ? ddMmYyyyMatch[1] : yyyyMmDdMatch?.[3]);
+  const month = Number(ddMmYyyyMatch ? ddMmYyyyMatch[2] : yyyyMmDdMatch?.[2]);
+  const year = Number(ddMmYyyyMatch ? ddMmYyyyMatch[3] : yyyyMmDdMatch?.[1]);
   const parsed = new Date(year, month - 1, day);
 
   if (
@@ -69,6 +104,34 @@ const parseDobDisplay = (dob: string): Date | null => {
   }
 
   return parsed;
+};
+
+const normalizeDisplayDate = (value: string): string => {
+  const parsed = parseDobDisplay(value);
+  return parsed ? formatDobDisplay(parsed) : value.trim();
+};
+
+const mergeDraftWithProfile = (
+  base: RiderProfileKycForm,
+  draft: Partial<RiderProfileKycForm> | null
+): RiderProfileKycForm => {
+  if (!draft) {
+    return base;
+  }
+
+  const merged = {...base};
+  (Object.keys(draft) as Array<keyof RiderProfileKycForm>).forEach((key) => {
+    const draftValue = draft[key];
+    if (typeof draftValue === 'string' && draftValue.trim().length > 0) {
+      merged[key] = draftValue;
+    }
+  });
+
+  return {
+    ...merged,
+    dateOfBirth: normalizeDisplayDate(merged.dateOfBirth),
+    dlExpiryDate: normalizeDisplayDate(merged.dlExpiryDate),
+  };
 };
 
 const isValidDobFormat = (dob: string): boolean => {
@@ -95,8 +158,7 @@ const isValidDobFormat = (dob: string): boolean => {
     return false;
   }
 
-  const now = new Date();
-  return date.getTime() <= now.getTime();
+  return true;
 };
 
 const createInitialForm = (name = '', phone = ''): RiderProfileKycForm => ({
@@ -124,14 +186,26 @@ const formSections: SectionConfig[] = [
     fields: [
       {key: 'fullName', label: 'Full Name', placeholder: 'Enter full name'},
       {key: 'dateOfBirth', label: 'Date of Birth', placeholder: 'DD-MM-YYYY'},
-      {key: 'phoneNumber', label: 'Phone Number', placeholder: 'Enter rider phone', keyboardType: 'phone-pad'},
+      {
+        key: 'phoneNumber',
+        label: 'Phone Number',
+        placeholder: 'Enter 10-digit phone number',
+        keyboardType: 'phone-pad',
+        maxLength: 10,
+      },
     ],
   },
   {
     title: 'Aadhaar & Selfie',
     description: 'Government identity proof and rider selfie image URL.',
     fields: [
-      {key: 'aadhaarNumber', label: 'Aadhaar Number', placeholder: 'Enter Aadhaar number', keyboardType: 'number-pad'},
+      {
+        key: 'aadhaarNumber',
+        label: 'Aadhaar Number',
+        placeholder: 'Enter 12-digit Aadhaar number',
+        keyboardType: 'number-pad',
+        maxLength: 12,
+      },
       {key: 'aadhaarFrontImage', label: 'Aadhaar Front Image URL', placeholder: 'https://...'},
       {key: 'aadhaarBackImage', label: 'Aadhaar Back Image URL', placeholder: 'https://...'},
       {key: 'liveSelfieImage', label: 'Live Selfie Image URL', placeholder: 'https://...'},
@@ -141,11 +215,11 @@ const formSections: SectionConfig[] = [
     title: 'Driving & Vehicle',
     description: 'License and vehicle verification documents.',
     fields: [
-      {key: 'dlNumber', label: 'Driving License Number', placeholder: 'Enter DL number'},
-      {key: 'dlExpiryDate', label: 'DL Expiry Date', placeholder: 'YYYY-MM-DD'},
+      {key: 'dlNumber', label: 'Driving License Number', placeholder: 'Enter DL number', maxLength: 20, autoCapitalize: 'characters'},
+      {key: 'dlExpiryDate', label: 'DL Expiry Date', placeholder: 'DD-MM-YYYY'},
       {key: 'dlFrontImage', label: 'DL Front Image URL', placeholder: 'https://...'},
-      {key: 'vehicleNumber', label: 'Vehicle Number', placeholder: 'Enter vehicle number'},
-      {key: 'vehicleType', label: 'Vehicle Type', placeholder: 'Bike / Scooty / EV'},
+      {key: 'vehicleNumber', label: 'Vehicle Number', placeholder: 'e.g. HR12AB1234', maxLength: 12, autoCapitalize: 'characters'},
+      {key: 'vehicleType', label: 'Vehicle Type', placeholder: 'Bike / Scooty / EV', maxLength: 25},
       {key: 'rcFrontImage', label: 'RC Front Image URL', placeholder: 'https://...'},
       {key: 'insuranceImage', label: 'Insurance Image URL', placeholder: 'https://...'},
     ],
@@ -179,6 +253,27 @@ const uploadFieldKeys: RiderDocumentField[] = [
 ];
 
 const uploadFieldSet = new Set<FieldKey>(uploadFieldKeys);
+const KYC_DRAFT_KEY = 'rider_kyc_draft_v1';
+const KYC_PENDING_OTP_KEY = 'rider_kyc_pending_otp_v1';
+const KYC_STEP_TITLES = ['Basic', 'Aadhaar', 'DL/Vehicle', 'Review'];
+
+const reviewLabelByKey: Record<FieldKey, string> = {
+  fullName: 'Full Name',
+  dateOfBirth: 'Date of Birth',
+  phoneNumber: 'Phone Number',
+  otpCode: 'OTP Code',
+  aadhaarNumber: 'Aadhaar Number',
+  aadhaarFrontImage: 'Aadhaar Front',
+  aadhaarBackImage: 'Aadhaar Back',
+  liveSelfieImage: 'Live Selfie',
+  dlNumber: 'DL Number',
+  dlExpiryDate: 'DL Expiry Date',
+  dlFrontImage: 'DL Front',
+  vehicleNumber: 'Vehicle Number',
+  vehicleType: 'Vehicle Type',
+  rcFrontImage: 'RC Front',
+  insuranceImage: 'Insurance',
+};
 
 type UploadSource = 'camera' | 'gallery';
 
@@ -189,8 +284,13 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
   );
   const [loading, setLoading] = useState(true);
   const [uploadingField, setUploadingField] = useState<FieldKey | null>(null);
+  const [activeDateField, setActiveDateField] = useState<'dateOfBirth' | 'dlExpiryDate' | null>(null);
   const [showDobPicker, setShowDobPicker] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
   const [requestingOtp, setRequestingOtp] = useState(false);
+  const [hasQueuedDraft, setHasQueuedDraft] = useState(false);
+  const [canAutoSaveDraft, setCanAutoSaveDraft] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -202,23 +302,41 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
         setLoading(true);
         setError(null);
         const profile = await riderService.getProfile();
+        const draftRaw = await AsyncStorage.getItem(KYC_DRAFT_KEY);
+        const draft = draftRaw ? (JSON.parse(draftRaw) as Partial<RiderProfileKycForm>) : null;
         if (!mounted) {
           return;
         }
 
-        setForm((prev) => ({
-          ...prev,
-          ...profileFieldKeys.reduce((accumulator, key) => {
-            accumulator[key] = typeof profile[key] === 'string' ? profile[key] : '';
-            return accumulator;
-          }, {} as RiderProfileKycForm),
-        }));
+        const profileForm = profileFieldKeys.reduce((accumulator, key) => {
+          const rawValue = typeof profile[key] === 'string' ? profile[key] : '';
+          accumulator[key] =
+            key === 'dateOfBirth' || key === 'dlExpiryDate' ? normalizeDisplayDate(rawValue) : rawValue;
+          return accumulator;
+        }, {} as RiderProfileKycForm);
+
+        setForm((prev) =>
+          mergeDraftWithProfile(
+            {
+              ...prev,
+              ...profileForm,
+            },
+            draft
+          )
+        );
+
+        const pendingQueue = await AsyncStorage.getItem(KYC_PENDING_OTP_KEY);
+        if (pendingQueue) {
+          setHasQueuedDraft(true);
+          setSuccess('Pending submit draft detected. Submit karein to OTP request retry hoga.');
+        }
       } catch (err) {
         if (mounted) {
           setError(extractErrorMessage(err));
         }
       } finally {
         if (mounted) {
+          setCanAutoSaveDraft(true);
           setLoading(false);
         }
       }
@@ -231,17 +349,70 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
     };
   }, []);
 
+  const retryQueuedDraft = async () => {
+    try {
+      const queuedRaw = await AsyncStorage.getItem(KYC_PENDING_OTP_KEY);
+      if (!queuedRaw) {
+        setHasQueuedDraft(false);
+        setSuccess(null);
+        return;
+      }
+
+      const queued = JSON.parse(queuedRaw) as {profileDraft?: RiderProfileKycForm};
+      if (queued.profileDraft) {
+        setForm(queued.profileDraft);
+      }
+
+      setHasQueuedDraft(false);
+      await AsyncStorage.removeItem(KYC_PENDING_OTP_KEY);
+      setSuccess('Queued draft restored. Final submit ke liye Submit Profile dabayen.');
+    } catch {
+      setError('Unable to restore queued draft.');
+    }
+  };
+
+  useEffect(() => {
+    if (!canAutoSaveDraft) {
+      return;
+    }
+    AsyncStorage.setItem(KYC_DRAFT_KEY, JSON.stringify(form)).catch(() => {});
+  }, [canAutoSaveDraft, form]);
+
   const completion = useMemo(() => {
     const filledCount = profileFieldKeys.filter((key) => form[key].trim().length > 0).length;
     return Math.round((filledCount / profileFieldKeys.length) * 100);
   }, [form]);
 
   const updateField = (key: FieldKey, value: string) => {
-    const normalizedValue = value;
+    let normalizedValue = value;
+
+    if (key === 'phoneNumber') {
+      normalizedValue = normalizeDigits(value, 10);
+    } else if (key === 'aadhaarNumber') {
+      normalizedValue = normalizeDigits(value, 12);
+    } else if (key === 'fullName') {
+      normalizedValue = normalizeName(value);
+    } else if (key === 'dlNumber') {
+      normalizedValue = normalizeDlNumber(value);
+    } else if (key === 'vehicleNumber') {
+      normalizedValue = normalizeVehicleNumber(value);
+    } else if (key === 'vehicleType') {
+      normalizedValue = normalizeVehicleType(value);
+    }
+
     setForm((prev) => ({
       ...prev,
       [key]: normalizedValue,
     }));
+
+    setFieldErrors((prev) => {
+      if (!prev[key]) {
+        return prev;
+      }
+      const next = {...prev};
+      delete next[key];
+      return next;
+    });
   };
 
   const handleDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -253,14 +424,100 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
       return;
     }
 
-    updateField('dateOfBirth', formatDobDisplay(selectedDate));
+    if (!activeDateField) {
+      return;
+    }
+
+    updateField(activeDateField, formatDobDisplay(selectedDate));
+    setFieldErrors((prev) => {
+      if (!prev[activeDateField]) {
+        return prev;
+      }
+      const next = {...prev};
+      delete next[activeDateField];
+      return next;
+    });
   };
 
-  const openDobPicker = () => {
+  const openDatePicker = (field: 'dateOfBirth' | 'dlExpiryDate') => {
+    setActiveDateField(field);
     setShowDobPicker(true);
   };
 
-  const currentDobDate = parseDobDisplay(form.dateOfBirth) || new Date(2000, 0, 1);
+  const currentPickerDate =
+    (activeDateField ? parseDobDisplay(form[activeDateField]) : null) ||
+    (activeDateField === 'dlExpiryDate' ? new Date() : new Date(2000, 0, 1));
+
+  const validateProfileFields = (): Partial<Record<FieldKey, string>> => {
+    const nextErrors: Partial<Record<FieldKey, string>> = {};
+
+    profileFieldKeys.forEach((key) => {
+      if (!form[key].trim()) {
+        nextErrors[key] = 'This field is required / यह फ़ील्ड जरूरी है';
+      }
+    });
+
+    if (!nextErrors.dateOfBirth) {
+      if (!isValidDobFormat(form.dateOfBirth.trim())) {
+        nextErrors.dateOfBirth = 'Use DD-MM-YYYY format.';
+      } else {
+        const dobDate = parseDobDisplay(form.dateOfBirth.trim());
+        const minAdultDate = new Date();
+        minAdultDate.setFullYear(minAdultDate.getFullYear() - 18);
+        if (!dobDate || dobDate.getTime() > minAdultDate.getTime()) {
+          nextErrors.dateOfBirth = 'Rider must be at least 18 years old.';
+        }
+      }
+    }
+
+    if (!nextErrors.phoneNumber && !/^\d{10}$/.test(form.phoneNumber.trim())) {
+      nextErrors.phoneNumber = 'Phone must be exactly 10 digits / फोन 10 अंकों का होना चाहिए';
+    }
+
+    if (!nextErrors.aadhaarNumber && !/^\d{12}$/.test(form.aadhaarNumber.trim())) {
+      nextErrors.aadhaarNumber = 'Aadhaar must be exactly 12 digits / आधार 12 अंकों का होना चाहिए';
+    }
+
+    if (!nextErrors.dlNumber && !/^[A-Z0-9/-]{6,20}$/.test(form.dlNumber.trim())) {
+      nextErrors.dlNumber = 'DL Number must be 6-20 valid chars.';
+    }
+
+    if (!nextErrors.dlExpiryDate) {
+      if (!isValidDobFormat(form.dlExpiryDate.trim())) {
+        nextErrors.dlExpiryDate = 'Use DD-MM-YYYY format.';
+      } else {
+        const dlExpiryDate = parseDobDisplay(form.dlExpiryDate.trim());
+        if (!dlExpiryDate || dlExpiryDate.getTime() < new Date(new Date().setHours(0, 0, 0, 0)).getTime()) {
+          nextErrors.dlExpiryDate = 'DL expiry must be today or future.';
+        }
+      }
+    }
+
+    if (!nextErrors.vehicleNumber && !/^[A-Z]{2}\d{1,2}[A-Z]{1,3}\d{4}$/.test(form.vehicleNumber.trim())) {
+      nextErrors.vehicleNumber = 'Format example: HR12AB1234';
+    }
+
+    if (!nextErrors.vehicleType && !/^[a-zA-Z\s-]{2,25}$/.test(form.vehicleType.trim())) {
+      nextErrors.vehicleType = '2-25 letters only.';
+    }
+
+    const urlFields: FieldKey[] = [
+      'aadhaarFrontImage',
+      'aadhaarBackImage',
+      'liveSelfieImage',
+      'dlFrontImage',
+      'rcFrontImage',
+      'insuranceImage',
+    ];
+
+    urlFields.forEach((field) => {
+      if (!nextErrors[field] && !isValidHttpUrl(form[field].trim())) {
+        nextErrors[field] = 'Enter valid http/https URL';
+      }
+    });
+
+    return nextErrors;
+  };
 
   const requestPermission = async (source: UploadSource): Promise<boolean> => {
     if (source === 'camera') {
@@ -312,7 +569,32 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
         ...prev,
         [field]: uploadedUrl,
       }));
-      setSuccess(`${field} uploaded successfully.`);
+      setFieldErrors((prev) => {
+        if (!prev[field]) {
+          return prev;
+        }
+        const next = {...prev};
+        delete next[field];
+        return next;
+      });
+      let ocrNotice = '';
+      if (field === 'aadhaarFrontImage' || field === 'aadhaarBackImage') {
+        const ocr = await riderService.ocrProfilePrefill('aadhaarNumber', uploadedUrl);
+        if (ocr.detectedValue && /^\d{12}$/.test(ocr.detectedValue) && !form.aadhaarNumber.trim()) {
+          setForm((prev) => ({...prev, aadhaarNumber: ocr.detectedValue}));
+          ocrNotice = ' Aadhaar auto-detected by OCR.';
+        }
+      }
+
+      if (field === 'dlFrontImage') {
+        const ocr = await riderService.ocrProfilePrefill('dlNumber', uploadedUrl);
+        if (ocr.detectedValue && !form.dlNumber.trim()) {
+          setForm((prev) => ({...prev, dlNumber: ocr.detectedValue}));
+          ocrNotice = ' DL number auto-detected by OCR.';
+        }
+      }
+
+      setSuccess(`${field} uploaded successfully.${ocrNotice}`);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -320,20 +602,40 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
     }
   };
 
+  const handleNextStep = () => {
+    if (activeStep >= KYC_STEP_TITLES.length - 1) {
+      return;
+    }
+
+    const allErrors = validateProfileFields();
+    const sectionKeys = formSections[Math.min(activeStep, formSections.length - 1)].fields.map((field) => field.key);
+    const stepErrors = Object.entries(allErrors).reduce((acc, [key, value]) => {
+      if (sectionKeys.includes(key as FieldKey)) {
+        acc[key as FieldKey] = value as string;
+      }
+      return acc;
+    }, {} as Partial<Record<FieldKey, string>>);
+
+    if (Object.keys(stepErrors).length > 0) {
+      setFieldErrors((prev) => ({...prev, ...stepErrors}));
+      setError('Please fix highlighted fields before next step.');
+      return;
+    }
+
+    setError(null);
+    setActiveStep((prev) => Math.min(prev + 1, KYC_STEP_TITLES.length - 1));
+  };
+
   const handleSubmit = async () => {
-    const missingFields = profileFieldKeys.filter((key) => !form[key].trim());
-
-    if (missingFields.length > 0) {
-      setError(`Please complete all required fields. Missing: ${missingFields.join(', ')}`);
+    const nextFieldErrors = validateProfileFields();
+    if (Object.keys(nextFieldErrors).length > 0) {
+      setFieldErrors(nextFieldErrors);
+      setError('Please fix highlighted fields.');
       setSuccess(null);
       return;
     }
 
-    if (!isValidDobFormat(form.dateOfBirth.trim())) {
-      setError('Please enter Date of Birth in valid DD-MM-YYYY format.');
-      setSuccess(null);
-      return;
-    }
+    setFieldErrors({});
 
     try {
       setRequestingOtp(true);
@@ -341,6 +643,9 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
       setSuccess(null);
 
       const otpResponse = await riderService.requestProfileOtp();
+      await AsyncStorage.removeItem(KYC_PENDING_OTP_KEY);
+      setHasQueuedDraft(false);
+      await AsyncStorage.removeItem(KYC_DRAFT_KEY);
 
       navigation.navigate('RiderProfileOtp', {
         profileDraft: {
@@ -350,7 +655,16 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
         otpMessage: otpResponse.message,
       });
     } catch (err) {
-      setError(extractErrorMessage(err));
+      const message = extractErrorMessage(err);
+      if (/unable to reach|network/i.test(message)) {
+        await AsyncStorage.setItem(
+          KYC_PENDING_OTP_KEY,
+          JSON.stringify({profileDraft: form, queuedAt: new Date().toISOString()})
+        );
+        setError('Network issue. Draft queued for retry / नेटवर्क समस्या: ड्राफ्ट सेव हो गया.');
+      } else {
+        setError(message);
+      }
       setSuccess(null);
     } finally {
       setRequestingOtp(false);
@@ -383,6 +697,7 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
             </View>
             <Text style={styles.title}>Rider Production Profile</Text>
             <Text style={styles.subtitle}>Complete all mandatory KYC details, then verify on OTP screen.</Text>
+            <Text style={styles.stepText}>{`Step ${activeStep + 1} of ${KYC_STEP_TITLES.length}: ${KYC_STEP_TITLES[activeStep]}`}</Text>
             <View style={styles.completionRow}>
               <Text style={styles.completionLabel}>Profile Completion</Text>
               <Text style={styles.completionValue}>{completion}%</Text>
@@ -392,23 +707,43 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
             </View>
           </View>
 
-          {formSections.map((section) => (
-            <View key={section.title} style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>{section.title}</Text>
-              <Text style={styles.sectionDescription}>{section.description}</Text>
-              {section.fields.map((field) => (
+          {activeStep < 3 ? (
+            <View key={formSections[activeStep].title} style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>{formSections[activeStep].title}</Text>
+              <Text style={styles.sectionDescription}>{formSections[activeStep].description}</Text>
+              {formSections[activeStep].fields.map((field) => (
                 <View key={field.key} style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>{field.label}</Text>
                   {field.key === 'dateOfBirth' ? (
                     <Pressable
-                      onPress={openDobPicker}
-                      style={({pressed}) => [styles.input, styles.datePickerInput, pressed && styles.uploadActionPressed]}>
+                      accessibilityLabel="Select Date of Birth"
+                      onPress={() => openDatePicker('dateOfBirth')}
+                      style={({pressed}) => [
+                        styles.input,
+                        styles.datePickerInput,
+                        fieldErrors[field.key] ? styles.inputErrorBorder : null,
+                        pressed && styles.uploadActionPressed,
+                      ]}>
                       <Text style={form.dateOfBirth ? styles.datePickerValue : styles.datePickerPlaceholder}>
                         {form.dateOfBirth || field.placeholder}
                       </Text>
                     </Pressable>
+                  ) : field.key === 'dlExpiryDate' ? (
+                    <Pressable
+                      accessibilityLabel="Select DL Expiry Date"
+                      onPress={() => openDatePicker('dlExpiryDate')}
+                      style={({pressed}) => [
+                        styles.input,
+                        styles.datePickerInput,
+                        fieldErrors[field.key] ? styles.inputErrorBorder : null,
+                        pressed && styles.uploadActionPressed,
+                      ]}>
+                      <Text style={form.dlExpiryDate ? styles.datePickerValue : styles.datePickerPlaceholder}>
+                        {form.dlExpiryDate || field.placeholder}
+                      </Text>
+                    </Pressable>
                   ) : uploadFieldSet.has(field.key) ? (
-                    <View style={styles.uploadBlock}>
+                    <View style={[styles.uploadBlock, fieldErrors[field.key] ? styles.inputErrorBorder : null]}>
                       <View style={styles.uploadPreviewRow}>
                         <Text style={styles.uploadPreviewText} numberOfLines={1}>
                           {form[field.key] ? 'Uploaded' : 'Not uploaded'}
@@ -419,11 +754,13 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
                       </View>
                       <View style={styles.uploadActionsRow}>
                         <Pressable
+                          accessibilityLabel={`Upload ${field.label} from camera`}
                           style={({pressed}) => [styles.uploadActionButton, pressed && styles.uploadActionPressed]}
                           onPress={() => pickAndUploadDocument(field.key as RiderDocumentField, 'camera')}>
                           <Text style={styles.uploadActionText}>Camera</Text>
                         </Pressable>
                         <Pressable
+                          accessibilityLabel={`Upload ${field.label} from gallery`}
                           style={({pressed}) => [styles.uploadActionButton, pressed && styles.uploadActionPressed]}
                           onPress={() => pickAndUploadDocument(field.key as RiderDocumentField, 'gallery')}>
                           <Text style={styles.uploadActionText}>Gallery</Text>
@@ -432,30 +769,54 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
                     </View>
                   ) : (
                     <TextInput
+                      accessibilityLabel={field.label}
                       value={form[field.key]}
                       onChangeText={(value) => updateField(field.key, value)}
                       placeholder={field.placeholder}
                       keyboardType={field.keyboardType ?? 'default'}
-                      autoCapitalize="none"
+                      autoCapitalize={field.autoCapitalize ?? 'none'}
+                      maxLength={field.maxLength}
                       placeholderTextColor={palette.textSecondary}
-                      style={styles.input}
+                      style={[styles.input, fieldErrors[field.key] ? styles.inputErrorBorder : null]}
                     />
                   )}
+
+                  {fieldErrors[field.key] ? <Text style={styles.fieldErrorText}>{fieldErrors[field.key]}</Text> : null}
                 </View>
               ))}
             </View>
-          ))}
+          ) : (
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Review & Confirm</Text>
+              <Text style={styles.sectionDescription}>Please review all details before OTP verification.</Text>
+              {profileFieldKeys.map((key) => (
+                <View key={key} style={styles.reviewRow}>
+                  <Text style={styles.reviewLabel}>{reviewLabelByKey[key]}</Text>
+                  <Text style={styles.reviewValue} numberOfLines={1}>
+                    {form[key] || '--'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           {success ? <Text style={styles.successText}>{success}</Text> : null}
 
           <View style={styles.actionRow}>
-            <AppButton
-              title={loading ? 'Loading...' : requestingOtp ? 'Requesting OTP...' : 'Submit Profile'}
-              onPress={handleSubmit}
-              loading={requestingOtp}
-              disabled={loading || requestingOtp}
-            />
+            {activeStep > 0 ? (
+              <AppButton title="Previous" onPress={() => setActiveStep((prev) => Math.max(0, prev - 1))} variant="secondary" />
+            ) : null}
+            {activeStep < KYC_STEP_TITLES.length - 1 ? (
+              <AppButton title="Next" onPress={handleNextStep} disabled={loading} />
+            ) : (
+              <AppButton
+                title={loading ? 'Loading...' : requestingOtp ? 'Requesting OTP...' : 'Submit Profile'}
+                onPress={handleSubmit}
+                loading={requestingOtp}
+                disabled={loading || requestingOtp}
+              />
+            )}
             <AppButton title="Logout" onPress={handleLogout} variant="danger" />
           </View>
         </ScrollView>
@@ -463,12 +824,20 @@ export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
 
       {showDobPicker ? (
         <DateTimePicker
-          value={currentDobDate}
+          value={currentPickerDate}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          maximumDate={new Date()}
+          maximumDate={activeDateField === 'dateOfBirth' ? new Date() : undefined}
+          minimumDate={activeDateField === 'dlExpiryDate' ? new Date(new Date().setHours(0, 0, 0, 0)) : undefined}
           onChange={handleDobChange}
         />
+      ) : null}
+
+      {hasQueuedDraft ? (
+        <View style={styles.retryQueuedBanner}>
+          <Text style={styles.retryQueuedText}>Offline queued draft available</Text>
+          <AppButton title="Restore Queued Draft" onPress={retryQueuedDraft} variant="secondary" />
+        </View>
       ) : null}
 
       <FunctionBar active="profile" />
@@ -523,6 +892,12 @@ const styles = createResponsiveStyles({
     color: palette.textSecondary,
     fontSize: 13,
     marginTop: 4,
+  },
+  stepText: {
+    marginTop: 8,
+    color: palette.primary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   completionRow: {
     flexDirection: 'row',
@@ -584,6 +959,50 @@ const styles = createResponsiveStyles({
     backgroundColor: palette.background,
     color: palette.textPrimary,
     paddingHorizontal: 12,
+  },
+  inputErrorBorder: {
+    borderColor: palette.danger,
+  },
+  fieldErrorText: {
+    color: palette.danger,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  reviewRow: {
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+    backgroundColor: palette.background,
+  },
+  reviewLabel: {
+    color: palette.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reviewValue: {
+    color: palette.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  retryQueuedBanner: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 72,
+    backgroundColor: palette.card,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: 12,
+    padding: 10,
+    gap: 8,
+  },
+  retryQueuedText: {
+    color: palette.textPrimary,
+    fontWeight: '700',
+    fontSize: 12,
   },
   datePickerInput: {
     justifyContent: 'center',

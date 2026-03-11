@@ -28,6 +28,10 @@ export const RiderProfileOtpScreen: React.FC<Props> = ({navigation, route}) => {
   const [notice, setNotice] = useState<string | null>(route.params.otpMessage ?? null);
   const [resending, setResending] = useState(false);
 
+  const updateOtp = (value: string) => {
+    setOtpCode(value.replace(/\D/g, '').slice(0, 6));
+  };
+
   const maskedPhone = useMemo(() => {
     const rawPhone = String(route.params.profileDraft.phoneNumber || '');
     const digits = rawPhone.replace(/\D/g, '');
@@ -119,13 +123,13 @@ export const RiderProfileOtpScreen: React.FC<Props> = ({navigation, route}) => {
             <Text style={styles.label}>OTP Code</Text>
             <TextInput
               value={otpCode}
-              onChangeText={setOtpCode}
+              onChangeText={updateOtp}
               keyboardType="number-pad"
               placeholder="Enter OTP"
               placeholderTextColor={palette.textSecondary}
               style={styles.input}
               autoFocus
-              maxLength={8}
+              maxLength={6}
             />
           </View>
 

@@ -217,6 +217,92 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
   }
 };
 
+export const listRiderKycQueue = async (req: Request, res: Response) => {
+  try {
+    const {status = 'pending', page = '1', limit = '20'} = req.query as any;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const riderRole = await Role.findOne({name: 'rider'}).select('_id').lean();
+    if (!riderRole?._id) {
+      return success(res, {users: [], total: 0, page: Number(page), limit: Number(limit)}, 'KYC queue fetched');
+    }
+
+    const query: any = {roleId: riderRole._id};
+    if (status && status !== 'all') {
+      query.kycStatus = status;
+    }
+
+    const users = await User.find(query)
+      .populate('roleId')
+      .populate('kycReviewedBy', 'name email')
+      .select('-password')
+      .sort({updatedAt: -1})
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await User.countDocuments(query);
+
+    return success(res, {users, total, page: Number(page), limit: Number(limit)}, 'KYC queue fetched');
+  } catch (err: any) {
+    return fail(res, err.message || 'KYC queue fetch failed', 500);
+  }
+};
+
+export const reviewRiderKyc = async (req: Request, res: Response) => {
+  try {
+    let {id} = req.params as any;
+    if (Array.isArray(id)) id = id[0];
+    const riderId = String(id || '');
+
+    if (!riderId) {
+      return fail(res, 'Rider ID is required', 400);
+    }
+
+    const {status, reason} = req.body as {status?: 'approved' | 'rejected'; reason?: string};
+
+    if (!status || !['approved', 'rejected'].includes(status)) {
+      return fail(res, 'status must be approved or rejected', 400);
+    }
+
+    if (status === 'rejected' && !String(reason || '').trim()) {
+      return fail(res, 'Reject reason is required', 400);
+    }
+
+    const before = await User.findById(riderId).select('kycStatus kycRejectReason').lean();
+    if (!before) {
+      return fail(res, 'Rider not found', 404);
+    }
+
+    const updated = await User.findByIdAndUpdate(
+      riderId,
+      {
+        kycStatus: status,
+        kycRejectReason: status === 'rejected' ? String(reason).trim() : '',
+        kycReviewedAt: new Date(),
+        kycReviewedBy: (req as any).user?._id || null,
+      },
+      {new: true}
+    )
+      .populate('roleId')
+      .populate('kycReviewedBy', 'name email')
+      .select('-password');
+
+    await Audit.create({
+      actorId: (req as any).user?._id || null,
+      action: status === 'approved' ? 'kyc_approved' : 'kyc_rejected',
+      resource: 'rider_kyc',
+      resourceId: riderId,
+      before,
+      after: {kycStatus: status, kycRejectReason: status === 'rejected' ? String(reason).trim() : ''},
+      meta: {reviewedAt: new Date().toISOString()},
+    });
+
+    return success(res, updated, `Rider KYC ${status}`);
+  } catch (err: any) {
+    return fail(res, err.message || 'KYC review failed', 500);
+  }
+};
+
 // Superadmin: update user's isActive (activate/deactivate)
 export const updateUserStatus = async (req: Request, res: Response) => {
   try {
