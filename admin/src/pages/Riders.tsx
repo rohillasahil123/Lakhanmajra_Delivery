@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
 
@@ -85,6 +85,8 @@ export default function Riders() {
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [kycFilter, setKycFilter] = useState<'all' | 'incomplete' | KycStatus>('all');
 
   // create modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -102,9 +104,9 @@ export default function Riders() {
   const [editUpdating, setEditUpdating] = useState(false);
   const [reviewingKycId, setReviewingKycId] = useState<string | null>(null);
 
-  const loadRiders = async (pageNum = 1) => {
+  const loadRiders = async (pageNum = 1, status: 'all' | 'incomplete' | KycStatus = kycFilter) => {
     try {
-      const res = await api.get(`/admin/users/rider-kyc?status=all&page=${pageNum}&limit=${limit}`);
+      const res = await api.get(`/admin/users/rider-kyc?status=${status}&page=${pageNum}&limit=${limit}`);
       const data = res.data?.data ?? res.data;
       const riderRows = Array.isArray(data?.users)
         ? data.users
@@ -135,6 +137,42 @@ export default function Riders() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    loadRiders(1, kycFilter).catch(() => {});
+  }, [kycFilter]);
+
+  const filteredRiders = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) {
+      return riders;
+    }
+
+    return riders.filter((rider) => {
+      const kycCompletion = getKycCompletion(rider);
+      const kycStatus = rider.kycStatus || 'not_submitted';
+      const kycCompletionLabel = kycCompletion === 100 ? 'complete' : 'incomplete';
+      const kycSearchText = [
+        kycStatus,
+        kycCompletionLabel,
+        `${kycCompletion}%`,
+        kycCompletion === 100 ? 'approved' : 'pending',
+        kycStatus === 'not_submitted' ? 'not submitted' : '',
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      const name = String(rider.name || '').toLowerCase();
+      const email = String(rider.email || '').toLowerCase();
+      const phone = String(rider.phone || '').toLowerCase();
+      return (
+        name.includes(query) ||
+        email.includes(query) ||
+        phone.includes(query) ||
+        kycSearchText.includes(query)
+      );
+    });
+  }, [riders, searchText]);
 
   const hasPerm = (p: string) => permissions.includes(p);
 
@@ -258,7 +296,7 @@ export default function Riders() {
       normalized === 'approved'
         ? 'Approved'
         : normalized === 'pending'
-        ? 'Pending'
+        ? 'Incomplete'
         : normalized === 'rejected'
         ? 'Rejected'
         : 'Not Submitted';
@@ -311,6 +349,25 @@ export default function Riders() {
         </div>
       )}
 
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <input
+          className="w-full sm:max-w-sm border border-slate-300 rounded px-3 py-2 text-sm"
+          placeholder="Search rider by name, phone, email"
+          value={searchText}
+          onChange={(e) => setSearchText(e.target.value)}
+        />
+        <select
+          className="w-full sm:w-56 border border-slate-300 rounded px-3 py-2 text-sm bg-white"
+          value={kycFilter}
+          onChange={(e) => setKycFilter(e.target.value as 'all' | 'incomplete' | KycStatus)}
+        >
+          <option value="all">All KYC</option>
+          <option value="incomplete">Incomplete</option>
+          <option value="approved">Complete (Approved)</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+
       {/* Table */}
       <div className="bg-white rounded-lg shadow overflow-auto">
         <table className="w-full text-left table-auto">
@@ -326,7 +383,7 @@ export default function Riders() {
             </tr>
           </thead>
           <tbody>
-            {riders.map((r) => {
+            {filteredRiders.map((r) => {
               const avatarColor = getAvatarColor(r.name);
               const initials = getInitials(r.name);
               const kycCompletion = getKycCompletion(r);
@@ -483,7 +540,7 @@ export default function Riders() {
                 </tr>
               );
             })}
-            {riders.length === 0 && (
+            {filteredRiders.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm">No riders found</td>
               </tr>
@@ -498,7 +555,7 @@ export default function Riders() {
         <div className="flex gap-2 items-center">
           <button
             disabled={page === 1}
-            onClick={() => loadRiders(Math.max(1, page - 1))}
+            onClick={() => loadRiders(Math.max(1, page - 1), kycFilter)}
             className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-slate-50 text-sm"
           >
             Prev
@@ -506,7 +563,7 @@ export default function Riders() {
           <span className="px-2 text-sm text-slate-500">{page} / {totalPages}</span>
           <button
             disabled={page >= totalPages}
-            onClick={() => loadRiders(Math.min(totalPages, page + 1))}
+            onClick={() => loadRiders(Math.min(totalPages, page + 1), kycFilter)}
             className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-slate-50 text-sm"
           >
             Next

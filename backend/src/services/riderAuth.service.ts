@@ -531,6 +531,8 @@ export const getRiderMe = async (req: Request, res: Response): Promise<void> => 
         phone: (user as any).phone,
         role: 'rider',
         online: Boolean((user as any).isOnline),
+        kycStatus: (user as any).kycStatus || 'not_submitted',
+        kycRejectReason: (user as any).kycRejectReason || '',
         profile: toProfileResponse((user as any).riderProfile),
       },
     });
@@ -547,7 +549,7 @@ export const getRiderProfile = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const rider = await User.findById(riderId).select('_id name phone riderProfile roleId');
+    const rider = await User.findById(riderId).select('_id name phone riderProfile roleId kycStatus kycRejectReason');
 
     if (!rider) {
       res.status(404).json({message: 'Rider not found'});
@@ -560,6 +562,8 @@ export const getRiderProfile = async (req: Request, res: Response): Promise<void
         id: String(rider._id),
         name: rider.name,
         phone: rider.phone,
+        kycStatus: (rider as any).kycStatus || 'not_submitted',
+        kycRejectReason: (rider as any).kycRejectReason || '',
       },
     });
   } catch (error) {
@@ -927,16 +931,17 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
     }
 
     if (status === 'Accepted') {
-      const rider = await User.findById(riderId).select('riderProfile');
+      const rider = await User.findById(riderId).select('riderProfile kycStatus');
       if (!rider) {
         res.status(404).json({message: 'Rider not found'});
         return;
       }
 
-      if (!isKycComplete((rider as any).riderProfile)) {
+      const kycStatus = String((rider as any).kycStatus || 'not_submitted');
+      if (kycStatus !== 'approved') {
         res.status(403).json({
-          message: 'Complete KYC profile before accepting orders',
-          code: 'KYC_INCOMPLETE',
+          message: 'KYC is pending admin approval before accepting orders',
+          code: 'KYC_NOT_APPROVED',
         });
         return;
       }

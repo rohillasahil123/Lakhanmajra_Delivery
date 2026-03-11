@@ -8,6 +8,26 @@ import { Product } from "../models/product.model";
 import { Audit } from "../models/audit.model";
 import { success, fail } from "../utils/response";
 
+const riderKycRequiredFields = [
+  'fullName',
+  'dateOfBirth',
+  'phoneNumber',
+  'aadhaarNumber',
+  'aadhaarFrontImage',
+  'aadhaarBackImage',
+  'liveSelfieImage',
+  'dlNumber',
+  'dlExpiryDate',
+  'dlFrontImage',
+  'vehicleNumber',
+  'vehicleType',
+  'rcFrontImage',
+  'insuranceImage',
+] as const;
+
+const isRiderKycProfileComplete = (profile: any): boolean =>
+  riderKycRequiredFields.every((field) => typeof profile?.[field] === 'string' && profile[field].trim().length > 0);
+
 // Get all roles
 export const getAllRoles = async (req: Request, res: Response) => {
   try {
@@ -229,7 +249,23 @@ export const listRiderKycQueue = async (req: Request, res: Response) => {
 
     const query: any = {roleId: riderRole._id};
     if (status && status !== 'all') {
-      query.kycStatus = status;
+      if (status === 'incomplete') {
+        query.$or = [
+          {kycStatus: {$in: ['pending', 'not_submitted', 'rejected']}},
+          {kycStatus: {$exists: false}},
+          {kycStatus: null},
+          {kycStatus: ''},
+        ];
+      } else if (status === 'not_submitted') {
+        query.$or = [
+          {kycStatus: 'not_submitted'},
+          {kycStatus: {$exists: false}},
+          {kycStatus: null},
+          {kycStatus: ''},
+        ];
+      } else {
+        query.kycStatus = status;
+      }
     }
 
     const users = await User.find(query)
@@ -268,9 +304,13 @@ export const reviewRiderKyc = async (req: Request, res: Response) => {
       return fail(res, 'Reject reason is required', 400);
     }
 
-    const before = await User.findById(riderId).select('kycStatus kycRejectReason').lean();
+    const before = await User.findById(riderId).select('kycStatus kycRejectReason riderProfile').lean();
     if (!before) {
       return fail(res, 'Rider not found', 404);
+    }
+
+    if (status === 'approved' && !isRiderKycProfileComplete((before as any).riderProfile)) {
+      return fail(res, 'Rider profile is incomplete. Approve not allowed until all KYC fields are submitted.', 400);
     }
 
     const updated = await User.findByIdAndUpdate(
