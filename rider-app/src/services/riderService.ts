@@ -47,6 +47,11 @@ export const riderService = {
     return response.data.profile;
   },
 
+  async requestProfileOtp(): Promise<{message: string; expiresInSeconds?: number}> {
+    const response = await apiClient.post<{message: string; expiresInSeconds?: number}>('/rider/profile/request-otp');
+    return response.data;
+  },
+
   async updateProfile(payload: RiderProfileKycForm): Promise<RiderProfilePayload> {
     const response = await apiClient.put<{profile: RiderProfilePayload}>('/rider/profile', payload);
     return response.data.profile;

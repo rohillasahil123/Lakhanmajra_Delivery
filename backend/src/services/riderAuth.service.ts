@@ -1,6 +1,7 @@
 import {Request, Response} from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import {randomInt} from 'crypto';
 import {Types} from 'mongoose';
 import User from '../models/user.model';
 import Order from '../models/order.model';
@@ -30,6 +31,16 @@ const backendToRiderFallback = (status: string): RiderFlowStatus => {
 };
 
 const currentRiderStatus = (order: any): RiderFlowStatus => {
+  const backendStatus = String(order?.status || '').toLowerCase();
+
+  if (backendStatus === 'delivered') {
+    return 'Delivered';
+  }
+
+  if (backendStatus === 'cancelled') {
+    return 'Rejected';
+  }
+
   if (order?.riderStatus) {
     return order.riderStatus as RiderFlowStatus;
   }
@@ -113,7 +124,11 @@ const allowedTransitions: Record<RiderFlowStatus, RiderFlowStatus[]> = {
 const LOCATION_REALTIME_EMIT_MIN_INTERVAL_MS = Number(
   process.env.LOCATION_REALTIME_EMIT_MIN_INTERVAL_MS || 10000
 );
+const PROFILE_OTP_TTL_MS = Number(process.env.RIDER_PROFILE_OTP_TTL_MS || 5 * 60 * 1000);
 const riderLocationEmitCache = new Map<string, number>();
+const riderProfileOtpStore = new Map<string, {otp: string; expiresAt: number}>();
+
+const createProfileOtp = (): string => String(randomInt(100000, 1000000));
 
 const riderProfileFields = [
   'fullName',
@@ -131,13 +146,6 @@ const riderProfileFields = [
   'vehicleType',
   'rcFrontImage',
   'insuranceImage',
-  'accountHolderName',
-  'bankAccountNumber',
-  'ifscCode',
-  'cancelledChequeImage',
-  'policeVerificationDocument',
-  'emergencyContactName',
-  'emergencyContactNumber',
 ] as const;
 
 type RiderProfileField = (typeof riderProfileFields)[number];
@@ -170,13 +178,6 @@ const toProfilePayload = (input: unknown): RiderProfilePayload => {
     vehicleType: sanitizeText(raw.vehicleType),
     rcFrontImage: sanitizeText(raw.rcFrontImage),
     insuranceImage: sanitizeText(raw.insuranceImage),
-    accountHolderName: sanitizeText(raw.accountHolderName),
-    bankAccountNumber: sanitizeText(raw.bankAccountNumber),
-    ifscCode: sanitizeText(raw.ifscCode).toUpperCase(),
-    cancelledChequeImage: sanitizeText(raw.cancelledChequeImage),
-    policeVerificationDocument: sanitizeText(raw.policeVerificationDocument),
-    emergencyContactName: sanitizeText(raw.emergencyContactName),
-    emergencyContactNumber: sanitizeText(raw.emergencyContactNumber),
   };
 };
 
@@ -186,6 +187,11 @@ const getMissingFields = (payload: RiderProfilePayload): RiderProfileField[] =>
 const getProfileCompletion = (payload: RiderProfilePayload): number => {
   const completed = riderProfileFields.filter((field) => Boolean(payload[field])).length;
   return Math.round((completed / riderProfileFields.length) * 100);
+};
+
+const isKycComplete = (profile: unknown): boolean => {
+  const payload = toProfilePayload(profile);
+  return getProfileCompletion(payload) === 100;
 };
 
 const toProfileResponse = (profile: unknown) => {
@@ -341,6 +347,23 @@ export const updateRiderProfile = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    const otpRecord = riderProfileOtpStore.get(riderId);
+    if (!otpRecord) {
+      res.status(400).json({message: 'Request verification OTP first'});
+      return;
+    }
+
+    if (Date.now() > otpRecord.expiresAt) {
+      riderProfileOtpStore.delete(riderId);
+      res.status(400).json({message: 'Verification OTP expired. Please request a new OTP'});
+      return;
+    }
+
+    if (payload.otpCode !== otpRecord.otp) {
+      res.status(400).json({message: 'Invalid verification OTP'});
+      return;
+    }
+
     const updated = await User.findByIdAndUpdate(
       riderId,
       {
@@ -359,6 +382,8 @@ export const updateRiderProfile = async (req: Request, res: Response): Promise<v
       return;
     }
 
+    riderProfileOtpStore.delete(riderId);
+
     res.status(200).json({
       message: 'Rider profile submitted successfully',
       profile: toProfileResponse((updated as any).riderProfile),
@@ -373,6 +398,41 @@ export const updateRiderProfile = async (req: Request, res: Response): Promise<v
   }
 };
 
+export const requestRiderProfileOtp = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const riderId = String(req.user?._id || req.user?.id || '');
+    if (!riderId) {
+      res.status(401).json({message: 'Unauthorized'});
+      return;
+    }
+
+    const rider = await User.findById(riderId).select('_id name phone');
+    if (!rider) {
+      res.status(404).json({message: 'Rider not found'});
+      return;
+    }
+
+    const otp = createProfileOtp();
+    const expiresAt = Date.now() + PROFILE_OTP_TTL_MS;
+    riderProfileOtpStore.set(riderId, {otp, expiresAt});
+
+    const phone = String((rider as any).phone || 'unknown');
+    const maskedPhone = phone.length >= 4 ? `${phone.slice(0, -4)}****` : phone;
+    const expiresInMinutes = Math.max(1, Math.floor(PROFILE_OTP_TTL_MS / 60000));
+
+    console.log(`\n🔐 Your verification OTP for ${maskedPhone}: ${otp}`);
+    console.log(`⏰ Expires in ${expiresInMinutes} minute(s)\n`);
+
+    res.status(200).json({
+      message: `Your verification OTP is ${otp}`,
+      otp,
+      expiresInSeconds: Math.floor(PROFILE_OTP_TTL_MS / 1000),
+    });
+  } catch (error) {
+    res.status(500).json({message: 'Unable to generate verification OTP'});
+  }
+};
+
 const riderDocumentFields = new Set<RiderProfileField>([
   'aadhaarFrontImage',
   'aadhaarBackImage',
@@ -380,8 +440,6 @@ const riderDocumentFields = new Set<RiderProfileField>([
   'dlFrontImage',
   'rcFrontImage',
   'insuranceImage',
-  'cancelledChequeImage',
-  'policeVerificationDocument',
 ]);
 
 export const uploadRiderDocument = async (req: Request, res: Response): Promise<void> => {
@@ -520,12 +578,34 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
       return;
     }
 
+    const isOnline = Boolean((req.user as any)?.isOnline);
+    if (!isOnline) {
+      res.status(403).json({message: 'Go online to accept or update order status'});
+      return;
+    }
+
     const {orderId} = req.params;
     const {status} = req.body as {status?: RiderFlowStatus};
 
     if (!status) {
       res.status(400).json({message: 'status is required'});
       return;
+    }
+
+    if (status === 'Accepted') {
+      const rider = await User.findById(riderId).select('riderProfile');
+      if (!rider) {
+        res.status(404).json({message: 'Rider not found'});
+        return;
+      }
+
+      if (!isKycComplete((rider as any).riderProfile)) {
+        res.status(403).json({
+          message: 'Complete KYC profile before accepting orders',
+          code: 'KYC_INCOMPLETE',
+        });
+        return;
+      }
     }
 
     const order = await Order.findOne({

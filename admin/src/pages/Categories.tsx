@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
+import Toast from '../components/users/Toast';
 
 type Category = {
   _id: string;
@@ -34,6 +35,7 @@ export default function Categories() {
   const [activeList, setActiveList] = useState<'category' | 'subcategory'>('category');
   const [page, setPage] = useState(1);
   const [limit] = useState(50);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const createFileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -130,12 +132,14 @@ export default function Categories() {
       if (createFileInputRef.current) createFileInputRef.current.value = '';
       await load();
       if (parsedSubCategories.length > 0) {
-        alert(`Category/Sub-categories created (${parsedSubCategories.length} sub-categories)`);
+        console.info('Category + sub-categories created', { subCategoryCount: parsedSubCategories.length });
+        setToast({ message: `Category/Sub-categories created (${parsedSubCategories.length})`, type: 'success' });
       } else {
-        alert('Category created');
+        console.info('Category created', { name });
+        setToast({ message: 'Category created', type: 'success' });
       }
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Create failed');
+      setToast({ message: err?.response?.data?.message || 'Create failed', type: 'error' });
     }
   };
 
@@ -154,7 +158,10 @@ export default function Categories() {
   };
 
   const saveEdit = async () => {
-    if (!editingId || !editName) return alert('name required');
+    if (!editingId || !editName) {
+      setToast({ message: 'Name required', type: 'error' });
+      return;
+    }
     const parsedSubCategories = showEditSubCategory
       ? editSubCategoriesInput
           .split(',')
@@ -199,24 +206,28 @@ export default function Categories() {
       if (editFileInputRef.current) editFileInputRef.current.value = '';
       await load();
       if (parsedSubCategories.length > 0) {
-        alert(`Category updated + ${parsedSubCategories.length} sub-categories added`);
+        console.info('Category updated + sub-categories added', { categoryId: editingId, subCategoryCount: parsedSubCategories.length });
+        setToast({ message: `Category updated + ${parsedSubCategories.length} sub-categories added`, type: 'success' });
       } else {
-        alert('Category updated');
+        console.info('Category updated', { categoryId: editingId });
+        setToast({ message: 'Category updated', type: 'success' });
       }
     } catch (err: any) {
-      alert(err?.response?.data?.message || 'Update failed');
+      setToast({ message: err?.response?.data?.message || 'Update failed', type: 'error' });
     }
   };
 
   const deleteCategory = async (id: string) => {
     if (!confirm('Delete category?')) return;
     try {
-      await api.delete(`/categories/${id}`);
+      const res = await api.delete(`/categories/${id}`);
       await load();
-      alert('Category deleted');
+      const deletedId = String(res?.data?.data?.deletedId || id);
+      const categoryName = items.find((category) => category._id === id)?.name || 'Category';
+      console.info('Category deleted permanently', { deletedId, categoryName });
+      setToast({ message: `${categoryName} deleted (ID: ${deletedId})`, type: 'success' });
     } catch (err: any) {
-      console.log(err, "ty")
-      alert(err?.response?.data?.message || 'Delete failed');
+      setToast({ message: err?.response?.data?.message || 'Delete failed', type: 'error' });
     }
   };
 
@@ -629,6 +640,14 @@ export default function Categories() {
         </div>
         <div className="mt-3 text-sm text-slate-500">Total Sub-categories: {subCategories.length}</div>
       </div>
+      )}
+
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );

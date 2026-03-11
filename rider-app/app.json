@@ -10,7 +10,8 @@
       "**/*"
     ],
     "android": {
-      "package": "com.lakhanmajra.riderapp"
+      "package": "com.lakhanmajra.riderapp",
+      "usesCleartextTraffic": true
     },
     "ios": {
       "bundleIdentifier": "com.lakhanmajra.riderapp"

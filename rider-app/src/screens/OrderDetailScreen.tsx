@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {
   ActivityIndicator,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,7 @@ import {
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {Ionicons} from '@expo/vector-icons';
+import {useRiderAuth} from '../context/RiderAuthContext';
 import {RootStackParamList} from '../navigation/types';
 import {riderService} from '../services/riderService';
 import {OrderStatus, RiderOrder} from '../types/rider';
@@ -29,6 +31,7 @@ const actionLabelMap: Partial<Record<OrderStatus, string>> = {
 
 export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
   const {orderId} = route.params;
+  const {session} = useRiderAuth();
   const [order, setOrder] = useState<RiderOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -52,6 +55,12 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
   const transition = async (nextStatus: OrderStatus) => {
     if (!order) {
+      return;
+    }
+
+    const online = Boolean(session?.rider?.online);
+    if (!online) {
+      setError('You are offline. Go online to accept/update orders.');
       return;
     }
 
@@ -83,20 +92,32 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
   };
 
   const callNumber = async (number?: string) => {
-    const normalized = String(number || '').trim();
+    const normalized = String(number || '')
+      .trim()
+      .replace(/[^\d+]/g, '');
+
     if (!normalized) {
       setError('Contact number not available');
       return;
     }
 
     const url = `tel:${normalized}`;
-    const supported = await Linking.canOpenURL(url);
-    if (!supported) {
-      setError('Unable to open phone dialer');
-      return;
+    const fallbackUrl = Platform.OS === 'ios' ? `telprompt:${normalized}` : url;
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+        return;
+      }
+    } catch {
     }
 
-    await Linking.openURL(url);
+    try {
+      await Linking.openURL(fallbackUrl);
+    } catch {
+      setError('Unable to open phone dialer');
+    }
   };
 
   if (loading) {
@@ -116,6 +137,7 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
   }
 
   const [next] = getAllowedTransitions(order.status);
+  const online = Boolean(session?.rider?.online);
   const primaryActionLabel = next ? actionLabelMap[order.status] || `Mark as ${next}` : '';
 
   return (
@@ -142,16 +164,16 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
             <Text style={styles.tagText}>PICKUP POINT</Text>
           </View>
 
-          <Text style={styles.blockTitle}>▫ Green Market Store</Text>
+          <Text style={styles.blockTitle}>Green Market Store</Text>
           <Text style={styles.blockMeta}>Shop No. 12, {order.deliveryAddress.city}</Text>
           <Text style={styles.blockMeta}>Contact: {order.customer.phone || 'Not available'}</Text>
 
           <View style={styles.actionRow}>
             <Pressable style={[styles.smallBtn, styles.callBtn]} onPress={() => callNumber(order.customer.phone)}>
-              <Text style={styles.callBtnText}>▫ Call Store</Text>
+              <Text style={styles.callBtnText}>Call Store</Text>
             </Pressable>
             <Pressable style={[styles.smallBtn, styles.navBtn]} onPress={openNavigation}>
-              <Text style={styles.navBtnText}>▫ Navigate</Text>
+              <Text style={styles.navBtnText}>Navigate</Text>
             </Pressable>
           </View>
         </View>
@@ -161,7 +183,7 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
             <Text style={styles.tagText}>DELIVERY TO</Text>
           </View>
 
-          <Text style={styles.blockTitle}>▫ {order.customer.name}</Text>
+          <Text style={styles.blockTitle}>{order.customer.name}</Text>
           <Text style={styles.blockMeta}>
             {order.deliveryAddress.line1}, {order.deliveryAddress.city} - {order.deliveryAddress.postalCode}
           </Text>
@@ -170,10 +192,10 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
           <View style={styles.actionRow}>
             <Pressable style={[styles.smallBtn, styles.callBtn]} onPress={() => callNumber(order.customer.phone)}>
-              <Text style={styles.callBtnText}>▫ Call Customer</Text>
+              <Text style={styles.callBtnText}>Call Customer</Text>
             </Pressable>
             <Pressable style={[styles.smallBtn, styles.navBtn]} onPress={openNavigation}>
-              <Text style={styles.navBtnText}>▫ Navigate</Text>
+              <Text style={styles.navBtnText}>Navigate</Text>
             </Pressable>
           </View>
         </View>
@@ -195,7 +217,7 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
         ))}
 
         <View style={styles.paymentBanner}>
-          <Text style={styles.paymentTitle}>▫ Payment: {order.paymentType === 'COD' ? 'Cash on Delivery' : 'Paid Online'}</Text>
+          <Text style={styles.paymentTitle}>Payment: {order.paymentType === 'COD' ? 'Cash on Delivery' : 'Paid Online'}</Text>
           <Text style={styles.paymentSub}>
             {order.paymentType === 'COD'
               ? `Collect Rs.${order.amount.toFixed(0)} from customer`
@@ -210,12 +232,12 @@ export const OrderDetailScreen: React.FC<Props> = ({route, navigation}) => {
 
         {next ? (
           <Pressable
-            disabled={updating}
+            disabled={updating || !online}
             onPress={() => transition(next)}
             style={({pressed}) => [
               styles.primaryButton,
               pressed && !updating ? styles.primaryButtonPressed : null,
-              updating ? styles.primaryButtonDisabled : null,
+              updating || !online ? styles.primaryButtonDisabled : null,
             ]}>
             <Text style={styles.primaryButtonText}>{updating ? 'Updating...' : primaryActionLabel}</Text>
           </Pressable>
@@ -270,8 +292,8 @@ const styles = createResponsiveStyles({
   topHeader: {
     backgroundColor: '#1b5a3d',
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
+    paddingTop: 12,
+    paddingBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -287,8 +309,8 @@ const styles = createResponsiveStyles({
   },
   headerTitle: {
     color: '#e8f6ee',
-    fontSize: 33,
-    lineHeight: 38,
+    fontSize: 16,
+    lineHeight: 22,
     fontWeight: '700',
   },
   earningPill: {
@@ -300,12 +322,12 @@ const styles = createResponsiveStyles({
   earningText: {
     color: '#1f4f38',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 11,
   },
   headerSubText: {
     width: '100%',
     color: '#b9cdc3',
-    fontSize: 21,
+    fontSize: 13,
     marginTop: 4,
   },
   scrollContent: {
@@ -346,12 +368,12 @@ const styles = createResponsiveStyles({
     letterSpacing: 0.3,
   },
   blockTitle: {
-    fontSize: 31,
+    fontSize: 14,
     fontWeight: '700',
     color: '#1e1e1e',
   },
   blockMeta: {
-    fontSize: 20,
+    fontSize: 11,
     color: '#666666',
     marginTop: 2,
   },
@@ -362,7 +384,7 @@ const styles = createResponsiveStyles({
   },
   smallBtn: {
     flex: 1,
-    height: 33,
+    height: 40,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -376,18 +398,18 @@ const styles = createResponsiveStyles({
   callBtnText: {
     color: '#1f4f38',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 10,
   },
   navBtnText: {
     color: '#ffffff',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 10,
   },
   sectionTitle: {
-    fontSize: 37,
+    fontSize: 16,
     fontWeight: '700',
     color: '#1f1f1f',
-    marginTop: 2,
+    marginTop: 6,
     marginBottom: 8,
   },
   itemCard: {
@@ -416,12 +438,12 @@ const styles = createResponsiveStyles({
     flex: 1,
   },
   itemName: {
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: '700',
     color: '#1f1f1f',
   },
   itemMeta: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#6a6a6a',
     marginTop: 2,
   },
@@ -434,7 +456,7 @@ const styles = createResponsiveStyles({
   qtyText: {
     color: '#1e5035',
     fontWeight: '700',
-    fontSize: 26,
+    fontSize: 11,
   },
   paymentBanner: {
     marginTop: 6,
@@ -447,13 +469,13 @@ const styles = createResponsiveStyles({
   },
   paymentTitle: {
     color: '#1d4f38',
-    fontSize: 31,
+    fontSize: 16,
     fontWeight: '700',
   },
   paymentSub: {
     color: '#2f6b4b',
     marginTop: 2,
-    fontSize: 20,
+    fontSize: 11,
   },
   timelineBox: {
     marginTop: 8,
@@ -465,12 +487,12 @@ const styles = createResponsiveStyles({
     paddingVertical: 8,
   },
   timelineLight: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#6a6a6a',
   },
   timelineBold: {
     marginTop: 2,
-    fontSize: 16,
+    fontSize: 12,
     color: '#1f1f1f',
     fontWeight: '700',
   },
@@ -490,7 +512,7 @@ const styles = createResponsiveStyles({
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: 31,
+    fontSize: 14,
     letterSpacing: 0.2,
     fontWeight: '700',
   },

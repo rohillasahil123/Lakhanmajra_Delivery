@@ -10,6 +10,7 @@ import {InAppMapScreen} from '../screens/InAppMapScreen';
 import {LoginScreen} from '../screens/LoginScreen';
 import {OrderDetailScreen} from '../screens/OrderDetailScreen';
 import {RiderProfileScreen} from '../screens/RiderProfileScreen';
+import {RiderProfileOtpScreen} from '../screens/RiderProfileOtpScreen';
 import {RootStackParamList} from './types';
 import {palette} from '../constants/theme';
 import {createResponsiveStyles} from '../utils/responsive';
@@ -31,11 +32,19 @@ export const AppNavigator: React.FC = () => {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{headerShown: false}}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: {
+            backgroundColor: palette.background,
+          },
+        }}
+      >
         {authenticated ? (
           <>
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="RiderProfile" component={RiderProfileScreen} />
+            <Stack.Screen name="RiderProfileOtp" component={RiderProfileOtpScreen} />
             <Stack.Screen name="DeliveredOrders" component={DeliveredOrdersScreen} />
             <Stack.Screen name="OrderDetail" component={OrderDetailScreen} />
             <Stack.Screen name="InAppMap" component={InAppMapScreen} />

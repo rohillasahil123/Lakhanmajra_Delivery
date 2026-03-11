@@ -2,8 +2,56 @@ import React, { useEffect, useState } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
 
-type Rider = { _id: string; name: string; email?: string; phone?: string; roleId?: any; isActive?: boolean };
+type RiderProfile = {
+  fullName?: string;
+  dateOfBirth?: string;
+  phoneNumber?: string;
+  otpCode?: string;
+  aadhaarNumber?: string;
+  aadhaarFrontImage?: string;
+  aadhaarBackImage?: string;
+  liveSelfieImage?: string;
+  dlNumber?: string;
+  dlExpiryDate?: string;
+  dlFrontImage?: string;
+  vehicleNumber?: string;
+  vehicleType?: string;
+  rcFrontImage?: string;
+  insuranceImage?: string;
+};
+
+type Rider = { _id: string; name: string; email?: string; phone?: string; roleId?: any; isActive?: boolean; riderProfile?: RiderProfile };
 type Role = { _id: string; name: string };
+
+const riderKycFields: Array<keyof RiderProfile> = [
+  'fullName',
+  'dateOfBirth',
+  'phoneNumber',
+  'otpCode',
+  'aadhaarNumber',
+  'aadhaarFrontImage',
+  'aadhaarBackImage',
+  'liveSelfieImage',
+  'dlNumber',
+  'dlExpiryDate',
+  'dlFrontImage',
+  'vehicleNumber',
+  'vehicleType',
+  'rcFrontImage',
+  'insuranceImage',
+];
+
+const getKycCompletion = (rider: Rider): number => {
+  const profile = rider.riderProfile;
+  if (!profile) return 0;
+
+  const completeCount = riderKycFields.filter((field) => {
+    const value = profile[field];
+    return typeof value === 'string' && value.trim().length > 0;
+  }).length;
+
+  return Math.round((completeCount / riderKycFields.length) * 100);
+};
 
 const AVATAR_COLORS = [
   '#4CAF50', '#2196F3', '#9C27B0', '#FF5722', '#009688',
@@ -217,6 +265,7 @@ export default function Riders() {
               <th className="px-5 py-3 font-medium">User</th>
               <th className="px-5 py-3 font-medium">Phone</th>
               <th className="px-5 py-3 font-medium">Role</th>
+              <th className="px-5 py-3 font-medium">KYC</th>
               <th className="px-5 py-3 font-medium">Status</th>
               <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
@@ -225,6 +274,8 @@ export default function Riders() {
             {riders.map((r) => {
               const avatarColor = getAvatarColor(r.name);
               const initials = getInitials(r.name);
+              const kycCompletion = getKycCompletion(r);
+              const kycComplete = kycCompletion === 100;
 
               return (
                 <tr key={r._id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
@@ -241,6 +292,11 @@ export default function Riders() {
                       </td>
                       <td className="px-5 py-3">
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">rider</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${kycComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {kycComplete ? 'Complete (100%)' : `Incomplete (${kycCompletion}%)`}
+                        </span>
                       </td>
                       <td className="px-5 py-3">
                         <span className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}>
@@ -280,6 +336,13 @@ export default function Riders() {
                       <td className="px-5 py-3">
                         <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                           rider
+                        </span>
+                      </td>
+
+                      {/* KYC column */}
+                      <td className="px-5 py-3">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${kycComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {kycComplete ? 'Complete (100%)' : `Incomplete (${kycCompletion}%)`}
                         </span>
                       </td>
 
@@ -336,7 +399,7 @@ export default function Riders() {
             })}
             {riders.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-5 py-10 text-center text-slate-400 text-sm">No riders found</td>
+                <td colSpan={6} className="px-5 py-10 text-center text-slate-400 text-sm">No riders found</td>
               </tr>
             )}
           </tbody>

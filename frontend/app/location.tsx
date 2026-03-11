@@ -6,7 +6,7 @@ import useLocationStore, {
 } from '@/stores/locationStore';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -19,7 +19,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const { width, height } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 
 export default function LocationScreen() {
   const router = useRouter();
@@ -47,10 +47,23 @@ export default function LocationScreen() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [isMarkerLocked, setIsMarkerLocked] = useState(true);
+  const mapRef = useRef<MapView | null>(null);
 
   const LOCATION_PROMPT = 'Tap on map or detect location';
   const getPinnedFallbackAddress = (lat: number, lng: number) =>
     `Pinned location (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+
+  const animateToLocation = useCallback((latitude: number, longitude: number) => {
+    mapRef.current?.animateToRegion(
+      {
+        latitude,
+        longitude,
+        latitudeDelta: 0.012,
+        longitudeDelta: 0.012,
+      },
+      550
+    );
+  }, []);
 
   // Helper: Better address formatting for India (use only known fields, fall back safely)
   const formatAddress = (addr: Location.LocationGeocodedAddress | null) => {
@@ -73,7 +86,7 @@ export default function LocationScreen() {
   };
 
   // Reverse geocode helper
-  const reverseGeocode = async (lat: number, lng: number) => {
+  const reverseGeocode = useCallback(async (lat: number, lng: number) => {
     setIsLoadingAddress(true);
     try {
       const addressData = await Location.reverseGeocodeAsync({
@@ -92,15 +105,17 @@ export default function LocationScreen() {
     } finally {
       setIsLoadingAddress(false);
     }
-  };
+  }, []);
 
   // Detect current location
-  const detectLocation = async () => {
+  const detectLocation = useCallback(async (silent = false) => {
     setIsDetecting(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required.');
+        if (!silent) {
+          Alert.alert('Permission Denied', 'Location permission is required.');
+        }
         return;
       }
 
@@ -116,16 +131,19 @@ export default function LocationScreen() {
         latitudeDelta: 0.012,
         longitudeDelta: 0.012,
       });
+      animateToLocation(latitude, longitude);
       setIsMarkerLocked(false);
 
       await reverseGeocode(latitude, longitude);
     } catch (error) {
       console.warn('Detect location error:', error);
-      Alert.alert('Error', 'Could not detect location. Try manually.');
+      if (!silent) {
+        Alert.alert('Error', 'Could not detect location. Try manually.');
+      }
     } finally {
       setIsDetecting(false);
     }
-  };
+  }, [animateToLocation, reverseGeocode]);
 
   // Handle map tap
   const handleMapPress = (event: any) => {
@@ -187,6 +205,10 @@ export default function LocationScreen() {
     setIsMarkerLocked(true);
   }, []);
 
+  useEffect(() => {
+    detectLocation(true);
+  }, [detectLocation]);
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
@@ -202,9 +224,10 @@ export default function LocationScreen() {
         {/* Map */}
         <View style={styles.mapContainer}>
           <MapView
+            ref={mapRef}
             style={styles.map}
             provider={PROVIDER_GOOGLE}
-            region={selectedLocation}
+            initialRegion={selectedLocation}
             onPress={handleMapPress}
             showsUserLocation={true}
             showsMyLocationButton={true}
@@ -243,7 +266,7 @@ export default function LocationScreen() {
             </View>
             {isMarkerLocked ? (
               <ThemedText style={styles.lockHint}>
-                Locked to Lakhanmajra • Tap "Use Current Location" to unlock
+                Locked to Lakhanmajra • Tap Use Current Location to unlock
               </ThemedText>
             ) : null}
           </View>
@@ -253,7 +276,7 @@ export default function LocationScreen() {
         <ScrollView style={styles.bottomSection} showsVerticalScrollIndicator={false}>
           <TouchableOpacity
             style={styles.detectButton}
-            onPress={detectLocation}
+            onPress={() => detectLocation(false)}
             disabled={isDetecting}
           >
             <View style={styles.detectButtonContent}>

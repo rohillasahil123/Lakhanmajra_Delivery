@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
@@ -41,6 +42,63 @@ type SectionConfig = {
   fields: FieldConfig[];
 };
 
+const formatDobDisplay = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear());
+  return `${day}-${month}-${year}`;
+};
+
+const parseDobDisplay = (dob: string): Date | null => {
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dob);
+  if (!match) {
+    return null;
+  }
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  const parsed = new Date(year, month - 1, day);
+
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month - 1 ||
+    parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
+};
+
+const isValidDobFormat = (dob: string): boolean => {
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(dob);
+  if (!match) {
+    return false;
+  }
+
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+
+  if (month < 1 || month > 12 || day < 1 || year < 1900) {
+    return false;
+  }
+
+  const date = new Date(year, month - 1, day);
+  const sameDate =
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day;
+
+  if (!sameDate) {
+    return false;
+  }
+
+  const now = new Date();
+  return date.getTime() <= now.getTime();
+};
+
 const createInitialForm = (name = '', phone = ''): RiderProfileKycForm => ({
   fullName: name,
   dateOfBirth: '',
@@ -57,13 +115,6 @@ const createInitialForm = (name = '', phone = ''): RiderProfileKycForm => ({
   vehicleType: '',
   rcFrontImage: '',
   insuranceImage: '',
-  accountHolderName: '',
-  bankAccountNumber: '',
-  ifscCode: '',
-  cancelledChequeImage: '',
-  policeVerificationDocument: '',
-  emergencyContactName: '',
-  emergencyContactNumber: '',
 });
 
 const formSections: SectionConfig[] = [
@@ -72,9 +123,8 @@ const formSections: SectionConfig[] = [
     description: 'Identity verification details for rider profile.',
     fields: [
       {key: 'fullName', label: 'Full Name', placeholder: 'Enter full name'},
-      {key: 'dateOfBirth', label: 'Date of Birth', placeholder: 'YYYY-MM-DD'},
+      {key: 'dateOfBirth', label: 'Date of Birth', placeholder: 'DD-MM-YYYY'},
       {key: 'phoneNumber', label: 'Phone Number', placeholder: 'Enter rider phone', keyboardType: 'phone-pad'},
-      {key: 'otpCode', label: 'OTP Code', placeholder: 'Enter verification OTP', keyboardType: 'number-pad'},
     ],
   },
   {
@@ -100,40 +150,12 @@ const formSections: SectionConfig[] = [
       {key: 'insuranceImage', label: 'Insurance Image URL', placeholder: 'https://...'},
     ],
   },
-  {
-    title: 'Bank & Emergency',
-    description: 'Payout setup and emergency contact details.',
-    fields: [
-      {key: 'accountHolderName', label: 'Account Holder Name', placeholder: 'Enter account holder name'},
-      {
-        key: 'bankAccountNumber',
-        label: 'Bank Account Number',
-        placeholder: 'Enter bank account number',
-        keyboardType: 'number-pad',
-      },
-      {key: 'ifscCode', label: 'IFSC Code', placeholder: 'Enter IFSC code'},
-      {key: 'cancelledChequeImage', label: 'Cancelled Cheque Image URL', placeholder: 'https://...'},
-      {
-        key: 'policeVerificationDocument',
-        label: 'Police Verification Document URL',
-        placeholder: 'https://...',
-      },
-      {key: 'emergencyContactName', label: 'Emergency Contact Name', placeholder: 'Enter emergency contact name'},
-      {
-        key: 'emergencyContactNumber',
-        label: 'Emergency Contact Number',
-        placeholder: 'Enter emergency contact number',
-        keyboardType: 'phone-pad',
-      },
-    ],
-  },
 ];
 
 const profileFieldKeys: FieldKey[] = [
   'fullName',
   'dateOfBirth',
   'phoneNumber',
-  'otpCode',
   'aadhaarNumber',
   'aadhaarFrontImage',
   'aadhaarBackImage',
@@ -145,13 +167,6 @@ const profileFieldKeys: FieldKey[] = [
   'vehicleType',
   'rcFrontImage',
   'insuranceImage',
-  'accountHolderName',
-  'bankAccountNumber',
-  'ifscCode',
-  'cancelledChequeImage',
-  'policeVerificationDocument',
-  'emergencyContactName',
-  'emergencyContactNumber',
 ];
 
 const uploadFieldKeys: RiderDocumentField[] = [
@@ -161,22 +176,21 @@ const uploadFieldKeys: RiderDocumentField[] = [
   'dlFrontImage',
   'rcFrontImage',
   'insuranceImage',
-  'cancelledChequeImage',
-  'policeVerificationDocument',
 ];
 
 const uploadFieldSet = new Set<FieldKey>(uploadFieldKeys);
 
 type UploadSource = 'camera' | 'gallery';
 
-export const RiderProfileScreen: React.FC<Props> = () => {
+export const RiderProfileScreen: React.FC<Props> = ({navigation}) => {
   const {session, logout} = useRiderAuth();
   const [form, setForm] = useState<RiderProfileKycForm>(() =>
     createInitialForm(session?.rider.name ?? '', session?.rider.phone ?? '')
   );
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [uploadingField, setUploadingField] = useState<FieldKey | null>(null);
+  const [showDobPicker, setShowDobPicker] = useState(false);
+  const [requestingOtp, setRequestingOtp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -223,12 +237,30 @@ export const RiderProfileScreen: React.FC<Props> = () => {
   }, [form]);
 
   const updateField = (key: FieldKey, value: string) => {
-    const normalizedValue = key === 'ifscCode' ? value.toUpperCase() : value;
+    const normalizedValue = value;
     setForm((prev) => ({
       ...prev,
       [key]: normalizedValue,
     }));
   };
+
+  const handleDobChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDobPicker(false);
+    }
+
+    if (!selectedDate) {
+      return;
+    }
+
+    updateField('dateOfBirth', formatDobDisplay(selectedDate));
+  };
+
+  const openDobPicker = () => {
+    setShowDobPicker(true);
+  };
+
+  const currentDobDate = parseDobDisplay(form.dateOfBirth) || new Date(2000, 0, 1);
 
   const requestPermission = async (source: UploadSource): Promise<boolean> => {
     if (source === 'camera') {
@@ -297,17 +329,31 @@ export const RiderProfileScreen: React.FC<Props> = () => {
       return;
     }
 
+    if (!isValidDobFormat(form.dateOfBirth.trim())) {
+      setError('Please enter Date of Birth in valid DD-MM-YYYY format.');
+      setSuccess(null);
+      return;
+    }
+
     try {
-      setSaving(true);
+      setRequestingOtp(true);
       setError(null);
       setSuccess(null);
-      await riderService.updateProfile(form);
-      setSuccess('Profile submitted successfully. Rider account is onboarding-ready.');
+
+      const otpResponse = await riderService.requestProfileOtp();
+
+      navigation.navigate('RiderProfileOtp', {
+        profileDraft: {
+          ...form,
+          otpCode: '',
+        },
+        otpMessage: otpResponse.message,
+      });
     } catch (err) {
       setError(extractErrorMessage(err));
       setSuccess(null);
     } finally {
-      setSaving(false);
+      setRequestingOtp(false);
     }
   };
 
@@ -336,7 +382,7 @@ export const RiderProfileScreen: React.FC<Props> = () => {
               <Text style={styles.brandGreen}> Delivery Rider</Text>
             </View>
             <Text style={styles.title}>Rider Production Profile</Text>
-            <Text style={styles.subtitle}>Complete all mandatory KYC and payout details for production readiness.</Text>
+            <Text style={styles.subtitle}>Complete all mandatory KYC details, then verify on OTP screen.</Text>
             <View style={styles.completionRow}>
               <Text style={styles.completionLabel}>Profile Completion</Text>
               <Text style={styles.completionValue}>{completion}%</Text>
@@ -353,7 +399,15 @@ export const RiderProfileScreen: React.FC<Props> = () => {
               {section.fields.map((field) => (
                 <View key={field.key} style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>{field.label}</Text>
-                  {uploadFieldSet.has(field.key) ? (
+                  {field.key === 'dateOfBirth' ? (
+                    <Pressable
+                      onPress={openDobPicker}
+                      style={({pressed}) => [styles.input, styles.datePickerInput, pressed && styles.uploadActionPressed]}>
+                      <Text style={form.dateOfBirth ? styles.datePickerValue : styles.datePickerPlaceholder}>
+                        {form.dateOfBirth || field.placeholder}
+                      </Text>
+                    </Pressable>
+                  ) : uploadFieldSet.has(field.key) ? (
                     <View style={styles.uploadBlock}>
                       <View style={styles.uploadPreviewRow}>
                         <Text style={styles.uploadPreviewText} numberOfLines={1}>
@@ -396,11 +450,27 @@ export const RiderProfileScreen: React.FC<Props> = () => {
           {success ? <Text style={styles.successText}>{success}</Text> : null}
 
           <View style={styles.actionRow}>
-            <AppButton title={loading ? 'Loading...' : 'Submit Profile'} onPress={handleSubmit} loading={saving} disabled={loading} />
-            <AppButton title="Logout" onPress={handleLogout} variant="danger" disabled={saving} />
+            <AppButton
+              title={loading ? 'Loading...' : requestingOtp ? 'Requesting OTP...' : 'Submit Profile'}
+              onPress={handleSubmit}
+              loading={requestingOtp}
+              disabled={loading || requestingOtp}
+            />
+            <AppButton title="Logout" onPress={handleLogout} variant="danger" />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {showDobPicker ? (
+        <DateTimePicker
+          value={currentDobDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          maximumDate={new Date()}
+          onChange={handleDobChange}
+        />
+      ) : null}
+
       <FunctionBar active="profile" />
     </SafeAreaView>
   );
@@ -514,6 +584,17 @@ const styles = createResponsiveStyles({
     backgroundColor: palette.background,
     color: palette.textPrimary,
     paddingHorizontal: 12,
+  },
+  datePickerInput: {
+    justifyContent: 'center',
+  },
+  datePickerValue: {
+    color: palette.textPrimary,
+    fontSize: 14,
+  },
+  datePickerPlaceholder: {
+    color: palette.textSecondary,
+    fontSize: 14,
   },
   uploadBlock: {
     borderWidth: 1,

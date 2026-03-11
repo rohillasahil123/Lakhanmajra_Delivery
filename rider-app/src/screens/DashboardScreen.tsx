@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -187,6 +188,11 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const applyTransition = async (order: RiderOrder, nextStatus: OrderStatus) => {
+    if (!online) {
+      setError('You are offline. Go online to accept/update orders.');
+      return;
+    }
+
     try {
       assertValidTransition(order.status, nextStatus);
       setTransitionLoadingOrderId(order.id);
@@ -210,20 +216,32 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const callCustomer = async (phone?: string) => {
-    const normalized = String(phone || '').trim();
+    const normalized = String(phone || '')
+      .trim()
+      .replace(/[^\d+]/g, '');
+
     if (!normalized) {
       setError('Customer contact number not available');
       return;
     }
 
     const dialUrl = `tel:${normalized}`;
-    const supported = await Linking.canOpenURL(dialUrl);
-    if (!supported) {
-      setError('Unable to open phone dialer');
-      return;
+    const fallbackUrl = Platform.OS === 'ios' ? `telprompt:${normalized}` : dialUrl;
+
+    try {
+      const supported = await Linking.canOpenURL(dialUrl);
+      if (supported) {
+        await Linking.openURL(dialUrl);
+        return;
+      }
+    } catch {
     }
 
-    await Linking.openURL(dialUrl);
+    try {
+      await Linking.openURL(fallbackUrl);
+    } catch {
+      setError('Unable to open phone dialer');
+    }
   };
 
   const openActiveOrderMap = () => {
@@ -311,11 +329,11 @@ export const DashboardScreen: React.FC<Props> = ({navigation}) => {
 
             <Pressable
               onPress={() => applyTransition(newOrder, 'Accepted')}
-              disabled={transitionLoadingOrderId === newOrder.id}
+              disabled={transitionLoadingOrderId === newOrder.id || !online}
               style={({pressed}) => [
                 styles.acceptButton,
                 pressed ? styles.acceptButtonPressed : null,
-                transitionLoadingOrderId === newOrder.id ? styles.acceptButtonDisabled : null,
+                transitionLoadingOrderId === newOrder.id || !online ? styles.acceptButtonDisabled : null,
               ]}>
               <Text style={styles.acceptButtonText}>
                 {transitionLoadingOrderId === newOrder.id ? 'Accepting...' : 'Accept 📦'}

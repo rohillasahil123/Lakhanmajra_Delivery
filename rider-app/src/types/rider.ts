@@ -80,13 +80,6 @@ export interface RiderProfileKycForm {
   vehicleType: string;
   rcFrontImage: string;
   insuranceImage: string;
-  accountHolderName: string;
-  bankAccountNumber: string;
-  ifscCode: string;
-  cancelledChequeImage: string;
-  policeVerificationDocument: string;
-  emergencyContactName: string;
-  emergencyContactNumber: string;
 }
 
 export interface RiderProfilePayload extends RiderProfileKycForm {
@@ -99,9 +92,7 @@ export type RiderDocumentField =
   | 'liveSelfieImage'
   | 'dlFrontImage'
   | 'rcFrontImage'
-  | 'insuranceImage'
-  | 'cancelledChequeImage'
-  | 'policeVerificationDocument';
+  | 'insuranceImage';
 
 export interface UploadableRiderFile {
   uri: string;

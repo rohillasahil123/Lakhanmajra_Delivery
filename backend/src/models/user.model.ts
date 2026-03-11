@@ -33,7 +33,6 @@ export interface IUser extends Document {
     bankAccountNumber: string;
     ifscCode: string;
     cancelledChequeImage: string;
-    policeVerificationDocument: string;
     emergencyContactName: string;
     emergencyContactNumber: string;
     updatedAt?: Date;
@@ -62,7 +61,6 @@ const RiderProfileSchema = new Schema(
     bankAccountNumber: {type: String, default: ''},
     ifscCode: {type: String, default: ''},
     cancelledChequeImage: {type: String, default: ''},
-    policeVerificationDocument: {type: String, default: ''},
     emergencyContactName: {type: String, default: ''},
     emergencyContactNumber: {type: String, default: ''},
     updatedAt: {type: Date},

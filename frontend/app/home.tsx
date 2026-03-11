@@ -12,7 +12,6 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   Pressable,
   View,
@@ -52,6 +51,12 @@ const getParentCategoryId = (category: any): string => {
   if (!category?.parentCategory) return '';
   if (typeof category.parentCategory === 'string') return category.parentCategory;
   return category.parentCategory?._id || '';
+};
+
+const getEntityId = (value: any): string => {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return String(value?._id || value?.id || '');
 };
 
 const getCategoryIcon = (categoryName: string): keyof typeof MaterialCommunityIcons.glyphMap => {
@@ -100,7 +105,6 @@ export default function HomeScreen() {
   const selectedLocation = useLocationStore((s) => s.selectedLocation);
   const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
   const cartCount = useCart((s) => s.items.length);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeOfferIndex, setActiveOfferIndex] = useState(0);
   const [categories, setCategories] = useState<any[]>([]);
@@ -208,9 +212,10 @@ export default function HomeScreen() {
   const isLocalImage = (img: any) => typeof img === 'number';
 
   // Filter products by selected category
-  const filteredProducts = selectedCategory 
-    ? products.filter((p: any) => p.categoryId === selectedCategory)
+  const categoryFilteredProducts = selectedCategory
+    ? products.filter((p: any) => getEntityId(p.categoryId) === selectedCategory)
     : products;
+  const filteredProducts = categoryFilteredProducts;
 
   const getDiscountPercent = (product: any): number => {
     const discount = Number(product?.discount ?? 0);
@@ -340,16 +345,12 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           {/* Search Bar */}
-          <View style={[styles.searchBar, { flex: 1 }]}>
+          <TouchableOpacity style={[styles.searchBar, { flex: 1 }]} onPress={() => router.push('/search')}>
             <ThemedText style={styles.searchIcon}>🔍</ThemedText>
-            <TextInput
-              style={[styles.searchInput, { fontSize: 13 }]}
-              placeholder={isSmallScreen ? 'Search...' : 'Search "eggs", "milk"…'}
-              placeholderTextColor={COLORS.muted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
+            <ThemedText style={[styles.searchInput, { fontSize: 13, color: COLORS.muted }]}>
+              {isSmallScreen ? 'Search...' : 'Search "eggs", "milk"…'}
+            </ThemedText>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -545,7 +546,14 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.productGrid}>
-          {filteredProducts.map((product) => (
+          {filteredProducts.length === 0 ? (
+            <View style={styles.noResultsWrap}>
+              <ThemedText style={styles.noResultsTitle}>No products available</ThemedText>
+              <ThemedText style={styles.noResultsSubtext}>
+                Try another category or check again later
+              </ThemedText>
+            </View>
+          ) : filteredProducts.map((product) => (
             (() => {
               const variants = Array.isArray(product?.variants) ? product.variants : [];
               const defaultVariant = variants.find((variant: any) => variant?.isDefault) || variants[0] || null;
@@ -1069,6 +1077,28 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 28,
     gap: 10,
+  },
+  noResultsWrap: {
+    width: '100%',
+    backgroundColor: COLORS.white,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingVertical: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noResultsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  noResultsSubtext: {
+    fontSize: 13,
+    color: COLORS.muted,
+    textAlign: 'center',
   },
   productCard: {
     width: '48%',

@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "^8.6.0",
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/native-stack": "^6.11.0",
     "axios": "^1.8.4",
@@ -39,6 +41,7 @@
     "eslint": "^8.57.0",
     "expo-module-scripts": "^5.0.8",
     "prettier": "2.8.8",
+    "react-refresh": "^0.18.0",
     "typescript": "~5.9.2"
   },
   "engines": {

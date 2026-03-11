@@ -1,5 +1,21 @@
 import { getEndpoint, API_ENDPOINTS } from '@/config/api';
 
+export type FetchProductsPageParams = {
+  page?: number;
+  limit?: number;
+  q?: string;
+  categoryId?: string;
+  sortBy?: 'demand' | '-createdAt';
+};
+
+export type FetchProductsPageResult = {
+  data: any[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+};
+
 async function safeGet(url: string, options?: { silentNotFound?: boolean }) {
   try {
     const res = await fetch(url);
@@ -25,11 +41,17 @@ export async function fetchCategories(): Promise<any[]> {
   return Array.isArray(data) ? data : [];
 }
 
-export async function fetchProducts(params?: { limit?: number; categoryId?: string }): Promise<any[]> {
+export async function fetchProductsPage(params?: FetchProductsPageParams): Promise<FetchProductsPageResult> {
   let url = getEndpoint(API_ENDPOINTS.PRODUCTS as string);
   const query: string[] = [];
-  query.push('sortBy=demand');
-  if (params?.limit) query.push(`limit=${params.limit}`);
+  const page = Math.max(1, Number(params?.page || 1));
+  const limit = Math.max(1, Number(params?.limit || 20));
+  const sortBy = params?.sortBy || 'demand';
+
+  query.push(`page=${page}`);
+  query.push(`limit=${limit}`);
+  query.push(`sortBy=${encodeURIComponent(sortBy)}`);
+  if (params?.q?.trim()) query.push(`q=${encodeURIComponent(params.q.trim())}`);
   if (params?.categoryId) query.push(`categoryId=${encodeURIComponent(params.categoryId)}`);
   if (query.length) {
     const sep = url.includes('?') ? '&' : '?';
@@ -37,12 +59,44 @@ export async function fetchProducts(params?: { limit?: number; categoryId?: stri
   }
 
   const response = await safeGet(url);
-  if (!response) return [];
-  // Backend returns { success: true, data: { data: [...], total, page, limit } }
-  const wrapper = response.data || response.products || [];
-  // If wrapper is paginated result (has .data property), extract it
-  const data = wrapper.data || wrapper;
-  return Array.isArray(data) ? data : [];
+  if (!response) {
+    return {
+      data: [],
+      total: 0,
+      page,
+      limit,
+      hasMore: false,
+    };
+  }
+
+  const wrapper = response.data || response.products || {};
+  const list = Array.isArray(wrapper?.data)
+    ? wrapper.data
+    : Array.isArray(wrapper)
+    ? wrapper
+    : [];
+  const total = Number(wrapper?.total ?? list.length ?? 0);
+  const currentPage = Number(wrapper?.page ?? page);
+  const currentLimit = Number(wrapper?.limit ?? limit);
+  const loadedCount = currentPage * currentLimit;
+
+  return {
+    data: list,
+    total,
+    page: currentPage,
+    limit: currentLimit,
+    hasMore: loadedCount < total,
+  };
+}
+
+export async function fetchProducts(params?: { limit?: number; categoryId?: string }): Promise<any[]> {
+  const result = await fetchProductsPage({
+    page: 1,
+    limit: params?.limit,
+    categoryId: params?.categoryId,
+    sortBy: 'demand',
+  });
+  return result.data;
 }
 
 export async function fetchOffers(): Promise<any[]> {

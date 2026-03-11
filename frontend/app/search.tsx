@@ -1,26 +1,18 @@
 import { ThemedText } from '@/components/themed-text';
+import { resolveImageUrl } from '@/config/api';
+import { fetchProductsPage } from '@/services/catalogService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-
-// Dummy data
-const SEARCH_SUGGESTIONS = [
-  'Fresh Vegetables',
-  'Organic Milk',
-  'Bread & Bakery',
-  'Fruits',
-  'Snacks',
-  'Beverages',
-  'Dairy Products',
-  'Eggs',
-];
 
 const RECENT_SEARCHES = [
   'Amul Milk',
@@ -29,30 +21,126 @@ const RECENT_SEARCHES = [
   'Aashirvaad Atta',
 ];
 
-const TRENDING_SEARCHES = [
-  { id: 1, query: 'Fresh Vegetables', icon: '🥬' },
-  { id: 2, query: 'Dairy Products', icon: '🥛' },
-  { id: 3, query: 'Fruits', icon: '🍎' },
-  { id: 4, query: 'Snacks', icon: '🍿' },
-];
+const RECENT_SEARCHES_KEY = 'recent_searches_v1';
+const SEARCH_PAGE_SIZE = 20;
 
 export default function SearchScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const normalizedQuery = useMemo(() => searchQuery.trim(), [searchQuery]);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(RECENT_SEARCHES_KEY);
+        if (!mounted || !raw) return;
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const sanitized = parsed
+            .map((item: any) => String(item || '').trim())
+            .filter(Boolean)
+            .slice(0, 5);
+          setRecentSearches(sanitized.length ? sanitized : RECENT_SEARCHES);
+        }
+      } catch {
+        // fallback to default
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches)).catch(() => {});
+  }, [recentSearches]);
+
+  useEffect(() => {
+    if (!normalizedQuery) {
+      setResults([]);
+      setPage(1);
+      setHasMore(false);
+      setTotalCount(0);
+      setLoading(false);
+      return;
+    }
+
+    let active = true;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const pageResult = await fetchProductsPage({
+          q: normalizedQuery,
+          page: 1,
+          limit: SEARCH_PAGE_SIZE,
+          sortBy: 'demand',
+        });
+        if (!active) return;
+        setResults(pageResult.data);
+        setPage(pageResult.page);
+        setHasMore(pageResult.hasMore);
+        setTotalCount(pageResult.total);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [normalizedQuery]);
+
+  const loadMore = async () => {
+    if (!normalizedQuery || loading || loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const pageResult = await fetchProductsPage({
+        q: normalizedQuery,
+        page: nextPage,
+        limit: SEARCH_PAGE_SIZE,
+        sortBy: 'demand',
+      });
+
+      setResults((prev) => {
+        const merged = [...prev, ...pageResult.data];
+        const seen = new Set<string>();
+        return merged.filter((product: any) => {
+          const id = String(product?._id || product?.id || '');
+          if (!id) return false;
+          if (seen.has(id)) return false;
+          seen.add(id);
+          return true;
+        });
+      });
+
+      setPage(pageResult.page);
+      setHasMore(pageResult.hasMore);
+      setTotalCount(pageResult.total);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleSearch = (query: string) => {
-    if (query.trim()) {
-      // Add to recent searches
-      if (!recentSearches.includes(query)) {
-        setRecentSearches([query, ...recentSearches.slice(0, 4)]);
-      }
-      // Navigate to search results or products
-      router.push({
-        pathname: '/products',
-        params: { search: query },
-      });
+    const normalized = query.trim();
+    if (!normalized) return;
+    const exists = recentSearches.some((item) => item.toLowerCase() === normalized.toLowerCase());
+    if (!exists) {
+      setRecentSearches([normalized, ...recentSearches.slice(0, 4)]);
     }
+    setSearchQuery(normalized);
   };
 
   const clearRecentSearch = (index: number) => {
@@ -65,7 +153,6 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
@@ -91,27 +178,6 @@ export default function SearchScreen() {
       </View>
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Search Suggestions (when typing) */}
-        {searchQuery.length > 0 && (
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Suggestions</ThemedText>
-            {SEARCH_SUGGESTIONS.filter((item) =>
-              item.toLowerCase().includes(searchQuery.toLowerCase())
-            ).map((suggestion, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.suggestionItem}
-                onPress={() => handleSearch(suggestion)}
-              >
-                <ThemedText style={styles.suggestionIcon}>🔍</ThemedText>
-                <ThemedText style={styles.suggestionText}>{suggestion}</ThemedText>
-                <ThemedText style={styles.arrowIcon}>→</ThemedText>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* Recent Searches */}
         {searchQuery.length === 0 && recentSearches.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -121,17 +187,10 @@ export default function SearchScreen() {
               </TouchableOpacity>
             </View>
             {recentSearches.map((search, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.recentItem}
-                onPress={() => handleSearch(search)}
-              >
+              <TouchableOpacity key={index} style={styles.recentItem} onPress={() => handleSearch(search)}>
                 <ThemedText style={styles.recentIcon}>🕒</ThemedText>
                 <ThemedText style={styles.recentText}>{search}</ThemedText>
-                <TouchableOpacity
-                  onPress={() => clearRecentSearch(index)}
-                  style={styles.removeButton}
-                >
+                <TouchableOpacity onPress={() => clearRecentSearch(index)} style={styles.removeButton}>
                   <ThemedText style={styles.removeIcon}>✕</ThemedText>
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -139,59 +198,69 @@ export default function SearchScreen() {
           </View>
         )}
 
-        {/* Trending Searches */}
         {searchQuery.length === 0 && (
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Trending Searches</ThemedText>
-            <View style={styles.trendingGrid}>
-              {TRENDING_SEARCHES.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={styles.trendingCard}
-                  onPress={() => handleSearch(item.query)}
-                >
-                  <ThemedText style={styles.trendingIcon}>{item.icon}</ThemedText>
-                  <ThemedText style={styles.trendingText}>{item.query}</ThemedText>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ThemedText style={styles.sectionTitle}>Start typing to search products</ThemedText>
           </View>
         )}
 
-        {/* Popular Categories */}
-        {searchQuery.length === 0 && (
+        {searchQuery.length > 0 && (
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Popular Categories</ThemedText>
-            <TouchableOpacity
-              style={styles.categoryItem}
-              onPress={() => router.push('/categories')}
-            >
-              <View style={styles.categoryIcon}>
-                <ThemedText style={styles.categoryEmoji}>🥬</ThemedText>
+            <ThemedText style={styles.sectionTitle}>Results</ThemedText>
+
+            {loading ? (
+              <View style={styles.emptyWrap}>
+                <ThemedText style={styles.emptyText}>Searching products...</ThemedText>
               </View>
-              <ThemedText style={styles.categoryText}>Vegetables & Fruits</ThemedText>
-              <ThemedText style={styles.arrowIcon}>→</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.categoryItem}
-              onPress={() => router.push('/categories')}
-            >
-              <View style={styles.categoryIcon}>
-                <ThemedText style={styles.categoryEmoji}>🥛</ThemedText>
+            ) : results.length === 0 ? (
+              <View style={styles.emptyWrap}>
+                <ThemedText style={styles.emptyTitle}>No results found</ThemedText>
+                <ThemedText style={styles.emptyText}>Try another keyword</ThemedText>
               </View>
-              <ThemedText style={styles.categoryText}>Dairy & Eggs</ThemedText>
-              <ThemedText style={styles.arrowIcon}>→</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.categoryItem}
-              onPress={() => router.push('/categories')}
-            >
-              <View style={styles.categoryIcon}>
-                <ThemedText style={styles.categoryEmoji}>🍿</ThemedText>
+            ) : (
+              results.map((product: any) => {
+                const productId = product?._id || product?.id;
+                const imageUrl = Array.isArray(product?.images) && product.images[0]
+                  ? resolveImageUrl(product.images[0])
+                  : '';
+
+                return (
+                  <TouchableOpacity
+                    key={String(productId)}
+                    style={styles.resultItem}
+                    onPress={() => router.push({ pathname: '/product/[productId]', params: { productId } })}
+                  >
+                    <View style={styles.resultImageWrap}>
+                      {imageUrl ? (
+                        <Image source={{ uri: imageUrl }} style={styles.resultImage} />
+                      ) : (
+                        <ThemedText style={styles.resultFallback}>🛍️</ThemedText>
+                      )}
+                    </View>
+                    <View style={styles.resultInfo}>
+                      <ThemedText style={styles.resultName} numberOfLines={1}>{product?.name}</ThemedText>
+                      <ThemedText style={styles.resultMeta}>₹{Number(product?.price ?? 0)}</ThemedText>
+                    </View>
+                    <ThemedText style={styles.arrowIcon}>→</ThemedText>
+                  </TouchableOpacity>
+                );
+              })
+            )}
+
+            {!loading && results.length > 0 && (
+              <View style={styles.paginationWrap}>
+                <ThemedText style={styles.resultCountText}>Showing {results.length} of {totalCount}</ThemedText>
+                {hasMore ? (
+                  <TouchableOpacity style={styles.loadMoreButton} onPress={loadMore} disabled={loadingMore}>
+                    <ThemedText style={styles.loadMoreButtonText}>
+                      {loadingMore ? 'Loading...' : 'Load More'}
+                    </ThemedText>
+                  </TouchableOpacity>
+                ) : (
+                  <ThemedText style={styles.endText}>All results loaded</ThemedText>
+                )}
               </View>
-              <ThemedText style={styles.categoryText}>Snacks & Beverages</ThemedText>
-              <ThemedText style={styles.arrowIcon}>→</ThemedText>
-            </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -277,24 +346,6 @@ const styles = StyleSheet.create({
     color: '#FF6A00',
     fontWeight: '600',
   },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  suggestionIcon: {
-    fontSize: 18,
-    marginRight: 12,
-    opacity: 0.5,
-  },
-  suggestionText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#111827',
-  },
   arrowIcon: {
     fontSize: 18,
     color: '#9CA3AF',
@@ -323,55 +374,84 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#9CA3AF',
   },
-  trendingGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 12,
-  },
-  trendingCard: {
-    width: '48%',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 16,
-    margin: 4,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  trendingIcon: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
-  trendingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-    textAlign: 'center',
-  },
-  categoryItem: {
+  resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  categoryIcon: {
-    width: 50,
-    height: 50,
+  resultImageWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
     backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
+    overflow: 'hidden',
   },
-  categoryEmoji: {
-    fontSize: 24,
+  resultImage: {
+    width: '100%',
+    height: '100%',
   },
-  categoryText: {
+  resultFallback: {
+    fontSize: 18,
+  },
+  resultInfo: {
     flex: 1,
-    fontSize: 15,
-    fontWeight: '500',
+  },
+  resultName: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#111827',
+  },
+  resultMeta: {
+    marginTop: 2,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  emptyWrap: {
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  paginationWrap: {
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 6,
+    gap: 8,
+  },
+  resultCountText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  loadMoreButton: {
+    backgroundColor: '#0E7A3D',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  loadMoreButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  endText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
   },
 });

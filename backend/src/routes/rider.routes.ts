@@ -4,6 +4,7 @@ import {
 	getRiderMe,
 	getRiderOrderById,
 	getRiderOrders,
+	requestRiderProfileOtp,
 	riderLogin,
 	uploadRiderDocument,
 	updateRiderProfile,
@@ -20,6 +21,7 @@ const router = Router();
 router.post('/login', authLimiter, riderLogin);
 router.get('/me', verifyRiderToken, getRiderMe);
 router.get('/profile', verifyRiderToken, getRiderProfile);
+router.post('/profile/request-otp', verifyRiderToken, requestRiderProfileOtp);
 router.put('/profile', verifyRiderToken, updateRiderProfile);
 router.post('/upload-document', verifyRiderToken, riderDocumentUploader.single('file'), handleUploadError, uploadRiderDocument);
 router.get('/orders', verifyRiderToken, getRiderOrders);

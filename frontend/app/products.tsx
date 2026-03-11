@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
   productCard:             { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, position: 'relative' },
   discountBadge:           { position: 'absolute', top: 8, right: 8, backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, zIndex: 1 },
   discountText:            { fontSize: 9, fontWeight: '700', color: '#FFFFFF' },
-  productImageContainer:   { backgroundColor: '#F9FAFB', borderRadius: 8, height: 100, justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden' },
+  productImageContainer:   {   backgroundColor: '#F9FAFB', borderRadius: 8, height: 100, justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden' },
   productImg:              { width: '100%', height: '100%', borderRadius: 8 },
   productImgPlaceholder:   { width: '100%', height: '100%', backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
   productImgPlaceholderText: { fontSize: 36, fontWeight: '700', color: '#9CA3AF' },
