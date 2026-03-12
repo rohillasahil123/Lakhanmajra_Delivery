@@ -100,7 +100,7 @@ export async function fetchProducts(params?: { limit?: number; categoryId?: stri
 }
 
 export async function fetchOffers(): Promise<any[]> {
-  // Try offers endpoint first, fall back to products with discounts
+  // Home offer slider is admin-managed via offers endpoint
   const offersUrl = getEndpoint('/api/offers');
   const offersResponse = await safeGet(offersUrl, { silentNotFound: true });
   if (offersResponse) {
@@ -108,9 +108,7 @@ export async function fetchOffers(): Promise<any[]> {
     return Array.isArray(data) ? data : [];
   }
 
-  // Fallback: products with discount or flagged as "isOffer"
-  const products = await fetchProducts({ limit: 20 });
-  return products.filter((p: any) => p.discount || p.isOffer || p.promo || (p.mrp && p.price < p.mrp)).slice(0, 6);
+  return [];
 }
 
 export default {

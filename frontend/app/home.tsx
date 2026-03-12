@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Image,
+  ImageSourcePropType,
   ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -158,7 +159,10 @@ export default function HomeScreen() {
         if (offs && offs.length > 0) {
           finalOffers = offs.map((o: any, i: number) => ({
             ...o,
-            image: o.image && (typeof o.image === 'number' || typeof o.image === 'object') ? o.image : localImgs[i % localImgs.length],
+            id: o?._id || o?.id || `offer-${i}`,
+            image: typeof o?.image === 'string' && o.image.trim().length > 0
+              ? resolveImageUrl(o.image)
+              : localImgs[i % localImgs.length],
           }));
         } else {
           finalOffers = localImgs.map((img, i) => ({ id: `local-${i}`, title: '', subtitle: '', image: img }));
@@ -209,7 +213,17 @@ export default function HomeScreen() {
     };
   }, []);
 
-  const isLocalImage = (img: any) => typeof img === 'number';
+  const getOfferImageSource = (imageValue: unknown): ImageSourcePropType | null => {
+    if (typeof imageValue === 'number') {
+      return imageValue;
+    }
+
+    if (typeof imageValue === 'string' && imageValue.trim().length > 0) {
+      return { uri: imageValue };
+    }
+
+    return null;
+  };
 
   // Filter products by selected category
   const categoryFilteredProducts = selectedCategory
@@ -388,8 +402,8 @@ export default function HomeScreen() {
           >
             {offers.map((offer, idx) => (
               <View key={offer.id ?? idx} style={{ width: offerCardWidth }}>
-                {isLocalImage(offer.image) ? (
-                  <ImageBackground source={offer.image} style={styles.offerCard} imageStyle={styles.offerCardImage}>
+                {getOfferImageSource(offer.image) ? (
+                  <ImageBackground source={getOfferImageSource(offer.image) as ImageSourcePropType} style={styles.offerCard} imageStyle={styles.offerCardImage}>
                     <View style={styles.offerOverlay} />
                     <View style={styles.offerContent}>
                       <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
