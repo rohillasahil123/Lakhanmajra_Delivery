@@ -1,11 +1,11 @@
 // ✅ SAME IMPORTS (unchanged)
 import { ThemedText } from '@/components/themed-text';
+import { getResponsiveFont, getScreenPadding } from '@/utils/responsive';
 import useCart from '@/stores/cartStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   Image,
-  SafeAreaView,
   ScrollView,
   Text,
   StyleSheet,
@@ -14,12 +14,13 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchCategories, fetchProducts } from '@/services/catalogService';
 import { resolveImageUrl } from '@/config/api';
 
 
 // ───────────────── Product Image ─────────────────
-function ProductImage({ images, name }: { images?: string[]; name: string }) {
+function ProductImage({ images, name }: Readonly<{ images?: string[]; name: string }>) {
   const [errored, setErrored] = useState(false);
   const uri = resolveImageUrl(images?.[0] ?? null);
 
@@ -48,8 +49,7 @@ function ProductImage({ images, name }: { images?: string[]; name: string }) {
 export default function ProductsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isCompact = width < 380;
-  const horizontalPadding = isCompact ? 8 : 12;
+  const horizontalPadding = getScreenPadding(width);
   const cardGap = 8;
   const cardWidth = (width - horizontalPadding * 2 - cardGap * 3) / 2;
 
@@ -274,8 +274,8 @@ export default function ProductsScreen() {
 
   // ───────── UI ─────────
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.filtersBar}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <View style={[styles.filtersBar, { paddingHorizontal: horizontalPadding }] }>
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -289,7 +289,7 @@ export default function ProductsScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.subCategoryStripContent}
+            contentContainerStyle={[styles.subCategoryStripContent, { paddingHorizontal: Math.max(8, horizontalPadding - 4) }]}
           >
             <TouchableOpacity
               style={[
@@ -328,12 +328,12 @@ export default function ProductsScreen() {
         </View>
       )}
 
-      <View style={styles.countContainer}>
-        <Text style={styles.countText}>{visibleProducts.length} products</Text>
+      <View style={[styles.countContainer, { paddingHorizontal: horizontalPadding }] }>
+        <Text style={[styles.countText, { fontSize: getResponsiveFont(width, 13) }]}>{visibleProducts.length} products</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.productsGrid}>
+        <View style={[styles.productsGrid, { paddingHorizontal: Math.max(6, horizontalPadding - 4) }]}>
           {visibleProducts.map((product) => (
             <View key={product._id || product.id} style={{ width: cardWidth, marginBottom: cardGap }}>
               {renderProduct(product)}

@@ -1,29 +1,32 @@
 import { ThemedText } from '@/components/themed-text';
+import { getResponsiveFont, getScreenPadding } from '@/utils/responsive';
 import useCart from '@/stores/cartStore';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import {
     Alert,
   Image,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
     useWindowDimensions,
     View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Cart items are managed by the global Zustand store (stores/cartStore.ts)
 
 export default function CartScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isCompact = width < 380;
+  const screenPadding = getScreenPadding(width);
+  const headerTitleSize = getResponsiveFont(width, 20);
   const cartItems = useCart((s) => s.items);
   const increaseQuantity = useCart((s) => s.increase);
   const decreaseQuantity = useCart((s) => s.decrease);
   const removeFromCart = useCart((s) => s.remove);
-  const clearCart = useCart((s) => s.clear);
   const hydrateLocal = useCart((s) => s.hydrateLocal);
   const syncFromServer = useCart((s) => s.syncFromServer);
   const initialized = useCart((s) => s.initialized);
@@ -75,13 +78,13 @@ export default function CartScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: screenPadding }] }>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>My Cart</ThemedText>
+        <ThemedText style={[styles.headerTitle, { fontSize: headerTitleSize }]}>My Cart</ThemedText>
         <View style={styles.cartBadge}>
           <ThemedText style={styles.cartBadgeText}>{itemCount}</ThemedText>
         </View>
@@ -106,7 +109,7 @@ export default function CartScreen() {
         <>
           <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             {/* Cart Items */}
-            <View style={styles.itemsSection}>
+            <View style={[styles.itemsSection, { marginTop: 12 }] }>
               {cartItems.map((item) => (
                 (() => {
                   const availableStock = Number(item.stock ?? 0);
@@ -114,7 +117,7 @@ export default function CartScreen() {
                   const canIncrease = !isOutOfStock && item.quantity < availableStock;
 
                   return (
-                <View key={item.cartItemId || item.id} style={styles.cartItem}>
+                <View key={item.cartItemId || item.id} style={[styles.cartItem, { paddingHorizontal: screenPadding }]}>
                   <View style={styles.itemImageContainer}>
                     {(() => {
                       const imageValue = String(item.image || '').trim();
@@ -170,7 +173,7 @@ export default function CartScreen() {
             </View>
 
             {/* Bill Summary */}
-            <View style={styles.summarySection}>
+            <View style={[styles.summarySection, { paddingHorizontal: screenPadding }] }>
               <ThemedText style={styles.summaryTitle}>Bill Details</ThemedText>
 
               <View style={styles.summaryRow}>
@@ -191,11 +194,11 @@ export default function CartScreen() {
               </View>
             </View>
 
-            <View style={{ height: isCompact ? 132 : 116 }} />
+            <View style={{ height: Math.max(isCompact ? 132 : 116, insets.bottom + 96) }} />
           </ScrollView>
 
           {/* Fixed Bottom Checkout Button */}
-          <View style={styles.bottomContainer}>
+          <View style={[styles.bottomContainer, { paddingBottom: Math.max(10, insets.bottom + 6) }]}>
             <View style={[styles.bottomContent, isCompact && styles.bottomContentCompact]}>
               <View>
                 <ThemedText style={styles.bottomLabel}>{itemCount} items</ThemedText>

@@ -4,11 +4,12 @@ import { authService } from '@/services/authService';
 import { getMyOrdersApi, OrderRow } from '@/services/orderService';
 import useCart from '@/stores/cartStore';
 import useLocationStore from '@/stores/locationStore';
+import { getResponsiveFont, getScreenPadding, isSmallScreen } from '@/utils/responsive';
 import { User } from '@/types/auth.types';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ProfileTab = 'overview' | 'success' | 'cancelled';
 
@@ -25,6 +26,10 @@ const getOrderItemProductName = (productId: unknown): string => {
 
 export default function ProfileScreen() { // NOSONAR
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const screenPadding = getScreenPadding(width);
+  const compact = isSmallScreen(width);
   const resetLocalCart = useCart((s) => s.resetLocal);
   const cartItems = useCart((s) => s.items);
   const hydrateLocal = useCart((s) => s.hydrateLocal);
@@ -440,14 +445,24 @@ export default function ProfileScreen() { // NOSONAR
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <ScrollView
+        style={[styles.container, { paddingVertical: 0 }]}
+        contentContainerStyle={[
+          styles.contentContainer,
+          {
+            paddingHorizontal: screenPadding,
+            paddingTop: compact ? 8 : 14,
+            paddingBottom: Math.max(30, insets.bottom + 20),
+          },
+        ]}
+      >
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <ThemedText style={styles.backIcon}>←</ThemedText>
           </TouchableOpacity>
         </View>
-        <ThemedText style={styles.title}>My Profile</ThemedText>
+        <ThemedText style={[styles.title, { fontSize: getResponsiveFont(width, 24) }]}>My Profile</ThemedText>
 
         {profileContent}
 

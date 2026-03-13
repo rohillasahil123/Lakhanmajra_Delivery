@@ -1,15 +1,17 @@
 import { ThemedText } from '@/components/themed-text';
 import { API_BASE_URL } from '@/config/api';
+import { getResponsiveFont, getScreenPadding, isSmallScreen } from '@/utils/responsive';
 import { tokenManager } from '@/utils/tokenManager';
 import { useRouter } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AUTH_API_URL = `${API_BASE_URL}/api/auth`;
 const OTP_LENGTH = 4;
 const PHONE_LENGTH = 10;
 const VILLAGE_OPTIONS = ['LakhanMajra'];
+const AUTH_TIMEOUT_MS = 15000;
 
 type VerifyOtpResponse = {
   verified: boolean;
@@ -19,8 +21,36 @@ type VerifyOtpResponse = {
   message?: string;
 };
 
+async function postAuth<T>(endpoint: string, payload: Record<string, string>): Promise<T> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${AUTH_API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.message || 'Request failed');
+    }
+
+    return data as T;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export default function SignupScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = isSmallScreen(width);
+  const screenPadding = getScreenPadding(width);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
@@ -40,30 +70,6 @@ export default function SignupScreen() {
 
   function normalizePhone(value: string): string {
     return value.replaceAll(/\D/g, '').slice(0, PHONE_LENGTH);
-  }
-
-  async function postAuth<T>(endpoint: string, payload: Record<string, string>): Promise<T> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-    try {
-      const response = await fetch(`${AUTH_API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || 'Request failed');
-      }
-
-      return data as T;
-    } finally {
-      clearTimeout(timeoutId);
-    }
   }
 
   async function sendOtp() {
@@ -189,14 +195,23 @@ export default function SignupScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.container,
+          {
+            paddingHorizontal: screenPadding,
+            paddingBottom: Math.max(24, insets.bottom + 8),
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={[styles.card, { padding: compact ? 20 : 28, borderRadius: compact ? 18 : 24 }] }>
           <View style={styles.headerSection}>
             <View style={styles.badge}>
               <ThemedText style={styles.badgeText}>Secure Signup</ThemedText>
             </View>
-            <ThemedText style={styles.brandName}>Rural Delivery</ThemedText>
+            <ThemedText style={[styles.brandName, { fontSize: getResponsiveFont(width, 28) }]}>Rural Delivery</ThemedText>
             <ThemedText style={styles.subtitle}>Quick OTP verification and instant onboarding</ThemedText>
           </View>
 

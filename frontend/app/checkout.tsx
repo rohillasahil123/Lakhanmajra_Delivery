@@ -1,26 +1,29 @@
 import { ThemedText } from '@/components/themed-text';
+import { getResponsiveFont, getScreenPadding } from '@/utils/responsive';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
   Image,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
     useWindowDimensions,
     View
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import useCart from '@/stores/cartStore';
 import useLocationStore from '@/stores/locationStore';
 import { createOrderApi, getOrderEligibilityApi, OrderEligibility } from '@/services/orderService';
 
-export default function CheckoutScreen() {
+export default function CheckoutScreen() { // NOSONAR
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isCompact = width < 380;
+  const screenPadding = getScreenPadding(width);
+  const headerTitleSize = getResponsiveFont(width, 20);
   const qrSize = Math.min(220, Math.max(150, width - 120));
   const params = useLocalSearchParams();
   const cartItems = useCart((s) => s.items);
@@ -119,7 +122,7 @@ export default function CheckoutScreen() {
     try {
       const rawAddress = (selectedLocation.address || '').trim();
       const street = rawAddress || 'Lakhanmajra';
-      const pinMatch = rawAddress.match(/\b\d{6}\b/);
+      const pinMatch = /\b\d{6}\b/.exec(rawAddress);
 
       if (eligibility?.requiresAdvancePayment && !payAdvance) {
         Alert.alert(
@@ -159,13 +162,13 @@ export default function CheckoutScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: screenPadding }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>Checkout</ThemedText>
+        <ThemedText style={[styles.headerTitle, { fontSize: headerTitleSize }]}>Checkout</ThemedText>
         <View style={styles.headerIcons}>
           <TouchableOpacity style={styles.iconButton}>
             <ThemedText style={styles.icon}>🏠</ThemedText>
@@ -178,10 +181,10 @@ export default function CheckoutScreen() {
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Delivery Address Section */}
-        <View style={styles.section}>
+          <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Delivery Address</ThemedText>
           <TouchableOpacity 
-            style={styles.addressCard}
+            style={[styles.addressCard, { paddingHorizontal: screenPadding }]}
             onPress={() =>
               router.push({
                 pathname: '/location',
@@ -214,7 +217,7 @@ export default function CheckoutScreen() {
         {/* Cart Items Section */}
         <View style={styles.section}>
           {cartItems.map((item) => (
-            <View key={item.cartItemId || item.id} style={styles.cartItem}>
+            <View key={item.cartItemId || item.id} style={[styles.cartItem, { paddingHorizontal: screenPadding }]}>
               <View style={styles.itemImageContainer}>
                 {(() => {
                   const imageValue = String(item.image || '').trim();
@@ -272,7 +275,7 @@ export default function CheckoutScreen() {
           </View>
 
           {effectivePaymentMethod === 'online' ? (
-            <View style={styles.qrSection}>
+            <View style={[styles.qrSection, { marginHorizontal: screenPadding }]}>
               <Image source={{ uri: qrCodeUrl }} style={[styles.qrImage, { width: qrSize, height: qrSize }]} resizeMode="contain" />
               <ThemedText style={styles.qrTitle}>Demo QR (Random)</ThemedText>
               <ThemedText style={styles.qrMeta}>UPI ID: {qrPaymentData.upiId}</ThemedText>
@@ -285,7 +288,7 @@ export default function CheckoutScreen() {
         </View>
 
         {/* Bill Details Section */}
-        <View style={styles.billSection}>
+        <View style={[styles.billSection, { paddingHorizontal: screenPadding }]}>
           <View style={styles.billRow}>
             <ThemedText style={styles.billLabel}>Bill Total</ThemedText>
             <ThemedText style={styles.billValue}>₹ {billTotal}</ThemedText>
@@ -332,11 +335,11 @@ export default function CheckoutScreen() {
         </View>
 
         {/* Spacer for bottom button */}
-        <View style={{ height: isCompact ? 132 : 112 }} />
+        <View style={{ height: Math.max(isCompact ? 132 : 112, insets.bottom + 96) }} />
       </ScrollView>
 
       {/* Fixed Bottom Button */}
-      <View style={styles.bottomContainer}>
+      <View style={[styles.bottomContainer, { paddingHorizontal: screenPadding, paddingBottom: Math.max(12, insets.bottom + 6) }]}>
         <TouchableOpacity style={styles.placeOrderButton} onPress={handlePlaceOrder}>
           <ThemedText style={styles.placeOrderText}>Place Order</ThemedText>
         </TouchableOpacity>

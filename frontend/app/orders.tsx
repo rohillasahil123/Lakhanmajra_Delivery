@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { resolveImageUrl, API_BASE_URL } from "@/config/api";
+import { getResponsiveFont, getScreenPadding, isSmallScreen } from "@/utils/responsive";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -10,6 +11,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { io } from "socket.io-client";
@@ -61,8 +63,22 @@ const prettyStatus = (value: string): string => {
   return value || "Pending";
 };
 
+const mergeIncomingOrder = (prev: OrderRow[], incoming: OrderRow): OrderRow[] => {
+  const index = prev.findIndex((row) => row._id === incoming._id);
+  if (index === -1) {
+    return [incoming, ...prev];
+  }
+
+  const next = [...prev];
+  next[index] = { ...next[index], ...incoming };
+  return next;
+};
+
 export default function OrdersScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const compact = isSmallScreen(width);
+  const screenPadding = getScreenPadding(width);
   const params = useLocalSearchParams<{ filter?: string }>();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -143,6 +159,23 @@ export default function OrdersScreen() {
     ]);
   };
 
+  const handleOrderUpdated = (payload: { order?: OrderRow }) => {
+    const incoming = payload?.order;
+    if (!incoming?._id) return;
+
+    const incomingStatus = normalizeStatus(incoming.status || "");
+    const previousStatus = normalizeStatus(
+      statusByOrderRef.current[incoming._id] || "",
+    );
+    statusByOrderRef.current[incoming._id] = incomingStatus;
+
+    if (previousStatus !== incomingStatus && incomingStatus === "delivered") {
+      Alert.alert("Order Delivered", "Aapka order deliver ho gaya hai.");
+    }
+
+    setOrders((prev) => mergeIncomingOrder(prev, incoming));
+  };
+
   useEffect(() => {
     (async () => {
       try {
@@ -180,33 +213,7 @@ export default function OrdersScreen() {
         auth: { token },
       });
 
-      socket.on("user:orderUpdated", (payload: { order?: OrderRow }) => {
-        const incoming = payload?.order;
-        if (!incoming?._id) return;
-
-        const incomingStatus = normalizeStatus(incoming.status || "");
-        const previousStatus = normalizeStatus(
-          statusByOrderRef.current[incoming._id] || "",
-        );
-        statusByOrderRef.current[incoming._id] = incomingStatus;
-
-        if (previousStatus !== incomingStatus) {
-          if (incomingStatus === "delivered") {
-            Alert.alert("Order Delivered", "Aapka order deliver ho gaya hai.");
-          }
-        }
-
-        setOrders((prev) => {
-          const index = prev.findIndex((row) => row._id === incoming._id);
-          if (index === -1) {
-            return [incoming, ...prev];
-          }
-
-          const next = [...prev];
-          next[index] = { ...next[index], ...incoming };
-          return next;
-        });
-      });
+      socket.on("user:orderUpdated", handleOrderUpdated);
 
       socket.on("user:orderArriving", () => {
         Alert.alert("Rider Arriving", "Aapka order ab delivery ke liye aa raha hai.");
@@ -216,12 +223,12 @@ export default function OrdersScreen() {
     return () => {
       mounted = false;
       if (socket) {
-        socket.off("user:orderUpdated");
+        socket.off("user:orderUpdated", handleOrderUpdated);
         socket.off("user:orderArriving");
         socket.disconnect();
       }
     };
-  }, []);
+  }, [handleOrderUpdated]);
 
   if (loading) {
     return (
@@ -277,7 +284,13 @@ export default function OrdersScreen() {
     <SafeAreaView style={styles.safe}>
       <ScrollView
         style={styles.list}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          {
+            paddingHorizontal: screenPadding,
+            paddingTop: compact ? 4 : 8,
+          },
+        ]}
       >
         <View style={styles.headerRow}>
           <TouchableOpacity
@@ -286,12 +299,12 @@ export default function OrdersScreen() {
           >
             <ThemedText style={styles.backIcon}>←</ThemedText>
           </TouchableOpacity>
-          <ThemedText style={styles.pageHeaderTitle}>{pageTitle}</ThemedText>
+          <ThemedText style={[styles.pageHeaderTitle, { fontSize: getResponsiveFont(width, 20) }]}>{pageTitle}</ThemedText>
           <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.heroCard}>
-          <ThemedText style={styles.title}>Order Summary</ThemedText>
+          <ThemedText style={[styles.title, { fontSize: getResponsiveFont(width, 22) }]}>Order Summary</ThemedText>
           <ThemedText style={styles.subtitle}>
             Track your order history and purchased products
           </ThemedText>

@@ -1,18 +1,20 @@
 import { ThemedText } from '@/components/themed-text';
 import { resolveImageUrl } from '@/config/api';
 import { fetchProductsPage } from '@/services/catalogService';
+import { getResponsiveFont, getScreenPadding } from '@/utils/responsive';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const RECENT_SEARCHES = [
   'Amul Milk',
@@ -26,6 +28,8 @@ const SEARCH_PAGE_SIZE = 20;
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const screenPadding = getScreenPadding(width);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
   const [results, setResults] = useState<any[]>([]);
@@ -151,9 +155,54 @@ export default function SearchScreen() {
     setRecentSearches([]);
   };
 
+  let resultsContent: React.ReactNode = (
+    results.map((product: any) => {
+      const productId = product?._id || product?.id;
+      const imageUrl = Array.isArray(product?.images) && product.images[0]
+        ? resolveImageUrl(product.images[0])
+        : '';
+
+      return (
+        <TouchableOpacity
+          key={String(productId)}
+          style={[styles.resultItem, { paddingHorizontal: screenPadding }]}
+          onPress={() => router.push({ pathname: '/product/[productId]', params: { productId } })}
+        >
+          <View style={styles.resultImageWrap}>
+            {imageUrl ? (
+              <Image source={{ uri: imageUrl }} style={styles.resultImage} />
+            ) : (
+              <ThemedText style={styles.resultFallback}>🛍️</ThemedText>
+            )}
+          </View>
+          <View style={styles.resultInfo}>
+            <ThemedText style={styles.resultName} numberOfLines={1}>{product?.name}</ThemedText>
+            <ThemedText style={styles.resultMeta}>₹{Number(product?.price ?? 0)}</ThemedText>
+          </View>
+          <ThemedText style={styles.arrowIcon}>→</ThemedText>
+        </TouchableOpacity>
+      );
+    })
+  );
+
+  if (loading) {
+    resultsContent = (
+      <View style={styles.emptyWrap}>
+        <ThemedText style={styles.emptyText}>Searching products...</ThemedText>
+      </View>
+    );
+  } else if (results.length === 0) {
+    resultsContent = (
+      <View style={styles.emptyWrap}>
+        <ThemedText style={styles.emptyTitle}>No results found</ThemedText>
+        <ThemedText style={styles.emptyText}>Try another keyword</ThemedText>
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <View style={[styles.header, { paddingHorizontal: screenPadding }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </TouchableOpacity>
@@ -181,13 +230,13 @@ export default function SearchScreen() {
         {searchQuery.length === 0 && recentSearches.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={styles.sectionTitle}>Recent Searches</ThemedText>
+              <ThemedText style={[styles.sectionTitle, { fontSize: getResponsiveFont(width, 16), paddingHorizontal: 0, marginBottom: 0 }]}>Recent Searches</ThemedText>
               <TouchableOpacity onPress={clearAllRecent}>
                 <ThemedText style={styles.clearAll}>Clear All</ThemedText>
               </TouchableOpacity>
             </View>
             {recentSearches.map((search, index) => (
-              <TouchableOpacity key={index} style={styles.recentItem} onPress={() => handleSearch(search)}>
+              <TouchableOpacity key={search} style={[styles.recentItem, { paddingHorizontal: screenPadding }]} onPress={() => handleSearch(search)}>
                 <ThemedText style={styles.recentIcon}>🕒</ThemedText>
                 <ThemedText style={styles.recentText}>{search}</ThemedText>
                 <TouchableOpacity onPress={() => clearRecentSearch(index)} style={styles.removeButton}>
@@ -199,53 +248,15 @@ export default function SearchScreen() {
         )}
 
         {searchQuery.length === 0 && (
-          <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Start typing to search products</ThemedText>
+          <View style={[styles.section, { paddingHorizontal: screenPadding }]}>
+            <ThemedText style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>Start typing to search products</ThemedText>
           </View>
         )}
 
         {searchQuery.length > 0 && (
           <View style={styles.section}>
             <ThemedText style={styles.sectionTitle}>Results</ThemedText>
-
-            {loading ? (
-              <View style={styles.emptyWrap}>
-                <ThemedText style={styles.emptyText}>Searching products...</ThemedText>
-              </View>
-            ) : results.length === 0 ? (
-              <View style={styles.emptyWrap}>
-                <ThemedText style={styles.emptyTitle}>No results found</ThemedText>
-                <ThemedText style={styles.emptyText}>Try another keyword</ThemedText>
-              </View>
-            ) : (
-              results.map((product: any) => {
-                const productId = product?._id || product?.id;
-                const imageUrl = Array.isArray(product?.images) && product.images[0]
-                  ? resolveImageUrl(product.images[0])
-                  : '';
-
-                return (
-                  <TouchableOpacity
-                    key={String(productId)}
-                    style={styles.resultItem}
-                    onPress={() => router.push({ pathname: '/product/[productId]', params: { productId } })}
-                  >
-                    <View style={styles.resultImageWrap}>
-                      {imageUrl ? (
-                        <Image source={{ uri: imageUrl }} style={styles.resultImage} />
-                      ) : (
-                        <ThemedText style={styles.resultFallback}>🛍️</ThemedText>
-                      )}
-                    </View>
-                    <View style={styles.resultInfo}>
-                      <ThemedText style={styles.resultName} numberOfLines={1}>{product?.name}</ThemedText>
-                      <ThemedText style={styles.resultMeta}>₹{Number(product?.price ?? 0)}</ThemedText>
-                    </View>
-                    <ThemedText style={styles.arrowIcon}>→</ThemedText>
-                  </TouchableOpacity>
-                );
-              })
-            )}
+            {resultsContent}
 
             {!loading && results.length > 0 && (
               <View style={styles.paginationWrap}>

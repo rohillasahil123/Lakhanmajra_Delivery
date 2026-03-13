@@ -1,17 +1,17 @@
 import { ThemedText } from '@/components/themed-text';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { getResponsiveFont, getScreenPadding } from '@/utils/responsive';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchCategories } from '@/services/catalogService';
-import { resolveImageUrl } from '@/config/api';
 
 // Categories will be loaded from backend
 
@@ -19,6 +19,7 @@ export default function CategoriesScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isCompact = width < 380;
+  const screenPadding = getScreenPadding(width);
 
   const [categories, setCategories] = useState<any[]>([]);
 
@@ -56,8 +57,8 @@ export default function CategoriesScreen() {
         const cats = await fetchCategories();
         if (!mounted) return;
         setCategories(cats || []);
-      } catch (e) {
-        // fallback to empty
+      } catch (e: unknown) {
+        console.warn('Failed to load categories', e);
         if (mounted) setCategories([]);
       }
     }
@@ -81,13 +82,13 @@ export default function CategoriesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={[styles.header, { paddingVertical: isCompact ? 14 : 18 }] }>
+      <View style={[styles.header, { paddingVertical: isCompact ? 14 : 18, paddingHorizontal: screenPadding }] }>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </TouchableOpacity>
-        <ThemedText style={[styles.headerTitle, { fontSize: isCompact ? 18 : 20 }]}>All Categories</ThemedText>
+        <ThemedText style={[styles.headerTitle, { fontSize: getResponsiveFont(width, isCompact ? 18 : 20) }]}>All Categories</ThemedText>
         <TouchableOpacity onPress={() => router.push('/search')}>
           <ThemedText style={styles.searchIcon}>🔍</ThemedText>
         </TouchableOpacity>
@@ -95,7 +96,7 @@ export default function CategoriesScreen() {
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Categories Grid */}
-        <View style={styles.categoriesGrid}>
+        <View style={[styles.categoriesGrid, { paddingHorizontal: Math.max(8, screenPadding - 4) }]}>
           {mainCategories.map((category: any) => (
             (() => {
               const categoryId = category._id || category.id;

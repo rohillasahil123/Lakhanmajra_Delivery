@@ -43,7 +43,7 @@ module.exports = {
   },
 };
 ```
-
+#1 
 **.prettierrc**
 ```json
 {

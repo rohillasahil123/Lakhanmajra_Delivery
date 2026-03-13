@@ -1,14 +1,19 @@
 import { ThemedText } from '@/components/themed-text';
 import { TextField } from '@/components/ui/text-field';
+import { getResponsiveFont, getScreenPadding, isSmallScreen } from '@/utils/responsive';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { authService } from '@/services/authService';
 import useCart from '@/stores/cartStore';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = isSmallScreen(width);
+  const screenPadding = getScreenPadding(width);
   const [identifier, setIdentifier] = useState(''); // Can be email or phone
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,13 +52,13 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <ThemedText type="title" style={styles.welcome}>Welcome back</ThemedText>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <View style={[styles.container, { paddingHorizontal: screenPadding, paddingBottom: Math.max(24, insets.bottom + 10) }]}>
+        <View style={[styles.card, { padding: compact ? 20 : 28, borderRadius: compact ? 16 : 20 }]}>
+          <ThemedText type="title" style={[styles.welcome, { fontSize: getResponsiveFont(width, 16) }]}>Welcome back</ThemedText>
           <View style={styles.brandContainer}>
-            <ThemedText type="title" style={styles.brandOrange}>Lakhanmajra </ThemedText>
-            <ThemedText type="title" style={styles.brandGreen}>Delivery</ThemedText>
+            <ThemedText type="title" style={[styles.brandOrange, { fontSize: getResponsiveFont(width, 26) }]}>Lakhanmajra </ThemedText>
+            <ThemedText type="title" style={[styles.brandGreen, { fontSize: getResponsiveFont(width, 26) }]}>Delivery</ThemedText>
           </View>
           <ThemedText style={styles.subtitle}>Login to continue your orders</ThemedText>
 

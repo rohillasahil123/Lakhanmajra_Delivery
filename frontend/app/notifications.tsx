@@ -1,5 +1,6 @@
 import { ThemedText } from '@/components/themed-text';
 import { resolveImageUrl } from '@/config/api';
+import { getResponsiveFont, getResponsiveImageHeight, getScreenPadding } from '@/utils/responsive';
 import {
   AppNotification,
   getMyNotifications,
@@ -8,10 +9,48 @@ import {
 } from '@/services/notificationService';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const extractProductIdFromLink = (rawLink: string): string => {
+  const link = String(rawLink || '').trim();
+  if (!link) return '';
+
+  const queryMatch = /(?:[?&])productId=([^&]+)/i.exec(link);
+  if (queryMatch?.[1]) return decodeURIComponent(queryMatch[1]);
+
+  const pathMatch = /\/product\/(?:\[productId\]\/?)?([^/?#]+)/i.exec(link);
+  if (pathMatch?.[1] && pathMatch[1] !== '[productId]') {
+    return decodeURIComponent(pathMatch[1]);
+  }
+
+  return '';
+};
+
+const normalizeInternalPath = (rawLink: string): string => {
+  const link = String(rawLink || '').trim();
+  if (!link) return '';
+  if (link.startsWith('/')) return link;
+
+  if (/^https?:\/\//i.test(link)) {
+    try {
+      const url = new URL(link);
+      return `${url.pathname || ''}${url.search || ''}`;
+    } catch {
+      return '';
+    }
+  }
+
+  return `/${link.replace(/^\/+/, '')}`;
+};
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const screenPadding = getScreenPadding(width);
+  const titleSize = getResponsiveFont(width, 18);
+  const bodySize = getResponsiveFont(width, 13);
+  const imageHeight = getResponsiveImageHeight(width, 0.44);
   const [rows, setRows] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
@@ -39,9 +78,27 @@ export default function NotificationsScreen() {
         setRows((prev) => prev.map((item) => (item._id === row._id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)));
       }
 
-      if (row.linkUrl?.trim()) {
-        Alert.alert('Open Link', row.linkUrl.trim());
+      const rawLink = row.linkUrl?.trim() || '';
+      if (!rawLink) return;
+
+      const productId = extractProductIdFromLink(rawLink);
+      if (productId) {
+        router.push({ pathname: '/product/[productId]', params: { productId } });
+        return;
       }
+
+      const internalPath = normalizeInternalPath(rawLink);
+      if (internalPath.startsWith('/home') || internalPath.startsWith('/products') || internalPath.startsWith('/categories') || internalPath.startsWith('/search') || internalPath.startsWith('/cart') || internalPath.startsWith('/orders')) {
+        router.push(internalPath as never);
+        return;
+      }
+
+      if (/^https?:\/\//i.test(rawLink)) {
+        await Linking.openURL(rawLink);
+        return;
+      }
+
+      Alert.alert('Invalid Link', 'Notification link sahi format me nahi hai.');
     } catch (error: any) {
       Alert.alert('Error', error?.message || 'Unable to open notification');
     }
@@ -70,11 +127,11 @@ export default function NotificationsScreen() {
         <ThemedText style={styles.cardTitle}>{row.title}</ThemedText>
         {!row.isRead && <View style={styles.unreadDot} />}
       </View>
-      <ThemedText style={styles.cardBody}>{row.body}</ThemedText>
+      <ThemedText style={[styles.cardBody, { fontSize: bodySize }]}>{row.body}</ThemedText>
       {row.imageUrl?.trim() ? (
         <Image
           source={{ uri: resolveImageUrl(row.imageUrl.trim()) }}
-          style={styles.cardImage}
+          style={[styles.cardImage, { height: imageHeight }]}
           resizeMode="cover"
         />
       ) : null}
@@ -94,30 +151,30 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <View style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backText}>Back</ThemedText>
         </TouchableOpacity>
 
-        <ThemedText style={styles.title}>Notifications</ThemedText>
+        <ThemedText style={[styles.title, { fontSize: titleSize }]}>Notifications</ThemedText>
 
         <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead} disabled={markingAll || rows.length === 0}>
           <ThemedText style={styles.markAllText}>{markingAll ? 'Saving...' : 'Mark all read'}</ThemedText>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.summaryRow}>
+      <View style={[styles.summaryRow, { paddingHorizontal: screenPadding }] }>
         <ThemedText style={styles.summaryText}>Unread: {unreadCount}</ThemedText>
         <TouchableOpacity onPress={() => load().catch(() => {})}>
           <ThemedText style={styles.refreshText}>Refresh</ThemedText>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        {content}
+      <ScrollView contentContainerStyle={[styles.contentContainer, { paddingHorizontal: screenPadding }] }>
+        <View style={{ gap: 10 }}>{content}</View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -125,7 +182,6 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-    paddingTop: 36,
   },
   headerRow: {
     flexDirection: 'row',
@@ -180,7 +236,6 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
-    gap: 10,
   },
   card: {
     backgroundColor: '#FFFFFF',

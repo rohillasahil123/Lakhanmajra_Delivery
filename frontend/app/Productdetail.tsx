@@ -1,15 +1,17 @@
 import { ThemedText } from '@/components/themed-text';
+import { getResponsiveFont, getResponsiveImageHeight, getScreenPadding, isSmallScreen } from '@/utils/responsive';
 import useCart from '@/stores/cartStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     Alert,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
     View,
+  useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Dummy product detail data
 const PRODUCT_DETAIL = {
@@ -47,7 +49,11 @@ const PRODUCT_DETAIL = {
 
 export default function ProductDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
+  useLocalSearchParams();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const compact = isSmallScreen(width);
+  const screenPadding = getScreenPadding(width);
   const addItem = useCart((s) => s.addItem);
   const cartCount = useCart((s) => s.items.length);
   const [selectedVariant, setSelectedVariant] = useState(PRODUCT_DETAIL.variants[1]);
@@ -73,13 +79,13 @@ export default function ProductDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingHorizontal: screenPadding, paddingVertical: compact ? 10 : 14 }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </TouchableOpacity>
-        <ThemedText style={styles.headerTitle}>Product Details</ThemedText>
+        <ThemedText style={[styles.headerTitle, { fontSize: getResponsiveFont(width, 18) }]}>Product Details</ThemedText>
         <TouchableOpacity onPress={() => router.push('/cart')}>
           <View style={styles.cartButton}>
             <ThemedText style={styles.cartIcon}>🛒</ThemedText>
@@ -92,24 +98,24 @@ export default function ProductDetailScreen() {
 
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         {/* Product Image */}
-        <View style={styles.imageContainer}>
+        <View style={[styles.imageContainer, { height: getResponsiveImageHeight(width, 0.62) }]}>
           {PRODUCT_DETAIL.discount > 0 && (
             <View style={styles.discountBadge}>
               <ThemedText style={styles.discountText}>{PRODUCT_DETAIL.discount}% OFF</ThemedText>
             </View>
           )}
-          <ThemedText style={styles.productImage}>{PRODUCT_DETAIL.image}</ThemedText>
+          <ThemedText style={[styles.productImage, { fontSize: compact ? 110 : 140 }]}>{PRODUCT_DETAIL.image}</ThemedText>
         </View>
 
         {/* Product Info Section */}
-        <View style={styles.infoSection}>
+        <View style={[styles.infoSection, { paddingHorizontal: screenPadding }] }>
           {/* Category */}
           <View style={styles.categoryBadge}>
             <ThemedText style={styles.categoryText}>{PRODUCT_DETAIL.category}</ThemedText>
           </View>
 
           {/* Product Name */}
-          <ThemedText style={styles.productName}>{PRODUCT_DETAIL.name}</ThemedText>
+          <ThemedText style={[styles.productName, { fontSize: getResponsiveFont(width, 22) }]}>{PRODUCT_DETAIL.name}</ThemedText>
 
           {/* Rating & Reviews */}
           <View style={styles.ratingRow}>
@@ -149,7 +155,7 @@ export default function ProductDetailScreen() {
         </View>
 
         {/* Variants Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, { paddingHorizontal: screenPadding }] }>
           <ThemedText style={styles.sectionTitle}>Select Size</ThemedText>
           <View style={styles.variantsContainer}>
             {PRODUCT_DETAIL.variants.map((variant) => (
@@ -183,16 +189,16 @@ export default function ProductDetailScreen() {
         </View>
 
         {/* Description Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, { paddingHorizontal: screenPadding }] }>
           <ThemedText style={styles.sectionTitle}>About Product</ThemedText>
           <ThemedText style={styles.description}>{PRODUCT_DETAIL.description}</ThemedText>
         </View>
 
         {/* Benefits Section */}
-        <View style={styles.section}>
+        <View style={[styles.section, { paddingHorizontal: screenPadding }] }>
           <ThemedText style={styles.sectionTitle}>Health Benefits</ThemedText>
-          {PRODUCT_DETAIL.benefits.map((benefit, index) => (
-            <View key={index} style={styles.benefitItem}>
+          {PRODUCT_DETAIL.benefits.map((benefit) => (
+            <View key={benefit} style={styles.benefitItem}>
               <ThemedText style={styles.benefitIcon}>✓</ThemedText>
               <ThemedText style={styles.benefitText}>{benefit}</ThemedText>
             </View>
@@ -200,11 +206,11 @@ export default function ProductDetailScreen() {
         </View>
 
         {/* Nutrition Facts */}
-        <View style={styles.section}>
+        <View style={[styles.section, { paddingHorizontal: screenPadding }] }>
           <ThemedText style={styles.sectionTitle}>Nutrition Facts (per 100g)</ThemedText>
           <View style={styles.nutritionGrid}>
-            {PRODUCT_DETAIL.nutritionFacts.map((fact, index) => (
-              <View key={index} style={styles.nutritionItem}>
+            {PRODUCT_DETAIL.nutritionFacts.map((fact) => (
+              <View key={fact.label} style={styles.nutritionItem}>
                 <ThemedText style={styles.nutritionLabel}>{fact.label}</ThemedText>
                 <ThemedText style={styles.nutritionValue}>{fact.value}</ThemedText>
               </View>
@@ -216,7 +222,7 @@ export default function ProductDetailScreen() {
       </ScrollView>
 
       {/* Bottom Fixed Bar */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingHorizontal: screenPadding, paddingBottom: Math.max(14, insets.bottom + 8) }]}>
         {/* Quantity Selector */}
         <View style={styles.quantityContainer}>
           <TouchableOpacity style={styles.quantityButton} onPress={decreaseQuantity}>
