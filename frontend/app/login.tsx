@@ -1,12 +1,25 @@
-import { ThemedText } from '@/components/themed-text';
-import { TextField } from '@/components/ui/text-field';
-import { getResponsiveFont, getScreenPadding, isSmallScreen } from '@/utils/responsive';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { authService } from '@/services/authService';
-import useCart from '@/stores/cartStore';
+import { ThemedText } from "@/components/themed-text";
+import { TextField } from "@/components/ui/text-field";
+import {
+  getResponsiveFont,
+  getScreenPadding,
+  isSmallScreen,
+  createResponsiveStyles,
+} from "@/utils/responsive";
+import { useRouter } from "expo-router";
+import React, { useState } from "react";
+import {
+  Alert,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { authService } from "@/services/authService";
+import useCart from "@/stores/cartStore";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -14,58 +27,97 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const compact = isSmallScreen(width);
   const screenPadding = getScreenPadding(width);
-  const [identifier, setIdentifier] = useState(''); // Can be email or phone
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState(""); // Can be email or phone
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function onSubmit() {
     try {
       // Validate inputs
       if (!identifier.trim() || !password) {
-        Alert.alert('Validation', 'Please fill all required fields.');
+        Alert.alert("Validation", "Please fill all required fields.");
         return;
       }
 
       setLoading(true);
 
       // Call auth service
-      const { token, user } = await authService.login(identifier.trim(), password);
+      const { token, user } = await authService.login(
+        identifier.trim(),
+        password,
+      );
 
       setLoading(false);
 
       if (token && user) {
         await useCart.getState().syncFromServer();
         // Success - navigate to location page
-        Alert.alert('Success', `Welcome back, ${user.name}!`, [
+        Alert.alert("Success", `Welcome back, ${user.name}!`, [
           {
-            text: 'OK',
-            onPress: () => router.replace('/location'),
+            text: "OK",
+            onPress: () => router.replace("/location"),
           },
         ]);
       }
     } catch (error: any) {
       setLoading(false);
-      const errorMessage = error.message || 'Login failed. Please try again.';
-      Alert.alert('Login Error', errorMessage);
-      console.error('Login error:', error);
+      const errorMessage = error.message || "Login failed. Please try again.";
+      Alert.alert("Login Error", errorMessage);
+      console.error("Login error:", error);
     }
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={[styles.container, { paddingHorizontal: screenPadding, paddingBottom: Math.max(24, insets.bottom + 10) }]}>
-        <View style={[styles.card, { padding: compact ? 20 : 28, borderRadius: compact ? 16 : 20 }]}>
-          <ThemedText type="title" style={[styles.welcome, { fontSize: getResponsiveFont(width, 16) }]}>Welcome back</ThemedText>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <View
+        style={[
+          styles.container,
+          {
+            paddingHorizontal: screenPadding,
+            paddingBottom: Math.max(24, insets.bottom + 10),
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.card,
+            { padding: compact ? 20 : 28, borderRadius: compact ? 16 : 20 },
+          ]}
+        >
+          <ThemedText
+            type="title"
+            style={[styles.welcome, { fontSize: getResponsiveFont(width, 16) }]}
+          >
+            Welcome back
+          </ThemedText>
           <View style={styles.brandContainer}>
-            <ThemedText type="title" style={[styles.brandOrange, { fontSize: getResponsiveFont(width, 26) }]}>Lakhanmajra </ThemedText>
-            <ThemedText type="title" style={[styles.brandGreen, { fontSize: getResponsiveFont(width, 26) }]}>Delivery</ThemedText>
+            <ThemedText
+              type="title"
+              style={[
+                styles.brandOrange,
+                { fontSize: getResponsiveFont(width, 26) },
+              ]}
+            >
+              Lakhanmajra{" "}
+            </ThemedText>
+            <ThemedText
+              type="title"
+              style={[
+                styles.brandGreen,
+                { fontSize: getResponsiveFont(width, 26) },
+              ]}
+            >
+              Delivery
+            </ThemedText>
           </View>
-          <ThemedText style={styles.subtitle}>Login to continue your orders</ThemedText>
+          <ThemedText style={styles.subtitle}>
+            Login to continue your orders
+          </ThemedText>
 
           <View style={styles.form}>
-            <TextField 
-              placeholder="Email or Phone" 
-              value={identifier} 
+            <TextField
+              placeholder="Email or Phone"
+              value={identifier}
               onChangeText={setIdentifier}
               keyboardType="email-address"
               autoCapitalize="none"
@@ -73,10 +125,10 @@ export default function LoginScreen() {
               style={styles.input}
               placeholderTextColor="#C7C7CC"
             />
-            <TextField 
-              placeholder="Password" 
-              secureTextEntry 
-              value={password} 
+            <TextField
+              placeholder="Password"
+              secureTextEntry
+              value={password}
               onChangeText={setPassword}
               editable={!loading}
               style={styles.input}
@@ -84,28 +136,40 @@ export default function LoginScreen() {
             />
 
             {/* Forgot Password Link */}
-            <TouchableOpacity 
-              onPress={() => Alert.alert('Forgot Password', 'Password recovery feature coming soon!')} 
+            <TouchableOpacity
+              onPress={() =>
+                Alert.alert(
+                  "Forgot Password",
+                  "Password recovery feature coming soon!",
+                )
+              }
               style={styles.forgotButton}
               disabled={loading}
             >
-              <ThemedText style={styles.forgotText}>Forgot Password?</ThemedText>
+              <ThemedText style={styles.forgotText}>
+                Forgot Password?
+              </ThemedText>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+            <TouchableOpacity
+              style={[
+                styles.loginButton,
+                loading && styles.loginButtonDisabled,
+              ]}
               onPress={onSubmit}
               disabled={loading}
             >
               <ThemedText style={styles.loginButtonText}>
-                {loading ? 'Please wait...' : 'Login'}
+                {loading ? "Please wait..." : "Login"}
               </ThemedText>
             </TouchableOpacity>
 
             <View style={styles.row}>
-              <ThemedText style={styles.rowText}>Don't have an account?</ThemedText>
-              <TouchableOpacity 
-                onPress={() => router.push('/signup')} 
+              <ThemedText style={styles.rowText}>
+                Don&apos;t have an account?
+              </ThemedText>
+              <TouchableOpacity
+                onPress={() => router.push("/signup")}
                 style={styles.signupButton}
                 disabled={loading}
               >
@@ -119,123 +183,123 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { 
-    flex: 1, 
-    backgroundColor: '#F5F5F5' 
+const styles = createResponsiveStyles({
+  safe: {
+    flex: 1,
+    backgroundColor: "#F5F5F5",
   },
-  container: { 
-    flex: 1, 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    paddingHorizontal: 16, 
-    paddingVertical: 24 
+  container: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 24,
   },
   card: {
-    width: '100%',
+    width: "100%",
     maxWidth: 380,
-    alignSelf: 'center',
-    backgroundColor: '#FFFFFF',
+    alignSelf: "center",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 28,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.08,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 8,
-    alignItems: 'stretch',
+    alignItems: "stretch",
   },
   welcome: {
     fontSize: 16,
     marginBottom: 4,
-    fontWeight: '400',
-    color: '#6B7280',
-    textAlign: 'center',
+    fontWeight: "400",
+    color: "#6B7280",
+    textAlign: "center",
   },
   brandContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 8,
   },
   brandOrange: {
     fontSize: 26,
-    fontWeight: '700',
-    color: '#CC5500',
+    fontWeight: "700",
+    color: "#CC5500",
   },
   brandGreen: {
     fontSize: 26,
-    fontWeight: '700',
-    color: '#0E7A3D',
+    fontWeight: "700",
+    color: "#0E7A3D",
   },
   subtitle: {
-    color: '#1F2937',
+    color: "#1F2937",
     marginBottom: 24,
     fontSize: 13,
-    textAlign: 'center',
-    fontWeight: '400',
+    textAlign: "center",
+    fontWeight: "400",
   },
   form: {
     marginTop: 8,
     gap: 14,
   },
   input: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     borderRadius: 8,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 14,
-    color: '#111827',
+    color: "#111827",
   },
   forgotButton: {
-    alignSelf: 'flex-end',
+    alignSelf: "flex-end",
     marginTop: -4,
   },
   forgotText: {
-    color: '#CC5500',
+    color: "#CC5500",
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   loginButton: {
     marginTop: 8,
-    backgroundColor: '#CC5500',
+    backgroundColor: "#CC5500",
     borderRadius: 10,
     paddingVertical: 16,
-    shadowColor: '#CC5500',
+    shadowColor: "#CC5500",
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   loginButtonDisabled: {
-    backgroundColor: '#D4A574',
+    backgroundColor: "#D4A574",
     shadowOpacity: 0.1,
   },
   loginButtonText: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   row: {
     marginTop: 16,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
   rowText: {
-    color: '#8E8E93',
+    color: "#8E8E93",
     fontSize: 13,
-    fontWeight: '400',
+    fontWeight: "400",
   },
   signupButton: {
     marginLeft: 4,
   },
   signupText: {
-    color: '#CC5500',
-    fontWeight: '600',
+    color: "#CC5500",
+    fontWeight: "600",
     fontSize: 13,
   },
 });

@@ -1,36 +1,35 @@
-import { ThemedText } from '@/components/themed-text';
-import { resolveImageUrl } from '@/config/api';
-import { fetchProductsPage } from '@/services/catalogService';
-import { getResponsiveFont, getScreenPadding } from '@/utils/responsive';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useState } from 'react';
+import { ThemedText } from "@/components/themed-text";
+import { resolveImageUrl } from "@/config/api";
+import { fetchProductsPage } from "@/services/catalogService";
+import {
+  getResponsiveFont,
+  getScreenPadding,
+  createResponsiveStyles,
+  responsiveVerticalScale,
+} from "@/utils/responsive";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
   ScrollView,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const RECENT_SEARCHES = [
-  'Amul Milk',
-  'Tomatoes',
-  'Parle-G',
-  'Aashirvaad Atta',
-];
+const RECENT_SEARCHES = ["Amul Milk", "Tomatoes", "Parle-G", "Aashirvaad Atta"];
 
-const RECENT_SEARCHES_KEY = 'recent_searches_v1';
+const RECENT_SEARCHES_KEY = "recent_searches_v1";
 const SEARCH_PAGE_SIZE = 20;
 
 export default function SearchScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const screenPadding = getScreenPadding(width);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,7 +49,7 @@ export default function SearchScreen() {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
           const sanitized = parsed
-            .map((item: any) => String(item || '').trim())
+            .map((item: any) => String(item || "").trim())
             .filter(Boolean)
             .slice(0, 5);
           setRecentSearches(sanitized.length ? sanitized : RECENT_SEARCHES);
@@ -65,7 +64,10 @@ export default function SearchScreen() {
   }, []);
 
   useEffect(() => {
-    AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recentSearches)).catch(() => {});
+    AsyncStorage.setItem(
+      RECENT_SEARCHES_KEY,
+      JSON.stringify(recentSearches),
+    ).catch(() => {});
   }, [recentSearches]);
 
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function SearchScreen() {
           q: normalizedQuery,
           page: 1,
           limit: SEARCH_PAGE_SIZE,
-          sortBy: 'demand',
+          sortBy: "demand",
         });
         if (!active) return;
         setResults(pageResult.data);
@@ -114,14 +116,14 @@ export default function SearchScreen() {
         q: normalizedQuery,
         page: nextPage,
         limit: SEARCH_PAGE_SIZE,
-        sortBy: 'demand',
+        sortBy: "demand",
       });
 
       setResults((prev) => {
         const merged = [...prev, ...pageResult.data];
         const seen = new Set<string>();
         return merged.filter((product: any) => {
-          const id = String(product?._id || product?.id || '');
+          const id = String(product?._id || product?.id || "");
           if (!id) return false;
           if (seen.has(id)) return false;
           seen.add(id);
@@ -140,7 +142,9 @@ export default function SearchScreen() {
   const handleSearch = (query: string) => {
     const normalized = query.trim();
     if (!normalized) return;
-    const exists = recentSearches.some((item) => item.toLowerCase() === normalized.toLowerCase());
+    const exists = recentSearches.some(
+      (item) => item.toLowerCase() === normalized.toLowerCase(),
+    );
     if (!exists) {
       setRecentSearches([normalized, ...recentSearches.slice(0, 4)]);
     }
@@ -155,35 +159,43 @@ export default function SearchScreen() {
     setRecentSearches([]);
   };
 
-  let resultsContent: React.ReactNode = (
-    results.map((product: any) => {
-      const productId = product?._id || product?.id;
-      const imageUrl = Array.isArray(product?.images) && product.images[0]
+  let resultsContent: React.ReactNode = results.map((product: any) => {
+    const productId = product?._id || product?.id;
+    const imageUrl =
+      Array.isArray(product?.images) && product.images[0]
         ? resolveImageUrl(product.images[0])
-        : '';
+        : "";
 
-      return (
-        <TouchableOpacity
-          key={String(productId)}
-          style={[styles.resultItem, { paddingHorizontal: screenPadding }]}
-          onPress={() => router.push({ pathname: '/product/[productId]', params: { productId } })}
-        >
-          <View style={styles.resultImageWrap}>
-            {imageUrl ? (
-              <Image source={{ uri: imageUrl }} style={styles.resultImage} />
-            ) : (
-              <ThemedText style={styles.resultFallback}>🛍️</ThemedText>
-            )}
-          </View>
-          <View style={styles.resultInfo}>
-            <ThemedText style={styles.resultName} numberOfLines={1}>{product?.name}</ThemedText>
-            <ThemedText style={styles.resultMeta}>₹{Number(product?.price ?? 0)}</ThemedText>
-          </View>
-          <ThemedText style={styles.arrowIcon}>→</ThemedText>
-        </TouchableOpacity>
-      );
-    })
-  );
+    return (
+      <TouchableOpacity
+        key={String(productId)}
+        style={[styles.resultItem, { paddingHorizontal: screenPadding }]}
+        onPress={() =>
+          router.push({
+            pathname: "/product/[productId]",
+            params: { productId },
+          })
+        }
+      >
+        <View style={styles.resultImageWrap}>
+          {imageUrl ? (
+            <Image source={{ uri: imageUrl }} style={styles.resultImage} />
+          ) : (
+            <ThemedText style={styles.resultFallback}>🛍️</ThemedText>
+          )}
+        </View>
+        <View style={styles.resultInfo}>
+          <ThemedText style={styles.resultName} numberOfLines={1}>
+            {product?.name}
+          </ThemedText>
+          <ThemedText style={styles.resultMeta}>
+            ₹{Number(product?.price ?? 0)}
+          </ThemedText>
+        </View>
+        <ThemedText style={styles.arrowIcon}>→</ThemedText>
+      </TouchableOpacity>
+    );
+  });
 
   if (loading) {
     resultsContent = (
@@ -201,9 +213,12 @@ export default function SearchScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={[styles.header, { paddingHorizontal: screenPadding }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <ThemedText style={styles.backIcon}>←</ThemedText>
         </TouchableOpacity>
         <View style={styles.searchContainer}>
@@ -219,7 +234,7 @@ export default function SearchScreen() {
             onSubmitEditing={() => handleSearch(searchQuery)}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
               <ThemedText style={styles.clearIcon}>✕</ThemedText>
             </TouchableOpacity>
           )}
@@ -230,16 +245,37 @@ export default function SearchScreen() {
         {searchQuery.length === 0 && recentSearches.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <ThemedText style={[styles.sectionTitle, { fontSize: getResponsiveFont(width, 16), paddingHorizontal: 0, marginBottom: 0 }]}>Recent Searches</ThemedText>
+              <ThemedText
+                style={[
+                  styles.sectionTitle,
+                  {
+                    fontSize: getResponsiveFont(width, 16),
+                    paddingHorizontal: 0,
+                    marginBottom: 0,
+                  },
+                ]}
+              >
+                Recent Searches
+              </ThemedText>
               <TouchableOpacity onPress={clearAllRecent}>
                 <ThemedText style={styles.clearAll}>Clear All</ThemedText>
               </TouchableOpacity>
             </View>
             {recentSearches.map((search, index) => (
-              <TouchableOpacity key={search} style={[styles.recentItem, { paddingHorizontal: screenPadding }]} onPress={() => handleSearch(search)}>
+              <TouchableOpacity
+                key={search}
+                style={[
+                  styles.recentItem,
+                  { paddingHorizontal: screenPadding },
+                ]}
+                onPress={() => handleSearch(search)}
+              >
                 <ThemedText style={styles.recentIcon}>🕒</ThemedText>
                 <ThemedText style={styles.recentText}>{search}</ThemedText>
-                <TouchableOpacity onPress={() => clearRecentSearch(index)} style={styles.removeButton}>
+                <TouchableOpacity
+                  onPress={() => clearRecentSearch(index)}
+                  style={styles.removeButton}
+                >
                   <ThemedText style={styles.removeIcon}>✕</ThemedText>
                 </TouchableOpacity>
               </TouchableOpacity>
@@ -249,7 +285,9 @@ export default function SearchScreen() {
 
         {searchQuery.length === 0 && (
           <View style={[styles.section, { paddingHorizontal: screenPadding }]}>
-            <ThemedText style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>Start typing to search products</ThemedText>
+            <ThemedText style={[styles.sectionTitle, { paddingHorizontal: 0 }]}>
+              Start typing to search products
+            </ThemedText>
           </View>
         )}
 
@@ -260,58 +298,66 @@ export default function SearchScreen() {
 
             {!loading && results.length > 0 && (
               <View style={styles.paginationWrap}>
-                <ThemedText style={styles.resultCountText}>Showing {results.length} of {totalCount}</ThemedText>
+                <ThemedText style={styles.resultCountText}>
+                  Showing {results.length} of {totalCount}
+                </ThemedText>
                 {hasMore ? (
-                  <TouchableOpacity style={styles.loadMoreButton} onPress={loadMore} disabled={loadingMore}>
+                  <TouchableOpacity
+                    style={styles.loadMoreButton}
+                    onPress={loadMore}
+                    disabled={loadingMore}
+                  >
                     <ThemedText style={styles.loadMoreButtonText}>
-                      {loadingMore ? 'Loading...' : 'Load More'}
+                      {loadingMore ? "Loading..." : "Load More"}
                     </ThemedText>
                   </TouchableOpacity>
                 ) : (
-                  <ThemedText style={styles.endText}>All results loaded</ThemedText>
+                  <ThemedText style={styles.endText}>
+                    All results loaded
+                  </ThemedText>
                 )}
               </View>
             )}
           </View>
         )}
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: responsiveVerticalScale(40) }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   safe: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: "#E5E7EB",
   },
   backButton: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 8,
   },
   backIcon: {
     fontSize: 28,
-    color: '#111827',
-    fontWeight: '600',
+    color: "#111827",
+    fontWeight: "600",
   },
   searchContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F3F4F6",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -323,51 +369,51 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#111827',
+    color: "#111827",
   },
   clearIcon: {
     fontSize: 18,
-    color: '#6B7280',
+    color: "#6B7280",
     padding: 4,
   },
   container: {
     flex: 1,
   },
   section: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginTop: 12,
     paddingVertical: 12,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
     paddingHorizontal: 16,
     marginBottom: 8,
   },
   clearAll: {
     fontSize: 13,
-    color: '#FF6A00',
-    fontWeight: '600',
+    color: "#FF6A00",
+    fontWeight: "600",
   },
   arrowIcon: {
     fontSize: 18,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: "#F3F4F6",
   },
   recentIcon: {
     fontSize: 18,
@@ -376,36 +422,36 @@ const styles = StyleSheet.create({
   recentText: {
     flex: 1,
     fontSize: 15,
-    color: '#111827',
+    color: "#111827",
   },
   removeButton: {
     padding: 4,
   },
   removeIcon: {
     fontSize: 16,
-    color: '#9CA3AF',
+    color: "#9CA3AF",
   },
   resultItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: "#F3F4F6",
   },
   resultImageWrap: {
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   resultImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   resultFallback: {
     fontSize: 18,
@@ -415,31 +461,31 @@ const styles = StyleSheet.create({
   },
   resultName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: "600",
+    color: "#111827",
   },
   resultMeta: {
     marginTop: 2,
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   emptyWrap: {
     paddingHorizontal: 16,
     paddingVertical: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
     marginBottom: 4,
   },
   emptyText: {
     fontSize: 13,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   paginationWrap: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 6,
@@ -447,22 +493,22 @@ const styles = StyleSheet.create({
   },
   resultCountText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: "#6B7280",
   },
   loadMoreButton: {
-    backgroundColor: '#0E7A3D',
+    backgroundColor: "#0E7A3D",
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 8,
   },
   loadMoreButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   endText: {
     fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '600',
+    color: "#6B7280",
+    fontWeight: "600",
   },
 });

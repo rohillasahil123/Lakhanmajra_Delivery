@@ -1,26 +1,32 @@
 // ✅ SAME IMPORTS (unchanged)
-import { ThemedText } from '@/components/themed-text';
-import { getResponsiveFont, getScreenPadding } from '@/utils/responsive';
-import useCart from '@/stores/cartStore';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { ThemedText } from "@/components/themed-text";
+import {
+  getResponsiveFont,
+  getScreenPadding,
+  createResponsiveStyles,
+  responsiveScale,
+} from "@/utils/responsive";
+import useCart from "@/stores/cartStore";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   Image,
   ScrollView,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchCategories, fetchProducts } from '@/services/catalogService';
-import { resolveImageUrl } from '@/config/api';
-
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { fetchCategories, fetchProducts } from "@/services/catalogService";
+import { resolveImageUrl } from "@/config/api";
 
 // ───────────────── Product Image ─────────────────
-function ProductImage({ images, name }: Readonly<{ images?: string[]; name: string }>) {
+function ProductImage({
+  images,
+  name,
+}: Readonly<{ images?: string[]; name: string }>) {
   const [errored, setErrored] = useState(false);
   const uri = resolveImageUrl(images?.[0] ?? null);
 
@@ -38,19 +44,18 @@ function ProductImage({ images, name }: Readonly<{ images?: string[]; name: stri
   return (
     <View style={styles.productImgPlaceholder}>
       <ThemedText style={styles.productImgPlaceholderText}>
-        {name?.charAt(0)?.toUpperCase() || '?'}
+        {name?.charAt(0)?.toUpperCase() || "?"}
       </ThemedText>
     </View>
   );
 }
-
 
 // ───────────────── Screen ─────────────────
 export default function ProductsScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const horizontalPadding = getScreenPadding(width);
-  const cardGap = 8;
+  const cardGap = responsiveScale(8);
   const cardWidth = (width - horizontalPadding * 2 - cardGap * 3) / 2;
 
   const params = useLocalSearchParams<{
@@ -61,20 +66,20 @@ export default function ProductsScreen() {
 
   const addItem = useCart((s) => s.addItem);
 
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<any[]>([]);
   const [subCategories, setSubCategories] = useState<any[]>([]);
   const [selectedSubCategoryId, setSelectedSubCategoryId] =
-    useState<string>('all');
+    useState<string>("all");
 
   // ───────── Helpers ─────────
   const getId = (v: any): string =>
-    typeof v === 'string' ? v : String(v?._id || v?.id || '');
+    typeof v === "string" ? v : String(v?._id || v?.id || "");
 
   const getParentCategoryId = (c: any): string =>
-    typeof c?.parentCategory === 'string'
+    typeof c?.parentCategory === "string"
       ? c.parentCategory
-      : c?.parentCategory?._id || '';
+      : c?.parentCategory?._id || "";
 
   // ───────── Load Data ─────────
   useEffect(() => {
@@ -83,14 +88,12 @@ export default function ProductsScreen() {
     (async () => {
       try {
         const catId =
-          typeof params.categoryId === 'string'
-            ? params.categoryId
-            : undefined;
+          typeof params.categoryId === "string" ? params.categoryId : undefined;
 
         const incomingSub =
-          typeof params.subcategoryId === 'string'
+          typeof params.subcategoryId === "string"
             ? params.subcategoryId
-            : 'all';
+            : "all";
 
         const cats = await fetchCategories();
         const allProducts = await fetchProducts({ limit: 300 });
@@ -100,7 +103,9 @@ export default function ProductsScreen() {
         let derivedSubCategories: any[] = [];
 
         if (catId) {
-          derivedSubCategories = categoryList.filter((c: any) => getParentCategoryId(c) === catId);
+          derivedSubCategories = categoryList.filter(
+            (c: any) => getParentCategoryId(c) === catId,
+          );
 
           const relatedIds = new Set<string>([catId]);
 
@@ -122,19 +127,22 @@ export default function ProductsScreen() {
         setProducts(prods);
         setSubCategories(derivedSubCategories);
 
-        const normalizedIncomingSub = incomingSub || 'all';
-        const validSubIds = new Set(derivedSubCategories.map((c: any) => getId(c)).filter(Boolean));
+        const normalizedIncomingSub = incomingSub || "all";
+        const validSubIds = new Set(
+          derivedSubCategories.map((c: any) => getId(c)).filter(Boolean),
+        );
         const nextSubCategoryId =
-          normalizedIncomingSub === 'all' || validSubIds.has(normalizedIncomingSub)
+          normalizedIncomingSub === "all" ||
+          validSubIds.has(normalizedIncomingSub)
             ? normalizedIncomingSub
-            : 'all';
+            : "all";
 
         setSelectedSubCategoryId(nextSubCategoryId);
       } catch {
         if (!mounted) return;
         setProducts([]);
         setSubCategories([]);
-        setSelectedSubCategoryId('all');
+        setSelectedSubCategoryId("all");
       }
     })();
 
@@ -148,15 +156,17 @@ export default function ProductsScreen() {
 
   const visibleProducts = products
     .filter((p) =>
-      selectedSubCategoryId === 'all'
+      selectedSubCategoryId === "all"
         ? true
         : getId(p.subcategoryId) === selectedSubCategoryId ||
-          getId(p.categoryId) === selectedSubCategoryId
+          getId(p.categoryId) === selectedSubCategoryId,
     )
     .filter((p) =>
-      normalizedQuery === ''
+      normalizedQuery === ""
         ? true
-        : String(p.name || '').toLowerCase().includes(normalizedQuery)
+        : String(p.name || "")
+            .toLowerCase()
+            .includes(normalizedQuery),
     );
 
   // ───────── Discount Helper ─────────
@@ -172,16 +182,14 @@ export default function ProductsScreen() {
 
   const handleProductPress = (product: any) => {
     router.push({
-      pathname: '/product/[productId]',
+      pathname: "/product/[productId]",
       params: { productId: product._id || product.id },
     });
   };
 
   // ───────── Product Card Renderer (BEST PRACTICE) ─────────
   const renderProduct = (product: any) => {
-    const variants = Array.isArray(product?.variants)
-      ? product.variants
-      : [];
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
 
     const defaultVariant =
       variants.find((v: any) => v?.isDefault) || variants[0];
@@ -191,7 +199,7 @@ export default function ProductsScreen() {
     const activeStock = Number(defaultVariant?.stock ?? product.stock ?? 0);
 
     const shouldShowMrp =
-      typeof activeMrp === 'number' && activeMrp > activePrice;
+      typeof activeMrp === "number" && activeMrp > activePrice;
 
     const isOutOfStock = activeStock <= 0;
 
@@ -254,16 +262,16 @@ export default function ProductsScreen() {
                     productId: product._id || product.id,
                     name: product.name,
                     price: activePrice,
-                    unit: '',
+                    unit: "",
                     image: resolveImageUrl(product.images?.[0]),
                     stock: activeStock,
                   },
-                  1
+                  1,
                 )
               }
             >
               <ThemedText style={styles.addButtonText}>
-                {isOutOfStock ? '×' : '+'}
+                {isOutOfStock ? "×" : "+"}
               </ThemedText>
             </TouchableOpacity>
           </View>
@@ -274,8 +282,10 @@ export default function ProductsScreen() {
 
   // ───────── UI ─────────
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <View style={[styles.filtersBar, { paddingHorizontal: horizontalPadding }] }>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+      <View
+        style={[styles.filtersBar, { paddingHorizontal: horizontalPadding }]}
+      >
         <TextInput
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -289,19 +299,23 @@ export default function ProductsScreen() {
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={[styles.subCategoryStripContent, { paddingHorizontal: Math.max(8, horizontalPadding - 4) }]}
+            contentContainerStyle={[
+              styles.subCategoryStripContent,
+              { paddingHorizontal: Math.max(8, horizontalPadding - 4) },
+            ]}
           >
             <TouchableOpacity
               style={[
                 styles.subCategoryChip,
-                selectedSubCategoryId === 'all' && styles.subCategoryChipActive,
+                selectedSubCategoryId === "all" && styles.subCategoryChipActive,
               ]}
-              onPress={() => setSelectedSubCategoryId('all')}
+              onPress={() => setSelectedSubCategoryId("all")}
             >
               <Text
                 style={[
                   styles.subCategoryChipText,
-                  selectedSubCategoryId === 'all' && styles.subCategoryChipTextActive,
+                  selectedSubCategoryId === "all" &&
+                    styles.subCategoryChipTextActive,
                 ]}
               >
                 All
@@ -315,10 +329,18 @@ export default function ProductsScreen() {
               return (
                 <TouchableOpacity
                   key={subId}
-                  style={[styles.subCategoryChip, isActive && styles.subCategoryChipActive]}
+                  style={[
+                    styles.subCategoryChip,
+                    isActive && styles.subCategoryChipActive,
+                  ]}
                   onPress={() => setSelectedSubCategoryId(subId)}
                 >
-                  <Text style={[styles.subCategoryChipText, isActive && styles.subCategoryChipTextActive]}>
+                  <Text
+                    style={[
+                      styles.subCategoryChipText,
+                      isActive && styles.subCategoryChipTextActive,
+                    ]}
+                  >
                     {subCategory.name}
                   </Text>
                 </TouchableOpacity>
@@ -328,14 +350,31 @@ export default function ProductsScreen() {
         </View>
       )}
 
-      <View style={[styles.countContainer, { paddingHorizontal: horizontalPadding }] }>
-        <Text style={[styles.countText, { fontSize: getResponsiveFont(width, 13) }]}>{visibleProducts.length} products</Text>
+      <View
+        style={[
+          styles.countContainer,
+          { paddingHorizontal: horizontalPadding },
+        ]}
+      >
+        <Text
+          style={[styles.countText, { fontSize: getResponsiveFont(width, 13) }]}
+        >
+          {visibleProducts.length} products
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.productsGrid, { paddingHorizontal: Math.max(6, horizontalPadding - 4) }]}>
+        <View
+          style={[
+            styles.productsGrid,
+            { paddingHorizontal: Math.max(6, horizontalPadding - 4) },
+          ]}
+        >
           {visibleProducts.map((product) => (
-            <View key={product._id || product.id} style={{ width: cardWidth, marginBottom: cardGap }}>
+            <View
+              key={product._id || product.id}
+              style={{ width: cardWidth, marginBottom: cardGap }}
+            >
               {renderProduct(product)}
             </View>
           ))}
@@ -346,50 +385,192 @@ export default function ProductsScreen() {
 }
 
 // ✅ styles unchanged (keep your existing StyleSheet)
-const styles = StyleSheet.create({
-  safe:                    { flex: 1, backgroundColor: '#F9FAFB' },
-  header:                  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 4, backgroundColor: '#0E7A3D', elevation: 4, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
-  backButton:              { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  backIcon:                { fontSize: 28, color: '#FFFFFF', fontWeight: '600' },
-  headerTitle:             { fontSize: 18, fontWeight: '700', color: '#FFFFFF', flex: 1, marginLeft: 12 },
-  cartButton:              { position: 'relative' },
-  cartIcon:                { fontSize: 24 },
-  cartBadge:               { position: 'absolute', top: -4, right: -4, backgroundColor: '#FF6A00', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
-  cartBadgeText:           { fontSize: 10, fontWeight: '700', color: '#FFFFFF' },
-  filtersBar:              { backgroundColor: '#FFFFFF', paddingVertical: 12, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  searchInput:             { backgroundColor: '#F3F4F6', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827' },
-  subCategoryStripWrap:    { backgroundColor: '#FFFFFF', paddingTop: 8, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+const styles = createResponsiveStyles({
+  safe: { flex: 1, backgroundColor: "#F9FAFB" },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    backgroundColor: "#0E7A3D",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backIcon: { fontSize: 28, color: "#FFFFFF", fontWeight: "600" },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    flex: 1,
+    marginLeft: 12,
+  },
+  cartButton: { position: "relative" },
+  cartIcon: { fontSize: 24 },
+  cartBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FF6A00",
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  cartBadgeText: { fontSize: 10, fontWeight: "700", color: "#FFFFFF" },
+  filtersBar: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  searchInput: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#111827",
+  },
+  subCategoryStripWrap: {
+    backgroundColor: "#FFFFFF",
+    paddingTop: 8,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
   subCategoryStripContent: { paddingHorizontal: 12, gap: 8 },
-  subCategoryChip:         { backgroundColor: '#F3F4F6', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
-  subCategoryChipActive:   { backgroundColor: '#0E7A3D' },
-  subCategoryChipText:     { fontSize: 12, color: '#374151', fontWeight: '600' },
-  subCategoryChipTextActive: { color: '#FFFFFF' },
-  countContainer:          { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: '#F9FAFB' },
-  countText:               { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  container:               { flex: 1 },
-  scrollContent:           { paddingBottom: 20 },
-  productsGrid:            { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 8, paddingTop: 8 },
-  productCard:             { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 12, padding: 10, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2, position: 'relative' },
-  discountBadge:           { position: 'absolute', top: 8, right: 8, backgroundColor: '#EF4444', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 4, zIndex: 1 },
-  discountText:            { fontSize: 9, fontWeight: '700', color: '#FFFFFF' },
-  productImageContainer:   {   backgroundColor: '#F9FAFB', borderRadius: 8, height: 100, justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden' },
-  productImg:              { width: '100%', height: '100%', borderRadius: 8 },
-  productImgPlaceholder:   { width: '100%', height: '100%', backgroundColor: '#E5E7EB', justifyContent: 'center', alignItems: 'center', borderRadius: 8 },
-  productImgPlaceholderText: { fontSize: 36, fontWeight: '700', color: '#9CA3AF' },
-  productInfo:             { gap: 4 },
-  productName:             { fontSize: 14, fontWeight: '600', color: '#111827', minHeight: 36 },
-  productUnit:             { fontSize: 11, color: '#9CA3AF' },
-  ratingContainer:         { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  ratingStar:              { fontSize: 12, marginRight: 4 },
-  ratingText:              { fontSize: 12, fontWeight: '600', color: '#6B7280' },
-  variantStrip:            { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 2 },
-  variantChipMini:         { backgroundColor: '#F3F4F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
-  variantChipMiniText:     { fontSize: 10, color: '#4B5563', fontWeight: '600' },
-  productFooter:           { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  productPrice:            { fontSize: 16, fontWeight: '700', color: '#0E7A3D' },
-  originalPrice:           { fontSize: 11, color: '#9CA3AF', textDecorationLine: 'line-through' },
-  outOfStockText:          { fontSize: 11, color: '#EF4444', fontWeight: '600', marginTop: 2 },
-  addButton:               { backgroundColor: '#0E7A3D', width: 28, height: 28, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
-  addButtonDisabled:       { backgroundColor: '#9CA3AF' },
-  addButtonText:           { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  subCategoryChip: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+  },
+  subCategoryChipActive: { backgroundColor: "#0E7A3D" },
+  subCategoryChipText: { fontSize: 12, color: "#374151", fontWeight: "600" },
+  subCategoryChipTextActive: { color: "#FFFFFF" },
+  countContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: "#F9FAFB",
+  },
+  countText: { fontSize: 13, color: "#6B7280", fontWeight: "500" },
+  container: { flex: 1 },
+  scrollContent: { paddingBottom: 20 },
+  productsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
+  productCard: {
+    width: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    position: "relative",
+  },
+  discountBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#EF4444",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 4,
+    zIndex: 1,
+  },
+  discountText: { fontSize: 9, fontWeight: "700", color: "#FFFFFF" },
+  productImageContainer: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    height: 100,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 8,
+    overflow: "hidden",
+  },
+  productImg: { width: "100%", height: "100%", borderRadius: 8 },
+  productImgPlaceholder: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#E5E7EB",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  productImgPlaceholderText: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: "#9CA3AF",
+  },
+  productInfo: { gap: 4 },
+  productName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#111827",
+    minHeight: 36,
+  },
+  productUnit: { fontSize: 11, color: "#9CA3AF" },
+  ratingContainer: { flexDirection: "row", alignItems: "center", marginTop: 2 },
+  ratingStar: { fontSize: 12, marginRight: 4 },
+  ratingText: { fontSize: 12, fontWeight: "600", color: "#6B7280" },
+  variantStrip: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    marginTop: 2,
+  },
+  variantChipMini: {
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  variantChipMiniText: { fontSize: 10, color: "#4B5563", fontWeight: "600" },
+  productFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 6,
+  },
+  productPrice: { fontSize: 16, fontWeight: "700", color: "#0E7A3D" },
+  originalPrice: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    textDecorationLine: "line-through",
+  },
+  outOfStockText: {
+    fontSize: 11,
+    color: "#EF4444",
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  addButton: {
+    backgroundColor: "#0E7A3D",
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  addButtonDisabled: { backgroundColor: "#9CA3AF" },
+  addButtonText: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
 });

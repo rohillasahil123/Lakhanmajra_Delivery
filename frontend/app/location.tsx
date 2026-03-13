@@ -1,40 +1,51 @@
-import { ThemedText } from '@/components/themed-text';
-import { TextField } from '@/components/ui/text-field';
+import { ThemedText } from "@/components/themed-text";
+import {
+  createResponsiveStyles,
+  responsiveVerticalScale,
+} from "@/utils/responsive";
+import { TextField } from "@/components/ui/text-field";
 import useLocationStore, {
   DEFAULT_LOCATION_ADDRESS,
   DEFAULT_LOCATION_COORDS,
-} from '@/stores/locationStore';
-import * as Location from 'expo-location';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+} from "@/stores/locationStore";
+import * as Location from "expo-location";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    ScrollView,
-    StyleSheet,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
-import { SafeAreaView } from 'react-native-safe-area-context';
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-const { height } = Dimensions.get('window');
+const { height } = Dimensions.get("window");
 
 export default function LocationScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const getParamText = (value: unknown) => {
-    if (typeof value === 'string') return value;
-    if (Array.isArray(value) && typeof value[0] === 'string') return value[0];
-    return '';
+    if (typeof value === "string") return value;
+    if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+    return "";
   };
-  const initialDeliveryInstructions = getParamText(params.deliveryInstructions).trim();
-  const rawReturnTo = getParamText(params.returnTo) || '/home';
-  const returnTo = rawReturnTo === '/profile' || rawReturnTo === '/checkout' || rawReturnTo === '/home'
-    ? rawReturnTo
-    : '/home';
-  const setSelectedLocationInStore = useLocationStore((state) => state.setSelectedLocation);
+  const initialDeliveryInstructions = getParamText(
+    params.deliveryInstructions,
+  ).trim();
+  const rawReturnTo = getParamText(params.returnTo) || "/home";
+  const returnTo =
+    rawReturnTo === "/profile" ||
+    rawReturnTo === "/checkout" ||
+    rawReturnTo === "/home"
+      ? rawReturnTo
+      : "/home";
+  const setSelectedLocationInStore = useLocationStore(
+    (state) => state.setSelectedLocation,
+  );
 
   const [selectedLocation, setSelectedLocation] = useState({
     latitude: DEFAULT_LOCATION_COORDS.latitude,
@@ -43,46 +54,51 @@ export default function LocationScreen() {
     longitudeDelta: 0.012,
   });
   const [address, setAddress] = useState(DEFAULT_LOCATION_ADDRESS);
-  const [deliveryInstructions, setDeliveryInstructions] = useState(initialDeliveryInstructions);
+  const [deliveryInstructions, setDeliveryInstructions] = useState(
+    initialDeliveryInstructions,
+  );
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [isMarkerLocked, setIsMarkerLocked] = useState(true);
   const mapRef = useRef<MapView | null>(null);
 
-  const LOCATION_PROMPT = 'Tap on map or detect location';
+  const LOCATION_PROMPT = "Tap on map or detect location";
   const getPinnedFallbackAddress = (lat: number, lng: number) =>
     `Pinned location (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
 
-  const animateToLocation = useCallback((latitude: number, longitude: number) => {
-    mapRef.current?.animateToRegion(
-      {
-        latitude,
-        longitude,
-        latitudeDelta: 0.012,
-        longitudeDelta: 0.012,
-      },
-      550
-    );
-  }, []);
+  const animateToLocation = useCallback(
+    (latitude: number, longitude: number) => {
+      mapRef.current?.animateToRegion(
+        {
+          latitude,
+          longitude,
+          latitudeDelta: 0.012,
+          longitudeDelta: 0.012,
+        },
+        550,
+      );
+    },
+    [],
+  );
 
   // Helper: Better address formatting for India (use only known fields, fall back safely)
   const formatAddress = (addr: Location.LocationGeocodedAddress | null) => {
-    if (!addr) return 'Pinned location';
+    if (!addr) return "Pinned location";
 
     // Some geocoders return slightly different field names depending on platform/provider.
     // Use a relaxed accessor via `any` locally so TS is happy but only known fields are used.
     const a: any = addr;
 
     const parts = [
-      a.name || a.street || a.streetNumber || '',
-      a.subLocality || a.subRegion || a.subRegionLevel1 || '',
-      a.city || a.locality || '',
-      a.district || '',
-      a.region || '',
-      a.postalCode ? ` - ${a.postalCode}` : '',
+      a.name || a.street || a.streetNumber || "",
+      a.subLocality || a.subRegion || a.subRegionLevel1 || "",
+      a.city || a.locality || "",
+      a.district || "",
+      a.region || "",
+      a.postalCode ? ` - ${a.postalCode}` : "",
     ].filter(Boolean);
 
-    return parts.join(', ').trim() || 'Selected location';
+    return parts.join(", ").trim() || "Selected location";
   };
 
   // Reverse geocode helper
@@ -97,60 +113,66 @@ export default function LocationScreen() {
       if (addressData.length > 0) {
         setAddress(formatAddress(addressData[0]));
       } else {
-        setAddress('Pinned location');
+        setAddress("Pinned location");
       }
     } catch (error) {
-      console.warn('Reverse geocode error:', error);
-      setAddress('Pinned location');
+      console.warn("Reverse geocode error:", error);
+      setAddress("Pinned location");
     } finally {
       setIsLoadingAddress(false);
     }
   }, []);
 
   // Detect current location
-  const detectLocation = useCallback(async (silent = false) => {
-    setIsDetecting(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        if (!silent) {
-          Alert.alert('Permission Denied', 'Location permission is required.');
+  const detectLocation = useCallback(
+    async (silent = false) => {
+      setIsDetecting(true);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== "granted") {
+          if (!silent) {
+            Alert.alert(
+              "Permission Denied",
+              "Location permission is required.",
+            );
+          }
+          return;
         }
-        return;
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.High,
+        });
+
+        const { latitude, longitude } = location.coords;
+
+        setSelectedLocation({
+          latitude,
+          longitude,
+          latitudeDelta: 0.012,
+          longitudeDelta: 0.012,
+        });
+        animateToLocation(latitude, longitude);
+        setIsMarkerLocked(false);
+
+        await reverseGeocode(latitude, longitude);
+      } catch (error) {
+        console.warn("Detect location error:", error);
+        if (!silent) {
+          Alert.alert("Error", "Could not detect location. Try manually.");
+        }
+      } finally {
+        setIsDetecting(false);
       }
-
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-
-      const { latitude, longitude } = location.coords;
-
-      setSelectedLocation({
-        latitude,
-        longitude,
-        latitudeDelta: 0.012,
-        longitudeDelta: 0.012,
-      });
-      animateToLocation(latitude, longitude);
-      setIsMarkerLocked(false);
-
-      await reverseGeocode(latitude, longitude);
-    } catch (error) {
-      console.warn('Detect location error:', error);
-      if (!silent) {
-        Alert.alert('Error', 'Could not detect location. Try manually.');
-      }
-    } finally {
-      setIsDetecting(false);
-    }
-  }, [animateToLocation, reverseGeocode]);
+    },
+    [animateToLocation, reverseGeocode],
+  );
 
   // Handle map tap
   const handleMapPress = (event: any) => {
     if (isMarkerLocked) {
       Alert.alert(
-        'Location Locked',
-        'For now, map marker is locked to Lakhanmajra. Tap "Use Current Location" to unlock.'
+        "Location Locked",
+        'For now, map marker is locked to Lakhanmajra. Tap "Use Current Location" to unlock.',
       );
       return;
     }
@@ -170,7 +192,10 @@ export default function LocationScreen() {
     const normalizedAddress = address.trim();
     const safeAddress =
       !normalizedAddress || normalizedAddress === LOCATION_PROMPT
-        ? getPinnedFallbackAddress(selectedLocation.latitude, selectedLocation.longitude)
+        ? getPinnedFallbackAddress(
+            selectedLocation.latitude,
+            selectedLocation.longitude,
+          )
         : normalizedAddress;
 
     const payload = {
@@ -214,10 +239,15 @@ export default function LocationScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <ThemedText style={styles.backIcon}>←</ThemedText>
           </TouchableOpacity>
-          <ThemedText style={styles.headerText}>Select Delivery Location</ThemedText>
+          <ThemedText style={styles.headerText}>
+            Select Delivery Location
+          </ThemedText>
           <View style={styles.placeholder} />
         </View>
 
@@ -245,7 +275,11 @@ export default function LocationScreen() {
                   return;
                 }
                 const { latitude, longitude } = e.nativeEvent.coordinate;
-                setSelectedLocation((prev) => ({ ...prev, latitude, longitude }));
+                setSelectedLocation((prev) => ({
+                  ...prev,
+                  latitude,
+                  longitude,
+                }));
                 setAddress(getPinnedFallbackAddress(latitude, longitude));
                 reverseGeocode(latitude, longitude);
               }}
@@ -273,7 +307,10 @@ export default function LocationScreen() {
         </View>
 
         {/* Bottom content */}
-        <ScrollView style={styles.bottomSection} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.bottomSection}
+          showsVerticalScrollIndicator={false}
+        >
           <TouchableOpacity
             style={styles.detectButton}
             onPress={() => detectLocation(false)}
@@ -286,11 +323,10 @@ export default function LocationScreen() {
                 <ThemedText style={styles.detectIcon}>📍</ThemedText>
               )}
               <ThemedText style={styles.detectButtonText}>
-                {isDetecting ? 'Detecting...' : 'Use Current Location'}
+                {isDetecting ? "Detecting..." : "Use Current Location"}
               </ThemedText>
             </View>
           </TouchableOpacity>
-
           <View style={styles.instructionsContainer}>
             <ThemedText style={styles.instructionsLabel}>
               Delivery Instructions (optional)
@@ -305,14 +341,19 @@ export default function LocationScreen() {
               numberOfLines={3}
             />
           </View>
-
-          <View style={{ height: 100 }} /> {/* Space for sticky button */}
+          <View style={{ height: responsiveVerticalScale(100) }} />{" "}
+          {/* Space for sticky button */}
         </ScrollView>
 
         {/* Sticky Confirm Button */}
         <View style={styles.confirmButtonContainer}>
-          <TouchableOpacity style={styles.confirmButton} onPress={confirmLocation}>
-            <ThemedText style={styles.confirmButtonText}>Confirm & Continue</ThemedText>
+          <TouchableOpacity
+            style={styles.confirmButton}
+            onPress={confirmLocation}
+          >
+            <ThemedText style={styles.confirmButtonText}>
+              Confirm & Continue
+            </ThemedText>
           </TouchableOpacity>
         </View>
       </View>
@@ -320,117 +361,117 @@ export default function LocationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F9FAFB' },
+const styles = createResponsiveStyles({
+  safe: { flex: 1, backgroundColor: "#F9FAFB" },
   container: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#0E7A3D',
+    backgroundColor: "#0E7A3D",
   },
   backButton: { padding: 8 },
-  backIcon: { fontSize: 28, color: '#FFFFFF', fontWeight: '600' },
+  backIcon: { fontSize: 28, color: "#FFFFFF", fontWeight: "600" },
   headerText: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   placeholder: { width: 40 },
-  mapContainer: { height: height * 0.50, position: 'relative' },
+  mapContainer: { height: height * 0.5, position: "relative" },
   map: { ...StyleSheet.absoluteFillObject },
   locationBadge: {
-    position: 'absolute',
+    position: "absolute",
     top: 16,
     left: 16,
     right: 16,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 8,
     elevation: 5,
   },
-  locationBadgeContent: { flexDirection: 'row', alignItems: 'center' },
+  locationBadgeContent: { flexDirection: "row", alignItems: "center" },
   locationIcon: { fontSize: 22, marginRight: 10 },
-  locationText: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111827' },
+  locationText: { flex: 1, fontSize: 15, fontWeight: "600", color: "#111827" },
   lockHint: {
     marginTop: 6,
     fontSize: 12,
-    fontWeight: '600',
-    color: '#0E7A3D',
+    fontWeight: "600",
+    color: "#0E7A3D",
   },
-  bottomSection: { flex: 1, backgroundColor: '#F9FAFB' },
+  bottomSection: { flex: 1, backgroundColor: "#F9FAFB" },
   detectButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 12,
     paddingVertical: 16,
     borderWidth: 1.5,
-    borderColor: '#0E7A3D',
-    shadowColor: '#000',
+    borderColor: "#0E7A3D",
+    shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 3,
   },
   detectButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 12,
   },
   detectIcon: { fontSize: 22 },
   detectButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#0E7A3D',
+    fontWeight: "700",
+    color: "#0E7A3D",
   },
   instructionsContainer: { marginHorizontal: 20, marginTop: 24 },
   instructionsLabel: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontWeight: "500",
+    color: "#6B7280",
     marginBottom: 8,
   },
   instructionsInput: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     borderRadius: 10,
     padding: 14,
     fontSize: 15,
-    color: '#111827',
+    color: "#111827",
     minHeight: 90,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   confirmButtonContainer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
     padding: 20,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+    borderTopColor: "#E5E7EB",
   },
   confirmButton: {
-    backgroundColor: '#0E7A3D',
+    backgroundColor: "#0E7A3D",
     borderRadius: 14,
     paddingVertical: 18,
-    shadowColor: '#0E7A3D',
+    shadowColor: "#0E7A3D",
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 6,
   },
   confirmButtonText: {
     fontSize: 17,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
 });

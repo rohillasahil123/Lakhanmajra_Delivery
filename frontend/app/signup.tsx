@@ -1,16 +1,32 @@
-import { ThemedText } from '@/components/themed-text';
-import { API_BASE_URL } from '@/config/api';
-import { getResponsiveFont, getScreenPadding, isSmallScreen } from '@/utils/responsive';
-import { tokenManager } from '@/utils/tokenManager';
-import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import { Alert, StyleSheet, TouchableOpacity, View, TextInput, ActivityIndicator, ScrollView, useWindowDimensions } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ThemedText } from "@/components/themed-text";
+import { API_BASE_URL } from "@/config/api";
+import {
+  getResponsiveFont,
+  getScreenPadding,
+  isSmallScreen,
+  createResponsiveStyles,
+} from "@/utils/responsive";
+import { tokenManager } from "@/utils/tokenManager";
+import { useRouter } from "expo-router";
+import React, { useState, useEffect } from "react";
+import {
+  Alert,
+  TouchableOpacity,
+  View,
+  TextInput,
+  ActivityIndicator,
+  ScrollView,
+  useWindowDimensions,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const AUTH_API_URL = `${API_BASE_URL}/api/auth`;
 const OTP_LENGTH = 4;
 const PHONE_LENGTH = 10;
-const VILLAGE_OPTIONS = ['LakhanMajra'];
+const VILLAGE_OPTIONS = ["LakhanMajra"];
 const AUTH_TIMEOUT_MS = 15000;
 
 type VerifyOtpResponse = {
@@ -21,14 +37,17 @@ type VerifyOtpResponse = {
   message?: string;
 };
 
-async function postAuth<T>(endpoint: string, payload: Record<string, string>): Promise<T> {
+async function postAuth<T>(
+  endpoint: string,
+  payload: Record<string, string>,
+): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS);
 
   try {
     const response = await fetch(`${AUTH_API_URL}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -36,7 +55,7 @@ async function postAuth<T>(endpoint: string, payload: Record<string, string>): P
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data?.message || 'Request failed');
+      throw new Error(data?.message || "Request failed");
     }
 
     return data as T;
@@ -52,24 +71,24 @@ export default function SignupScreen() {
   const compact = isSmallScreen(width);
   const screenPadding = getScreenPadding(width);
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [village, setVillage] = useState('');
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [village, setVillage] = useState("");
   const [showVillageOptions, setShowVillageOptions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
 
   useEffect(() => {
     if (timer > 0) {
-      const interval = setInterval(() => setTimer(t => t - 1), 1000);
+      const interval = setInterval(() => setTimer((t) => t - 1), 1000);
       return () => clearInterval(interval);
     }
   }, [timer]);
 
   function normalizePhone(value: string): string {
-    return value.replaceAll(/\D/g, '').slice(0, PHONE_LENGTH);
+    return value.replaceAll(/\D/g, "").slice(0, PHONE_LENGTH);
   }
 
   async function sendOtp() {
@@ -77,23 +96,24 @@ export default function SignupScreen() {
       const cleanPhone = normalizePhone(phone);
 
       if (cleanPhone.length !== PHONE_LENGTH) {
-        Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+        Alert.alert("Error", "Please enter a valid 10-digit phone number");
         return;
       }
 
       setLoading(true);
 
-      await postAuth('/send-otp', { phone: cleanPhone });
+      await postAuth("/send-otp", { phone: cleanPhone });
 
       setTimer(120); // 2 minutes timer
       setStep(2);
       setPhone(cleanPhone);
-      Alert.alert('Success', `OTP sent successfully to ${cleanPhone}`);
+      Alert.alert("Success", `OTP sent successfully to ${cleanPhone}`);
     } catch (error: any) {
-      const errorMsg = error?.name === 'AbortError'
-        ? 'Request timeout. Please check your backend and network connection.'
-        : error.message || 'Failed to send OTP';
-      Alert.alert('Error', errorMsg);
+      const errorMsg =
+        error?.name === "AbortError"
+          ? "Request timeout. Please check your backend and network connection."
+          : error.message || "Failed to send OTP";
+      Alert.alert("Error", errorMsg);
     } finally {
       setLoading(false);
     }
@@ -102,30 +122,36 @@ export default function SignupScreen() {
   async function verifyOtpStep() {
     try {
       const cleanPhone = normalizePhone(phone);
-      const cleanOtp = otp.replaceAll(/\D/g, '').slice(0, OTP_LENGTH);
+      const cleanOtp = otp.replaceAll(/\D/g, "").slice(0, OTP_LENGTH);
 
       if (cleanPhone.length !== PHONE_LENGTH) {
-        Alert.alert('Error', 'Phone number is invalid. Please go back and retry.');
+        Alert.alert(
+          "Error",
+          "Phone number is invalid. Please go back and retry.",
+        );
         return;
       }
 
       if (cleanOtp.length !== OTP_LENGTH) {
-        Alert.alert('Error', 'Please enter a valid 4-digit OTP');
+        Alert.alert("Error", "Please enter a valid 4-digit OTP");
         return;
       }
 
       setLoading(true);
 
-      const data = await postAuth<VerifyOtpResponse>('/verify-otp', { phone: cleanPhone, otp: cleanOtp });
+      const data = await postAuth<VerifyOtpResponse>("/verify-otp", {
+        phone: cleanPhone,
+        otp: cleanOtp,
+      });
 
       if (data.isExistingUser && data.token && data.user) {
         await tokenManager.storeToken(data.token);
         await tokenManager.storeUser(data.user);
         setOtp(cleanOtp);
-        Alert.alert('Success', 'Welcome back!', [
+        Alert.alert("Success", "Welcome back!", [
           {
-            text: 'OK',
-            onPress: () => router.replace('/home'),
+            text: "OK",
+            onPress: () => router.replace("/home"),
           },
         ]);
         return;
@@ -133,12 +159,13 @@ export default function SignupScreen() {
 
       setStep(3);
       setOtp(cleanOtp);
-      Alert.alert('Success', 'OTP verified! Now enter your details.');
+      Alert.alert("Success", "OTP verified! Now enter your details.");
     } catch (error: any) {
-      const errorMsg = error?.name === 'AbortError'
-        ? 'Request timeout'
-        : error.message || 'OTP verification failed';
-      Alert.alert('Error', errorMsg);
+      const errorMsg =
+        error?.name === "AbortError"
+          ? "Request timeout"
+          : error.message || "OTP verification failed";
+      Alert.alert("Error", errorMsg);
     } finally {
       setLoading(false);
     }
@@ -147,28 +174,29 @@ export default function SignupScreen() {
   async function registerUser() {
     try {
       if (!name.trim() || !email.trim() || !village.trim()) {
-        Alert.alert('Error', 'Please fill all fields');
+        Alert.alert("Error", "Please fill all fields");
         return;
       }
 
       if (otp.length !== OTP_LENGTH) {
-        Alert.alert('Error', 'OTP session expired. Please verify OTP again.');
+        Alert.alert("Error", "OTP session expired. Please verify OTP again.");
         setStep(2);
         return;
       }
 
       setLoading(true);
 
-      const data = await postAuth<{ token?: string; user?: any; message?: string }>(
-        '/register-with-otp',
-        {
-          phone: normalizePhone(phone),
-          otp: otp.trim(),
-          name: name.trim(),
-          email: email.toLowerCase().trim(),
-          village: village.trim(),
-        },
-      );
+      const data = await postAuth<{
+        token?: string;
+        user?: any;
+        message?: string;
+      }>("/register-with-otp", {
+        phone: normalizePhone(phone),
+        otp: otp.trim(),
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        village: village.trim(),
+      });
 
       if (data.token) {
         await tokenManager.storeToken(data.token);
@@ -178,24 +206,25 @@ export default function SignupScreen() {
         await tokenManager.storeUser(data.user);
       }
 
-      Alert.alert('Success', 'Account created successfully!', [
+      Alert.alert("Success", "Account created successfully!", [
         {
-          text: 'OK',
-          onPress: () => router.replace('/location'),
+          text: "OK",
+          onPress: () => router.replace("/location"),
         },
       ]);
     } catch (error: any) {
-      const errorMsg = error?.name === 'AbortError'
-        ? 'Request timeout'
-        : error.message || 'Registration failed';
-      Alert.alert('Error', errorMsg);
+      const errorMsg =
+        error?.name === "AbortError"
+          ? "Request timeout"
+          : error.message || "Registration failed";
+      Alert.alert("Error", errorMsg);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -206,28 +235,71 @@ export default function SignupScreen() {
         ]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.card, { padding: compact ? 20 : 28, borderRadius: compact ? 18 : 24 }] }>
+        <View
+          style={[
+            styles.card,
+            { padding: compact ? 20 : 28, borderRadius: compact ? 18 : 24 },
+          ]}
+        >
           <View style={styles.headerSection}>
             <View style={styles.badge}>
               <ThemedText style={styles.badgeText}>Secure Signup</ThemedText>
             </View>
-            <ThemedText style={[styles.brandName, { fontSize: getResponsiveFont(width, 28) }]}>Rural Delivery</ThemedText>
-            <ThemedText style={styles.subtitle}>Quick OTP verification and instant onboarding</ThemedText>
+            <ThemedText
+              style={[
+                styles.brandName,
+                { fontSize: getResponsiveFont(width, 28) },
+              ]}
+            >
+              Rural Delivery
+            </ThemedText>
+            <ThemedText style={styles.subtitle}>
+              Quick OTP verification and instant onboarding
+            </ThemedText>
           </View>
 
           <View style={styles.progressBar}>
-            <View style={[styles.progressDot, step >= 1 && styles.progressDotActive]} />
-            <View style={[styles.progressLine, step >= 2 && styles.progressLineActive]} />
-            <View style={[styles.progressDot, step >= 2 && styles.progressDotActive]} />
-            <View style={[styles.progressLine, step >= 3 && styles.progressLineActive]} />
-            <View style={[styles.progressDot, step >= 3 && styles.progressDotActive]} />
+            <View
+              style={[
+                styles.progressDot,
+                step >= 1 && styles.progressDotActive,
+              ]}
+            />
+            <View
+              style={[
+                styles.progressLine,
+                step >= 2 && styles.progressLineActive,
+              ]}
+            />
+            <View
+              style={[
+                styles.progressDot,
+                step >= 2 && styles.progressDotActive,
+              ]}
+            />
+            <View
+              style={[
+                styles.progressLine,
+                step >= 3 && styles.progressLineActive,
+              ]}
+            />
+            <View
+              style={[
+                styles.progressDot,
+                step >= 3 && styles.progressDotActive,
+              ]}
+            />
           </View>
 
           <View style={styles.form}>
             {step === 1 && (
               <>
-                <ThemedText style={styles.stepTitle}>Enter your mobile number</ThemedText>
-                <ThemedText style={styles.stepSubtitle}>We’ll send a secure OTP for verification.</ThemedText>
+                <ThemedText style={styles.stepTitle}>
+                  Enter your mobile number
+                </ThemedText>
+                <ThemedText style={styles.stepSubtitle}>
+                  We’ll send a secure OTP for verification.
+                </ThemedText>
                 <TextInput
                   placeholder="10-digit phone number"
                   keyboardType="phone-pad"
@@ -262,7 +334,9 @@ export default function SignupScreen() {
                   placeholder="0000"
                   keyboardType="number-pad"
                   value={otp}
-                  onChangeText={(value) => setOtp(value.replaceAll(/\D/g, '').slice(0, OTP_LENGTH))}
+                  onChangeText={(value) =>
+                    setOtp(value.replaceAll(/\D/g, "").slice(0, OTP_LENGTH))
+                  }
                   editable={!loading}
                   maxLength={OTP_LENGTH}
                   style={[styles.input, styles.otpInput]}
@@ -276,7 +350,9 @@ export default function SignupScreen() {
                 )}
                 {timer === 0 && step === 2 && (
                   <TouchableOpacity onPress={sendOtp} disabled={loading}>
-                    <ThemedText style={styles.resendText}>Resend OTP</ThemedText>
+                    <ThemedText style={styles.resendText}>
+                      Resend OTP
+                    </ThemedText>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
@@ -287,7 +363,9 @@ export default function SignupScreen() {
                   {loading ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
-                    <ThemedText style={styles.buttonText}>Verify OTP</ThemedText>
+                    <ThemedText style={styles.buttonText}>
+                      Verify OTP
+                    </ThemedText>
                   )}
                 </TouchableOpacity>
               </>
@@ -295,7 +373,9 @@ export default function SignupScreen() {
 
             {step === 3 && (
               <>
-                <ThemedText style={styles.stepTitle}>📝 Complete Your Profile</ThemedText>
+                <ThemedText style={styles.stepTitle}>
+                  📝 Complete Your Profile
+                </ThemedText>
                 <TextInput
                   placeholder="Full Name"
                   value={name}
@@ -319,10 +399,17 @@ export default function SignupScreen() {
                     onPress={() => setShowVillageOptions((current) => !current)}
                     disabled={loading}
                   >
-                    <ThemedText style={[styles.selectText, !village && styles.placeholderText]}>
-                      {village || 'Select Village'}
+                    <ThemedText
+                      style={[
+                        styles.selectText,
+                        !village && styles.placeholderText,
+                      ]}
+                    >
+                      {village || "Select Village"}
                     </ThemedText>
-                    <ThemedText style={styles.selectArrow}>{showVillageOptions ? '▲' : '▼'}</ThemedText>
+                    <ThemedText style={styles.selectArrow}>
+                      {showVillageOptions ? "▲" : "▼"}
+                    </ThemedText>
                   </TouchableOpacity>
 
                   {showVillageOptions && (
@@ -336,7 +423,9 @@ export default function SignupScreen() {
                             setShowVillageOptions(false);
                           }}
                         >
-                          <ThemedText style={styles.dropdownOptionText}>{option}</ThemedText>
+                          <ThemedText style={styles.dropdownOptionText}>
+                            {option}
+                          </ThemedText>
                         </TouchableOpacity>
                       ))}
                     </View>
@@ -350,7 +439,9 @@ export default function SignupScreen() {
                   {loading ? (
                     <ActivityIndicator color="#FFF" />
                   ) : (
-                    <ThemedText style={styles.buttonText}>Create Account</ThemedText>
+                    <ThemedText style={styles.buttonText}>
+                      Create Account
+                    </ThemedText>
                   )}
                 </TouchableOpacity>
               </>
@@ -358,15 +449,23 @@ export default function SignupScreen() {
 
             {step === 1 && (
               <View style={styles.footer}>
-                <ThemedText style={styles.footerText}>Already have an account?</ThemedText>
-                <TouchableOpacity onPress={() => router.push('/login')} disabled={loading}>
+                <ThemedText style={styles.footerText}>
+                  Already have an account?
+                </ThemedText>
+                <TouchableOpacity
+                  onPress={() => router.push("/login")}
+                  disabled={loading}
+                >
                   <ThemedText style={styles.linkText}> Login</ThemedText>
                 </TouchableOpacity>
               </View>
             )}
 
             {step > 1 && (
-              <TouchableOpacity onPress={() => setStep(current => (current === 3 ? 2 : 1))} disabled={loading}>
+              <TouchableOpacity
+                onPress={() => setStep((current) => (current === 3 ? 2 : 1))}
+                disabled={loading}
+              >
                 <ThemedText style={styles.backText}>← Back</ThemedText>
               </TouchableOpacity>
             )}
@@ -377,38 +476,38 @@ export default function SignupScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   safe: {
     flex: 1,
-    backgroundColor: '#EEF4F0',
+    backgroundColor: "#EEF4F0",
   },
   container: {
     flexGrow: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 24,
   },
   card: {
-    width: '100%',
+    width: "100%",
     maxWidth: 380,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 24,
     padding: 28,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#000',
+    borderColor: "#E2E8F0",
+    shadowColor: "#000",
     shadowOpacity: 0.09,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 9,
   },
   headerSection: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 24,
   },
   badge: {
-    backgroundColor: '#E8F5EC',
+    backgroundColor: "#E8F5EC",
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -416,25 +515,25 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#0E7A3D',
+    fontWeight: "700",
+    color: "#0E7A3D",
   },
   brandName: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#0E7A3D',
+    fontWeight: "800",
+    color: "#0E7A3D",
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-    textAlign: 'center',
+    color: "#6B7280",
+    fontWeight: "500",
+    textAlign: "center",
   },
   progressBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: 28,
     gap: 8,
   },
@@ -442,148 +541,148 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
   },
   progressDotActive: {
-    backgroundColor: '#0E7A3D',
+    backgroundColor: "#0E7A3D",
   },
   progressLine: {
     flex: 1,
     height: 2,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
     maxWidth: 30,
   },
   progressLineActive: {
-    backgroundColor: '#0E7A3D',
+    backgroundColor: "#0E7A3D",
   },
   form: {
     gap: 14,
   },
   stepTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
     marginBottom: 2,
   },
   stepSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: "#64748B",
     marginBottom: 12,
   },
   input: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderWidth: 1.5,
-    borderColor: '#DCE5EE',
+    borderColor: "#DCE5EE",
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: '#111827',
-    fontWeight: '500',
+    color: "#111827",
+    fontWeight: "500",
   },
   selectInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: "#F8FAFC",
     borderWidth: 1.5,
-    borderColor: '#DCE5EE',
+    borderColor: "#DCE5EE",
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   selectText: {
-    color: '#111827',
+    color: "#111827",
     fontSize: 15,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   placeholderText: {
-    color: '#94A3B8',
-    fontWeight: '500',
+    color: "#94A3B8",
+    fontWeight: "500",
   },
   selectArrow: {
-    color: '#64748B',
+    color: "#64748B",
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   dropdownMenu: {
     marginTop: 6,
     borderWidth: 1.2,
-    borderColor: '#DCE5EE',
+    borderColor: "#DCE5EE",
     borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-    overflow: 'hidden',
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
   },
   dropdownOption: {
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   dropdownOptionText: {
-    color: '#111827',
+    color: "#111827",
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   otpInput: {
     fontSize: 28,
-    fontWeight: '700',
+    fontWeight: "700",
     letterSpacing: 6,
   },
   button: {
-    backgroundColor: '#0E7A3D',
+    backgroundColor: "#0E7A3D",
     borderRadius: 12,
     paddingVertical: 16,
     marginTop: 8,
-    shadowColor: '#0E7A3D',
+    shadowColor: "#0E7A3D",
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   buttonDisabled: {
-    backgroundColor: '#A3D5A3',
+    backgroundColor: "#A3D5A3",
     shadowOpacity: 0.1,
   },
   buttonText: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textAlign: "center",
   },
   timerText: {
     fontSize: 12,
-    color: '#B45309',
-    fontWeight: '600',
-    textAlign: 'center',
+    color: "#B45309",
+    fontWeight: "600",
+    textAlign: "center",
     marginTop: 4,
   },
   resendText: {
     fontSize: 13,
-    color: '#0E7A3D',
-    fontWeight: '700',
-    textAlign: 'center',
+    color: "#0E7A3D",
+    fontWeight: "700",
+    textAlign: "center",
     marginTop: 8,
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     marginTop: 12,
   },
   footerText: {
     fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
+    color: "#6B7280",
+    fontWeight: "500",
   },
   linkText: {
     fontSize: 13,
-    color: '#0E7A3D',
-    fontWeight: '700',
+    color: "#0E7A3D",
+    fontWeight: "700",
   },
   backText: {
     fontSize: 13,
-    color: '#0E7A3D',
-    fontWeight: '700',
-    textAlign: 'center',
+    color: "#0E7A3D",
+    fontWeight: "700",
+    textAlign: "center",
     marginTop: 8,
   },
 });

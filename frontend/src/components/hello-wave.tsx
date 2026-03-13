@@ -1,18 +1,23 @@
-import Animated from 'react-native-reanimated';
+import Animated from "react-native-reanimated";
+import {
+  responsiveModerateScale,
+  responsiveVerticalScale,
+} from "@/utils/responsive";
 
 export function HelloWave() {
   return (
     <Animated.Text
       style={{
-        fontSize: 28,
-        lineHeight: 32,
-        marginTop: -6,
+        fontSize: responsiveModerateScale(28),
+        lineHeight: responsiveModerateScale(32),
+        marginTop: -responsiveVerticalScale(6),
         animationName: {
-          '50%': { transform: [{ rotate: '25deg' }] },
+          "50%": { transform: [{ rotate: "25deg" }] },
         },
         animationIterationCount: 4,
-        animationDuration: '300ms',
-      }}>
+        animationDuration: "300ms",
+      }}
+    >
       👋
     </Animated.Text>
   );

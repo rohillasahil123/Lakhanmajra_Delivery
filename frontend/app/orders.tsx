@@ -1,14 +1,18 @@
 import { ThemedText } from "@/components/themed-text";
 import { resolveImageUrl, API_BASE_URL } from "@/config/api";
-import { getResponsiveFont, getScreenPadding, isSmallScreen } from "@/utils/responsive";
+import {
+  getResponsiveFont,
+  getScreenPadding,
+  isSmallScreen,
+  createResponsiveStyles,
+} from "@/utils/responsive";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
   ScrollView,
-  StyleSheet,
   TouchableOpacity,
   View,
   useWindowDimensions,
@@ -63,7 +67,10 @@ const prettyStatus = (value: string): string => {
   return value || "Pending";
 };
 
-const mergeIncomingOrder = (prev: OrderRow[], incoming: OrderRow): OrderRow[] => {
+const mergeIncomingOrder = (
+  prev: OrderRow[],
+  incoming: OrderRow,
+): OrderRow[] => {
   const index = prev.findIndex((row) => row._id === incoming._id);
   if (index === -1) {
     return [incoming, ...prev];
@@ -159,7 +166,7 @@ export default function OrdersScreen() {
     ]);
   };
 
-  const handleOrderUpdated = (payload: { order?: OrderRow }) => {
+  const handleOrderUpdated = useCallback((payload: { order?: OrderRow }) => {
     const incoming = payload?.order;
     if (!incoming?._id) return;
 
@@ -174,7 +181,7 @@ export default function OrdersScreen() {
     }
 
     setOrders((prev) => mergeIncomingOrder(prev, incoming));
-  };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -216,7 +223,10 @@ export default function OrdersScreen() {
       socket.on("user:orderUpdated", handleOrderUpdated);
 
       socket.on("user:orderArriving", () => {
-        Alert.alert("Rider Arriving", "Aapka order ab delivery ke liye aa raha hai.");
+        Alert.alert(
+          "Rider Arriving",
+          "Aapka order ab delivery ke liye aa raha hai.",
+        );
       });
     })();
 
@@ -299,12 +309,23 @@ export default function OrdersScreen() {
           >
             <ThemedText style={styles.backIcon}>←</ThemedText>
           </TouchableOpacity>
-          <ThemedText style={[styles.pageHeaderTitle, { fontSize: getResponsiveFont(width, 20) }]}>{pageTitle}</ThemedText>
+          <ThemedText
+            style={[
+              styles.pageHeaderTitle,
+              { fontSize: getResponsiveFont(width, 20) },
+            ]}
+          >
+            {pageTitle}
+          </ThemedText>
           <View style={styles.headerSpacer} />
         </View>
 
         <View style={styles.heroCard}>
-          <ThemedText style={[styles.title, { fontSize: getResponsiveFont(width, 22) }]}>Order Summary</ThemedText>
+          <ThemedText
+            style={[styles.title, { fontSize: getResponsiveFont(width, 22) }]}
+          >
+            Order Summary
+          </ThemedText>
           <ThemedText style={styles.subtitle}>
             Track your order history and purchased products
           </ThemedText>
@@ -331,11 +352,13 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-        {visibleOrders.map((order) => { // NOSONAR
+        {visibleOrders.map((order) => {
+          // NOSONAR
           const tone = getStatusTone(order.status);
           const normalizedStatus = normalizeStatus(order.status);
           const isCompactHistoryOrder =
-            normalizedStatus === "delivered" || normalizedStatus === "cancelled";
+            normalizedStatus === "delivered" ||
+            normalizedStatus === "cancelled";
           const rider = (order.assignedRiderId || null) as {
             name?: string;
             phone?: string;
@@ -353,20 +376,30 @@ export default function OrdersScreen() {
                   <ThemedText style={styles.compactOrderId}>
                     #{order._id.slice(-8).toUpperCase()}
                   </ThemedText>
-                  <View style={[styles.statusBadge, { backgroundColor: tone.bg }]}> 
-                    <ThemedText style={[styles.statusText, { color: tone.text }]}>
+                  <View
+                    style={[styles.statusBadge, { backgroundColor: tone.bg }]}
+                  >
+                    <ThemedText
+                      style={[styles.statusText, { color: tone.text }]}
+                    >
                       {String(order.status || "pending").toUpperCase()}
                     </ThemedText>
                   </View>
                 </View>
 
                 <View style={styles.compactMetaRow}>
-                  <ThemedText style={styles.compactMetaText}>Items: {totalItems}</ThemedText>
-                  <ThemedText style={styles.compactAmount}>₹{order.totalAmount}</ThemedText>
+                  <ThemedText style={styles.compactMetaText}>
+                    Items: {totalItems}
+                  </ThemedText>
+                  <ThemedText style={styles.compactAmount}>
+                    ₹{order.totalAmount}
+                  </ThemedText>
                 </View>
 
                 <ThemedText style={styles.compactDate}>
-                  {order.createdAt ? new Date(order.createdAt).toLocaleString() : ""}
+                  {order.createdAt
+                    ? new Date(order.createdAt).toLocaleString()
+                    : ""}
                 </ThemedText>
               </View>
             );
@@ -575,7 +608,7 @@ export default function OrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   safe: { flex: 1, backgroundColor: "#F4F6F8" },
   container: {
     flex: 1,

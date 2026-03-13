@@ -1,47 +1,61 @@
-import { ThemedText } from '@/components/themed-text';
-import { resolveImageUrl } from '@/config/api';
-import { getResponsiveFont, getResponsiveImageHeight, getScreenPadding } from '@/utils/responsive';
+import { ThemedText } from "@/components/themed-text";
+import { resolveImageUrl } from "@/config/api";
+import {
+  getResponsiveFont,
+  getResponsiveImageHeight,
+  getScreenPadding,
+  createResponsiveStyles,
+  responsiveModerateScale,
+} from "@/utils/responsive";
 import {
   AppNotification,
   getMyNotifications,
   markAllNotificationsAsRead,
   markNotificationAsRead,
-} from '@/services/notificationService';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Linking, ScrollView, StyleSheet, TouchableOpacity, View, useWindowDimensions } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+} from "@/services/notificationService";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  Image,
+  Linking,
+  ScrollView,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const extractProductIdFromLink = (rawLink: string): string => {
-  const link = String(rawLink || '').trim();
-  if (!link) return '';
+  const link = String(rawLink || "").trim();
+  if (!link) return "";
 
   const queryMatch = /(?:[?&])productId=([^&]+)/i.exec(link);
   if (queryMatch?.[1]) return decodeURIComponent(queryMatch[1]);
 
   const pathMatch = /\/product\/(?:\[productId\]\/?)?([^/?#]+)/i.exec(link);
-  if (pathMatch?.[1] && pathMatch[1] !== '[productId]') {
+  if (pathMatch?.[1] && pathMatch[1] !== "[productId]") {
     return decodeURIComponent(pathMatch[1]);
   }
 
-  return '';
+  return "";
 };
 
 const normalizeInternalPath = (rawLink: string): string => {
-  const link = String(rawLink || '').trim();
-  if (!link) return '';
-  if (link.startsWith('/')) return link;
+  const link = String(rawLink || "").trim();
+  if (!link) return "";
+  if (link.startsWith("/")) return link;
 
   if (/^https?:\/\//i.test(link)) {
     try {
       const url = new URL(link);
-      return `${url.pathname || ''}${url.search || ''}`;
+      return `${url.pathname || ""}${url.search || ""}`;
     } catch {
-      return '';
+      return "";
     }
   }
 
-  return `/${link.replace(/^\/+/, '')}`;
+  return `/${link.replace(/^\/+/, "")}`;
 };
 
 export default function NotificationsScreen() {
@@ -58,10 +72,10 @@ export default function NotificationsScreen() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const result = await getMyNotifications('all');
+      const result = await getMyNotifications("all");
       setRows(result.data || []);
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to load notifications');
+      Alert.alert("Error", error?.message || "Failed to load notifications");
     } finally {
       setLoading(false);
     }
@@ -75,20 +89,36 @@ export default function NotificationsScreen() {
     try {
       if (!row.isRead) {
         await markNotificationAsRead(String(row._id));
-        setRows((prev) => prev.map((item) => (item._id === row._id ? { ...item, isRead: true, readAt: new Date().toISOString() } : item)));
+        setRows((prev) =>
+          prev.map((item) =>
+            item._id === row._id
+              ? { ...item, isRead: true, readAt: new Date().toISOString() }
+              : item,
+          ),
+        );
       }
 
-      const rawLink = row.linkUrl?.trim() || '';
+      const rawLink = row.linkUrl?.trim() || "";
       if (!rawLink) return;
 
       const productId = extractProductIdFromLink(rawLink);
       if (productId) {
-        router.push({ pathname: '/product/[productId]', params: { productId } });
+        router.push({
+          pathname: "/product/[productId]",
+          params: { productId },
+        });
         return;
       }
 
       const internalPath = normalizeInternalPath(rawLink);
-      if (internalPath.startsWith('/home') || internalPath.startsWith('/products') || internalPath.startsWith('/categories') || internalPath.startsWith('/search') || internalPath.startsWith('/cart') || internalPath.startsWith('/orders')) {
+      if (
+        internalPath.startsWith("/home") ||
+        internalPath.startsWith("/products") ||
+        internalPath.startsWith("/categories") ||
+        internalPath.startsWith("/search") ||
+        internalPath.startsWith("/cart") ||
+        internalPath.startsWith("/orders")
+      ) {
         router.push(internalPath as never);
         return;
       }
@@ -98,9 +128,9 @@ export default function NotificationsScreen() {
         return;
       }
 
-      Alert.alert('Invalid Link', 'Notification link sahi format me nahi hai.');
+      Alert.alert("Invalid Link", "Notification link sahi format me nahi hai.");
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Unable to open notification');
+      Alert.alert("Error", error?.message || "Unable to open notification");
     }
   };
 
@@ -108,9 +138,15 @@ export default function NotificationsScreen() {
     try {
       setMarkingAll(true);
       await markAllNotificationsAsRead();
-      setRows((prev) => prev.map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() })));
+      setRows((prev) =>
+        prev.map((item) => ({
+          ...item,
+          isRead: true,
+          readAt: item.readAt || new Date().toISOString(),
+        })),
+      );
     } catch (error: any) {
-      Alert.alert('Error', error?.message || 'Failed to mark all as read');
+      Alert.alert("Error", error?.message || "Failed to mark all as read");
     } finally {
       setMarkingAll(false);
     }
@@ -127,7 +163,9 @@ export default function NotificationsScreen() {
         <ThemedText style={styles.cardTitle}>{row.title}</ThemedText>
         {!row.isRead && <View style={styles.unreadDot} />}
       </View>
-      <ThemedText style={[styles.cardBody, { fontSize: bodySize }]}>{row.body}</ThemedText>
+      <ThemedText style={[styles.cardBody, { fontSize: bodySize }]}>
+        {row.body}
+      </ThemedText>
       {row.imageUrl?.trim() ? (
         <Image
           source={{ uri: resolveImageUrl(row.imageUrl.trim()) }}
@@ -137,56 +175,82 @@ export default function NotificationsScreen() {
       ) : null}
       <View style={styles.metaRow}>
         <ThemedText style={styles.metaText}>
-          {row.createdAt ? new Date(row.createdAt).toLocaleString() : 'Just now'}
+          {row.createdAt
+            ? new Date(row.createdAt).toLocaleString()
+            : "Just now"}
         </ThemedText>
-        <ThemedText style={styles.metaText}>{row.isRead ? 'Read' : 'Unread'}</ThemedText>
+        <ThemedText style={styles.metaText}>
+          {row.isRead ? "Read" : "Unread"}
+        </ThemedText>
       </View>
     </TouchableOpacity>
   ));
 
   if (loading) {
-    content = <ThemedText style={styles.emptyText}>Loading notifications...</ThemedText>;
+    content = (
+      <ThemedText style={styles.emptyText}>Loading notifications...</ThemedText>
+    );
   } else if (rows.length === 0) {
-    content = <ThemedText style={styles.emptyText}>No notifications yet.</ThemedText>;
+    content = (
+      <ThemedText style={styles.emptyText}>No notifications yet.</ThemedText>
+    );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
           <ThemedText style={styles.backText}>Back</ThemedText>
         </TouchableOpacity>
 
-        <ThemedText style={[styles.title, { fontSize: titleSize }]}>Notifications</ThemedText>
+        <ThemedText style={[styles.title, { fontSize: titleSize }]}>
+          Notifications
+        </ThemedText>
 
-        <TouchableOpacity style={styles.markAllBtn} onPress={markAllRead} disabled={markingAll || rows.length === 0}>
-          <ThemedText style={styles.markAllText}>{markingAll ? 'Saving...' : 'Mark all read'}</ThemedText>
+        <TouchableOpacity
+          style={styles.markAllBtn}
+          onPress={markAllRead}
+          disabled={markingAll || rows.length === 0}
+        >
+          <ThemedText style={styles.markAllText}>
+            {markingAll ? "Saving..." : "Mark all read"}
+          </ThemedText>
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.summaryRow, { paddingHorizontal: screenPadding }] }>
-        <ThemedText style={styles.summaryText}>Unread: {unreadCount}</ThemedText>
+      <View style={[styles.summaryRow, { paddingHorizontal: screenPadding }]}>
+        <ThemedText style={styles.summaryText}>
+          Unread: {unreadCount}
+        </ThemedText>
         <TouchableOpacity onPress={() => load().catch(() => {})}>
           <ThemedText style={styles.refreshText}>Refresh</ThemedText>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.contentContainer, { paddingHorizontal: screenPadding }] }>
-        <View style={{ gap: 10 }}>{content}</View>
+      <ScrollView
+        contentContainerStyle={[
+          styles.contentContainer,
+          { paddingHorizontal: screenPadding },
+        ]}
+      >
+        <View style={{ gap: responsiveModerateScale(10) }}>{content}</View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createResponsiveStyles({
   safe: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: "#F9FAFB",
   },
   headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingBottom: 10,
   },
@@ -194,102 +258,102 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
   },
   backText: {
-    color: '#111827',
-    fontWeight: '600',
+    color: "#111827",
+    fontWeight: "600",
     fontSize: 12,
   },
   title: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
   },
   markAllBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 10,
-    backgroundColor: '#E0E7FF',
+    backgroundColor: "#E0E7FF",
   },
   markAllText: {
-    color: '#4338CA',
-    fontWeight: '600',
+    color: "#4338CA",
+    fontWeight: "600",
     fontSize: 12,
   },
   summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
   summaryText: {
-    color: '#4B5563',
+    color: "#4B5563",
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   refreshText: {
-    color: '#1D4ED8',
+    color: "#1D4ED8",
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   contentContainer: {
     padding: 16,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: "#E5E7EB",
     borderRadius: 14,
     padding: 14,
   },
   unreadCard: {
-    borderColor: '#93C5FD',
-    backgroundColor: '#EFF6FF',
+    borderColor: "#93C5FD",
+    backgroundColor: "#EFF6FF",
   },
   cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   cardTitle: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#111827',
+    fontWeight: "700",
+    color: "#111827",
     flex: 1,
     paddingRight: 8,
   },
   cardBody: {
     marginTop: 6,
-    color: '#374151',
+    color: "#374151",
     fontSize: 13,
     lineHeight: 18,
   },
   cardImage: {
     marginTop: 10,
-    width: '100%',
+    width: "100%",
     height: 160,
     borderRadius: 10,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: "#E5E7EB",
   },
   unreadDot: {
     width: 9,
     height: 9,
     borderRadius: 99,
-    backgroundColor: '#2563EB',
+    backgroundColor: "#2563EB",
   },
   metaRow: {
     marginTop: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   metaText: {
-    color: '#6B7280',
+    color: "#6B7280",
     fontSize: 11,
   },
   emptyText: {
-    color: '#6B7280',
+    color: "#6B7280",
     fontSize: 14,
   },
 });
