@@ -74,7 +74,12 @@ const normalizeItem = (item: any): CartItem => {
     readObjectId(item?.product) ||
     readObjectId(item?.id);
 
-  const cartItemId = item?._id ? String(item._id) : item?.cartItemId ? String(item.cartItemId) : '';
+  let cartItemId = '';
+  if (item?._id) {
+    cartItemId = String(item._id);
+  } else if (item?.cartItemId) {
+    cartItemId = String(item.cartItemId);
+  }
   const variantId = readObjectId(item?.variantId || item?.variant?.id);
   const variantLabel = String(item?.variantLabel || item?.variant?.label || item?.variant?.size || '').trim();
   const compositeId = variantId ? `${productId}:${variantId}` : productId;

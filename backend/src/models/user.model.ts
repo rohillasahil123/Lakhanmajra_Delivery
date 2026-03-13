@@ -17,6 +17,7 @@ export interface IUser extends Document {
   kycRejectReason?: string;
   kycReviewedAt?: Date | null;
   kycReviewedBy?: Types.ObjectId | null;
+  expoPushTokens?: string[];
   riderProfile?: {
     fullName: string;
     dateOfBirth: string;
@@ -114,6 +115,10 @@ const UserSchema = new Schema<IUser>(
       ref: 'User',
       default: null,
     },
+    expoPushTokens: {
+      type: [String],
+      default: [],
+    },
     riderProfile: {
       type: RiderProfileSchema,
       default: () => ({}),
@@ -123,5 +128,6 @@ const UserSchema = new Schema<IUser>(
 );
 
 UserSchema.index({ roleId: 1 });
+UserSchema.index({ expoPushTokens: 1 });
 
 export default mongoose.model<IUser>("User", UserSchema);

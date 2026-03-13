@@ -11,6 +11,28 @@ type UpdatePayload = {
   permissionIds?: string[];
 };
 
+type CreateRoleModalProps = {
+  availablePermissions: Permission[];
+  onCreate: (name: string, desc: string, permIds: string[]) => Promise<void>;
+  onClose: () => void;
+};
+
+type RoleDetailModalProps = {
+  role: Role;
+  colorIdx: number;
+  availablePermissions: Permission[];
+  hasPerm: (p: string) => boolean;
+  onClose: () => void;
+  onUpdate: (roleId: string, updates: UpdatePayload) => Promise<void>;
+  onDelete: (roleId: string) => Promise<void>;
+};
+
+type RoleCardProps = {
+  role: Role;
+  colorIdx: number;
+  onClick: () => void;
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 // Group permissions by module (products, orders, users, etc.)
@@ -50,11 +72,7 @@ const ROLE_COLORS = [
 
 function CreateRoleModal({
   availablePermissions, onCreate, onClose,
-}: {
-  availablePermissions: Permission[];
-  onCreate: (name: string, desc: string, permIds: string[]) => Promise<void>;
-  onClose: () => void;
-}) {
+}: Readonly<CreateRoleModalProps>) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [perms, setPerms] = useState<string[]>([]);
@@ -65,6 +83,30 @@ function CreateRoleModal({
 
   const toggle = (id: string) =>
     setPerms((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+
+  const toggleModulePerms = (modulePerms: Permission[]) => {
+    const allSelected = modulePerms.every((p) => perms.includes(p._id));
+    if (allSelected) {
+      const moduleIds = new Set<string>();
+      for (const perm of modulePerms) {
+        moduleIds.add(perm._id);
+      }
+      setPerms((prev) => {
+        const next: string[] = [];
+        for (const id of prev) {
+          if (!moduleIds.has(id)) next.push(id);
+        }
+        return next;
+      });
+      return;
+    }
+
+    const moduleIds: string[] = [];
+    for (const perm of modulePerms) {
+      moduleIds.push(perm._id);
+    }
+    setPerms((prev) => [...new Set([...prev, ...moduleIds])]);
+  };
 
   const handleCreate = async () => {
     if (!name.trim()) {
@@ -141,14 +183,7 @@ function CreateRoleModal({
                         <button
                           type="button"
                           className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
-                          onClick={() => {
-                            const allSelected = modulePerms.every((p) => perms.includes(p._id));
-                            if (allSelected) {
-                              setPerms((prev) => prev.filter((id) => !modulePerms.find((p) => p._id === id)));
-                            } else {
-                              setPerms((prev) => [...new Set([...prev, ...modulePerms.map((p) => p._id)])]);
-                            }
-                          }}>
+                          onClick={() => toggleModulePerms(modulePerms)}>
                           {modulePerms.every((p) => perms.includes(p._id)) ? 'Deselect all' : 'Select all'}
                         </button>
                       </div>
@@ -199,15 +234,7 @@ function RoleDetailModal({
   onClose,
   onUpdate,
   onDelete,
-}: {
-  role: Role;
-  colorIdx: number;
-  availablePermissions: Permission[];
-  hasPerm: (p: string) => boolean;
-  onClose: () => void;
-  onUpdate: (roleId: string, updates: UpdatePayload) => Promise<void>;
-  onDelete: (roleId: string) => Promise<void>;
-}) {
+}: Readonly<RoleDetailModalProps>) {
   const c = ROLE_COLORS[colorIdx % ROLE_COLORS.length];
   const groups = groupPermissions(availablePermissions);
 
@@ -223,6 +250,66 @@ function RoleDetailModal({
 
   const togglePerm = (id: string) =>
     setEditPerms((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+
+  const toggleModuleEditPerms = (modulePerms: Permission[]) => {
+    const allSel = modulePerms.every((p) => editPerms.includes(p._id));
+    if (allSel) {
+      const moduleIds = new Set<string>();
+      for (const perm of modulePerms) {
+        moduleIds.add(perm._id);
+      }
+      setEditPerms((prev) => {
+        const next: string[] = [];
+        for (const id of prev) {
+          if (!moduleIds.has(id)) next.push(id);
+        }
+        return next;
+      });
+      return;
+    }
+
+    const moduleIds: string[] = [];
+    for (const perm of modulePerms) {
+      moduleIds.push(perm._id);
+    }
+    setEditPerms((prev) => [...new Set([...prev, ...moduleIds])]);
+  };
+
+  let usersContent: React.ReactNode = <div className="py-8 text-center text-slate-400 text-sm">Loading users...</div>;
+  if (usersLoaded && users.length === 0) {
+    usersContent = (
+      <div className="py-8 text-center">
+        <div className="text-3xl mb-2">👤</div>
+        <p className="text-slate-500 text-sm">No users assigned to this role</p>
+      </div>
+    );
+  } else if (usersLoaded) {
+    usersContent = (
+      <div className="space-y-2">
+        {users.map((u) => (
+          <div
+            key={u._id}
+            className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              {(u.name || '?')[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-slate-800 text-sm truncate">{u.name}</p>
+              <p className="text-xs text-slate-400 truncate">{u.email || u.phone || '—'}</p>
+            </div>
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                u.isActive
+                  ? 'bg-emerald-100 text-emerald-700'
+                  : 'bg-slate-100 text-slate-500'
+              }`}>
+              {u.isActive ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   const handleSave = async () => {
     if (!editName.trim()) {
@@ -359,7 +446,6 @@ function RoleDetailModal({
                 .map(([module, modulePerms]) => {
                   const grantedInRole = modulePerms.filter((p) => rolePermIds.has(p._id));
                   const selectedInEdit = modulePerms.filter((p) => editPerms.includes(p._id));
-                  const displayPerms = isEditing ? modulePerms : grantedInRole;
                   if (!isEditing && grantedInRole.length === 0) {
                     return null;
                   }
@@ -380,18 +466,7 @@ function RoleDetailModal({
                           <button
                             type="button"
                             className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
-                            onClick={() => {
-                              const allSel = modulePerms.every((p) => editPerms.includes(p._id));
-                              if (allSel) {
-                                setEditPerms((prev) =>
-                                  prev.filter((id) => !modulePerms.find((p) => p._id === id))
-                                );
-                              } else {
-                                setEditPerms((prev) => [
-                                  ...new Set([...prev, ...modulePerms.map((p) => p._id)]),
-                                ]);
-                              }
-                            }}>
+                            onClick={() => toggleModuleEditPerms(modulePerms)}>
                             {modulePerms.every((p) => editPerms.includes(p._id)) ? 'None' : 'All'}
                           </button>
                         )}
@@ -438,91 +513,62 @@ function RoleDetailModal({
 
           {activeTab === 'users' && (
             <div>
-              {!usersLoaded ? (
-                <div className="py-8 text-center text-slate-400 text-sm">Loading users...</div>
-              ) : users.length === 0 ? (
-                <div className="py-8 text-center">
-                  <div className="text-3xl mb-2">👤</div>
-                  <p className="text-slate-500 text-sm">No users assigned to this role</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {users.map((u) => (
-                    <div
-                      key={u._id}
-                      className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {(u.name || '?')[0].toUpperCase()}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-800 text-sm truncate">{u.name}</p>
-                        <p className="text-xs text-slate-400 truncate">{u.email || u.phone || '—'}</p>
-                      </div>
-                      <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                          u.isActive
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}>
-                        {u.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {usersContent}
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t bg-slate-50 rounded-b-2xl">
-          {hasPerm('roles:manage') ? (
-            isEditing ? (
-              <div className="flex gap-2 w-full">
-                <button
-                  className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-300 transition-colors"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditName(role.name);
-                    setEditDesc(role.description || '');
-                    setEditPerms(role.permissions?.map((p) => p._id) || []);
-                    setError('');
-                  }}>
-                  Cancel
-                </button>
-                <button
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors flex-1"
-                  onClick={handleSave}
-                  disabled={saving}>
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2 w-full">
-                <button
-                  className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm hover:bg-red-100 transition-colors"
-                  onClick={async () => {
-                    // eslint-disable-next-line no-alert
-                    if (confirm(`Delete role "${role.name}"?`)) {
-                      await onDelete(role._id);
-                      onClose();
-                    }
-                  }}>
-                  Delete
-                </button>
-                <button
-                  className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-300 transition-colors ml-auto"
-                  onClick={onClose}>
-                  Close
-                </button>
-                <button
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 font-medium transition-colors"
-                  onClick={() => setIsEditing(true)}>
-                  ✏️ Edit Role
-                </button>
-              </div>
-            )
-          ) : (
+          {hasPerm('roles:manage') && isEditing && (
+            <div className="flex gap-2 w-full">
+              <button
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-300 transition-colors"
+                onClick={() => {
+                  setIsEditing(false);
+                  setEditName(role.name);
+                  setEditDesc(role.description || '');
+                  setEditPerms(role.permissions?.map((p) => p._id) || []);
+                  setError('');
+                }}>
+                Cancel
+              </button>
+              <button
+                className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors flex-1"
+                onClick={handleSave}
+                disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          )}
+
+          {hasPerm('roles:manage') && !isEditing && (
+            <div className="flex gap-2 w-full">
+              <button
+                className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm hover:bg-red-100 transition-colors"
+                onClick={async () => {
+                  // eslint-disable-next-line no-alert
+                  if (confirm(`Delete role "${role.name}"?`)) {
+                    await onDelete(role._id);
+                    onClose();
+                  }
+                }}>
+                Delete
+              </button>
+              <button
+                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-300 transition-colors ml-auto"
+                onClick={onClose}>
+                Close
+              </button>
+              <button
+                className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 font-medium transition-colors"
+                onClick={() => setIsEditing(true)}>
+                ✏️ Edit Role
+              </button>
+            </div>
+          )}
+
+          {!hasPerm('roles:manage') && (
             <button
               className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm ml-auto"
               onClick={onClose}>
@@ -541,11 +587,7 @@ function RoleCard({
   role,
   colorIdx,
   onClick,
-}: {
-  role: Role;
-  colorIdx: number;
-  onClick: () => void;
-}) {
+}: Readonly<RoleCardProps>) {
   const c = ROLE_COLORS[colorIdx % ROLE_COLORS.length];
   const groups = groupPermissions(role.permissions || []);
   const modules = Object.keys(groups);
@@ -621,7 +663,7 @@ export default function Roles() {
   useEffect(() => {
     (async () => {
       try {
-        const [permsRes] = await Promise.all([api.get('/admin/permissions')]);
+        const permsRes = await api.get('/admin/permissions');
         const perms = permsRes.data?.data ?? permsRes.data ?? [];
         setAllPerms(Array.isArray(perms) ? perms : []);
         setPermissions(await getPermissions());
@@ -657,6 +699,43 @@ export default function Roles() {
     setRoles((r) => r.filter((x) => x._id !== roleId));
   };
 
+  let roleContent: React.ReactNode = (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      {roles.map((role, idx) => (
+        <RoleCard
+          key={role._id}
+          role={role}
+          colorIdx={idx}
+          onClick={() => setSelectedRole({ role, idx })}
+        />
+      ))}
+    </div>
+  );
+
+  if (loading) {
+    roleContent = (
+      <div className="flex flex-col items-center gap-3 py-20 text-slate-400">
+        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm">Loading roles...</span>
+      </div>
+    );
+  } else if (roles.length === 0) {
+    roleContent = (
+      <div className="text-center py-20">
+        <div className="text-4xl mb-3">🛡</div>
+        <p className="text-slate-500 font-medium">No roles created yet</p>
+        <p className="text-slate-400 text-sm mt-1 mb-4">Create a role to assign permissions to users</p>
+        {hasPerm('roles:manage') && (
+          <button
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 transition-colors"
+            onClick={() => setShowCreate(true)}>
+            + Create First Role
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -686,36 +765,7 @@ export default function Roles() {
       </div>
 
       {/* Content */}
-      {loading ? (
-        <div className="flex flex-col items-center gap-3 py-20 text-slate-400">
-          <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm">Loading roles...</span>
-        </div>
-      ) : roles.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="text-4xl mb-3">🛡</div>
-          <p className="text-slate-500 font-medium">No roles created yet</p>
-          <p className="text-slate-400 text-sm mt-1 mb-4">Create a role to assign permissions to users</p>
-          {hasPerm('roles:manage') && (
-            <button
-              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 transition-colors"
-              onClick={() => setShowCreate(true)}>
-              + Create First Role
-            </button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {roles.map((role, idx) => (
-            <RoleCard
-              key={role._id}
-              role={role}
-              colorIdx={idx}
-              onClick={() => setSelectedRole({ role, idx })}
-            />
-          ))}
-        </div>
-      )}
+      {roleContent}
 
       {/* Create modal */}
       {showCreate && (

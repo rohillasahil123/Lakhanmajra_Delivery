@@ -2,6 +2,7 @@ import { Stack } from 'expo-router';
 import React, { useEffect } from 'react';
 import useCart from '@/stores/cartStore';
 import useLocationStore from '@/stores/locationStore';
+import { registerDeviceForPush } from '@/services/pushNotificationService';
 
 export default function RootLayout() {
   const hydrateLocal = useCart((s) => s.hydrateLocal);
@@ -17,6 +18,7 @@ export default function RootLayout() {
     (async () => {
       if (!initialized) await hydrateLocal();
       await syncFromServer();
+      await registerDeviceForPush();
     })();
   }, [initialized, hydrateLocal, syncFromServer]);
 
@@ -25,7 +27,7 @@ export default function RootLayout() {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: '#F9FAFB', marginTop: 34 }
+        contentStyle: { backgroundColor: '#F9FAFB' }
       }}
     >
       <Stack.Screen name="index" />
@@ -36,6 +38,7 @@ export default function RootLayout() {
       <Stack.Screen name="home" />
       <Stack.Screen name="cart" />
       <Stack.Screen name="orders" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="search" />
       <Stack.Screen name="categories" />

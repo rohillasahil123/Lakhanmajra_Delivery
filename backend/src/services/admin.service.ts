@@ -4,7 +4,6 @@ import { Role } from "../models/role.model";
 import { Permission } from "../models/permission.model";
 import User from "../models/user.model";
 import Order from "../models/order.model";
-import { Product } from "../models/product.model";
 import { Audit } from "../models/audit.model";
 import { success, fail } from "../utils/response";
 
@@ -176,11 +175,9 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
       }
 
       // If role name
-      if (!roleDoc) {
-        roleDoc = await Role.findOne({
-          name: roleQuery.toLowerCase(),
-        }).select("_id");
-      }
+      roleDoc ??= await Role.findOne({
+        name: roleQuery.toLowerCase(),
+      }).select("_id");
 
       if (!roleDoc) {
         return success(
@@ -203,11 +200,11 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
     }
 
     // ---------------- SEARCH FILTER ----------------
-    if (typeof search !== 'undefined') {
+    if (search !== undefined) {
       const s = String(search || "").trim();
       if (s.length > 0) {
         // escape regex special chars to avoid injection and unintended patterns
-        const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escapeRegex = (str: string) => str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
         const regex = new RegExp(escapeRegex(s), "i");
 
         query.$or = [

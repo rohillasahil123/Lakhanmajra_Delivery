@@ -47,7 +47,7 @@ const getStageIndex = (status: string): number => {
   const index = ORDER_TRACK_STAGES.indexOf(
     normalized as (typeof ORDER_TRACK_STAGES)[number],
   );
-  return index >= 0 ? index : 0;
+  return Math.max(index, 0);
 };
 
 const prettyStatus = (value: string): string => {
@@ -318,12 +318,47 @@ export default function OrdersScreen() {
           </View>
         </View>
 
-        {visibleOrders.map((order) => {
+        {visibleOrders.map((order) => { // NOSONAR
           const tone = getStatusTone(order.status);
+          const normalizedStatus = normalizeStatus(order.status);
+          const isCompactHistoryOrder =
+            normalizedStatus === "delivered" || normalizedStatus === "cancelled";
           const rider = (order.assignedRiderId || null) as {
             name?: string;
             phone?: string;
           } | null;
+
+          if (isCompactHistoryOrder) {
+            const totalItems = (order.items || []).reduce(
+              (sum, item) => sum + Number(item.quantity || 0),
+              0,
+            );
+
+            return (
+              <View key={order._id} style={styles.compactCard}>
+                <View style={styles.compactTopRow}>
+                  <ThemedText style={styles.compactOrderId}>
+                    #{order._id.slice(-8).toUpperCase()}
+                  </ThemedText>
+                  <View style={[styles.statusBadge, { backgroundColor: tone.bg }]}> 
+                    <ThemedText style={[styles.statusText, { color: tone.text }]}>
+                      {String(order.status || "pending").toUpperCase()}
+                    </ThemedText>
+                  </View>
+                </View>
+
+                <View style={styles.compactMetaRow}>
+                  <ThemedText style={styles.compactMetaText}>Items: {totalItems}</ThemedText>
+                  <ThemedText style={styles.compactAmount}>₹{order.totalAmount}</ThemedText>
+                </View>
+
+                <ThemedText style={styles.compactDate}>
+                  {order.createdAt ? new Date(order.createdAt).toLocaleString() : ""}
+                </ThemedText>
+              </View>
+            );
+          }
+
           return (
             <View key={order._id} style={styles.card}>
               <View style={styles.orderTopRow}>
@@ -595,6 +630,46 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
+  },
+  compactCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#E6EBF1",
+  },
+  compactTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 7,
+  },
+  compactOrderId: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  compactMetaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  compactMetaText: {
+    fontSize: 12,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  compactAmount: {
+    fontSize: 15,
+    color: "#0E7A3D",
+    fontWeight: "800",
+  },
+  compactDate: {
+    fontSize: 11,
+    color: "#9CA3AF",
   },
   orderTopRow: {
     flexDirection: "row",

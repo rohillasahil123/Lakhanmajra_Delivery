@@ -34,6 +34,7 @@ const NAV_ITEMS = [
       { to: "/riders",   label: "Riders",   key: "riders",   icon: <span style={{ fontSize: '12px' }}>🚴</span> },
       { to: "/products", label: "Products", key: "products", icon: <span style={{ fontSize: '12px' }}>📦</span> },
       { to: "/offers",   label: "Offers",   key: "offers",   icon: <span style={{ fontSize: '12px' }}>🎁</span> },
+      { to: "/notifications", label: "Notifications", key: "notifications", icon: <span style={{ fontSize: '12px' }}>🔔</span> },
       { to: "/orders",   label: "Orders",   key: "orders",   icon: <span style={{ fontSize: '12px' }}>🧾</span> },
     ],
   },

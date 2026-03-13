@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 
-const JWT_SECRET = process.env.JWT_SECRET as string;
+const JWT_SECRET = process.env.JWT_SECRET || '';
 
 export interface AuthRequest extends Request {
   user?: any;
@@ -11,7 +11,7 @@ export interface AuthRequest extends Request {
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Token missing' });
   }
 
@@ -32,6 +32,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     req.user = user;
     next();
   } catch (err) {
+    console.error('JWT verify failed', err);
     return res.status(401).json({ message: 'Invalid token' });
   }
 };

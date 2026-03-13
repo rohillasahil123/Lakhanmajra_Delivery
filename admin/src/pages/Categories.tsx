@@ -70,20 +70,26 @@ export default function Categories() {
     return items.find((category) => category._id === id)?.name || 'Unknown';
   };
 
-  const create = async () => {
-    const parsedSubCategories = showCreateSubCategory
-      ? subCategoriesInput
-          .split(',')
-          .map((value) => value.trim())
-          .filter(Boolean)
-      : [];
+  const parseSubCategoryNames = (raw: string): string[] =>
+    raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
 
-    if (!name && parsedSubCategories.length === 0) {
-      return alert('Category name ya sub-categories required');
+  const validateCreateInputs = (mainName: string, subNames: string[], parentId: string): string | null => {
+    if (!mainName && subNames.length === 0) return 'Category name ya sub-categories required';
+    if (!mainName && subNames.length > 0 && !parentId) {
+      return 'Sirf sub-categories add karne ke liye parent category select karein';
     }
+    return null;
+  };
 
-    if (!name && parsedSubCategories.length > 0 && !parentCategory) {
-      return alert('Sirf sub-categories add karne ke liye parent category select karein');
+  const create = async () => {
+    const parsedSubCategories = showCreateSubCategory ? parseSubCategoryNames(subCategoriesInput) : [];
+    const validationError = validateCreateInputs(name, parsedSubCategories, parentCategory);
+    if (validationError) {
+      alert(validationError);
+      return;
     }
 
     try {

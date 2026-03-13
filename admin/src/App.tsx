@@ -11,6 +11,7 @@ import Orders from "./pages/Orders";
 import Roles from "./pages/Roles";
 import Categories from "./pages/Categories";
 import Offers from "./pages/Offers";
+import Notifications from "./pages/Notifications";
 
 export default function App() {
   return (
@@ -29,6 +30,7 @@ export default function App() {
                 <Route path="/products" element={<Products />} />
                 <Route path="/categories" element={<Categories />} />
                 <Route path="/offers" element={<Offers />} />
+                <Route path="/notifications" element={<Notifications />} />
                 <Route path="/orders" element={<Orders />} />
                 <Route path="/roles" element={<Roles />} />
               </Routes>

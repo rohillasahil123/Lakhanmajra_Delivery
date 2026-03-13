@@ -142,6 +142,70 @@ export default function Offers() {
     }
   };
 
+  let submitLabel = "Create Slide";
+  if (saving) {
+    submitLabel = "Saving...";
+  } else if (editingId) {
+    submitLabel = "Update Slide";
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+
+    if (file) {
+      setPreviewUrl(URL.createObjectURL(file));
+      return;
+    }
+
+    if (!editingId) {
+      setPreviewUrl('');
+    }
+  };
+
+  let listContent: React.ReactNode = (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+      {offers.map((offer) => (
+        <div key={offer._id} className="border rounded-xl p-3 space-y-2">
+          <img
+            src={offer.image}
+            alt={offer.title || "Offer"}
+            className="w-full h-32 object-cover rounded-lg border border-slate-200"
+          />
+          <div>
+            <div className="font-semibold text-slate-800">{offer.title || "(No title)"}</div>
+            <div className="text-xs text-slate-500">{offer.subtitle || "No subtitle"}</div>
+          </div>
+          <div className="text-xs text-slate-500">
+            Priority: {offer.priority ?? 0} · {offer.isActive === false ? "Inactive" : "Active"}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => startEdit(offer)}
+              className="px-3 py-1.5 text-xs rounded bg-blue-50 text-blue-700 hover:bg-blue-100"
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDelete(offer._id)}
+              className="px-3 py-1.5 text-xs rounded bg-red-50 text-red-700 hover:bg-red-100"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (loading) {
+    listContent = <div className="text-sm text-slate-500">Loading...</div>;
+  } else if (offers.length === 0) {
+    listContent = <div className="text-sm text-slate-500">No offer slides yet.</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -196,7 +260,7 @@ export default function Offers() {
               checked={form.isActive}
               onChange={(e) => setForm((prev) => ({ ...prev, isActive: e.target.checked }))}
             />
-            Active
+            <span>Active</span>
           </label>
         </div>
 
@@ -205,11 +269,7 @@ export default function Offers() {
             ref={fileRef}
             type="file"
             accept="image/*"
-            onChange={(e) => {
-              const file = e.target.files?.[0] || null;
-              setSelectedFile(file);
-              setPreviewUrl(file ? URL.createObjectURL(file) : editingId ? previewUrl : "");
-            }}
+            onChange={handleFileChange}
           />
           {previewUrl && (
             <img src={previewUrl} alt="Offer preview" className="w-full max-w-xl h-40 object-cover rounded-lg border border-slate-200" />
@@ -223,7 +283,7 @@ export default function Offers() {
             disabled={saving}
             className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-60"
           >
-            {saving ? "Saving..." : editingId ? "Update Slide" : "Create Slide"}
+            {submitLabel}
           </button>
           {editingId && (
             <button
@@ -249,46 +309,7 @@ export default function Offers() {
           </button>
         </div>
 
-        {loading ? (
-          <div className="text-sm text-slate-500">Loading...</div>
-        ) : offers.length === 0 ? (
-          <div className="text-sm text-slate-500">No offer slides yet.</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {offers.map((offer) => (
-              <div key={offer._id} className="border rounded-xl p-3 space-y-2">
-                <img
-                  src={offer.image}
-                  alt={offer.title || "Offer"}
-                  className="w-full h-32 object-cover rounded-lg border border-slate-200"
-                />
-                <div>
-                  <div className="font-semibold text-slate-800">{offer.title || "(No title)"}</div>
-                  <div className="text-xs text-slate-500">{offer.subtitle || "No subtitle"}</div>
-                </div>
-                <div className="text-xs text-slate-500">
-                  Priority: {offer.priority ?? 0} · {offer.isActive === false ? "Inactive" : "Active"}
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => startEdit(offer)}
-                    className="px-3 py-1.5 text-xs rounded bg-blue-50 text-blue-700 hover:bg-blue-100"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(offer._id)}
-                    className="px-3 py-1.5 text-xs rounded bg-red-50 text-red-700 hover:bg-red-100"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        {listContent}
       </div>
     </div>
   );

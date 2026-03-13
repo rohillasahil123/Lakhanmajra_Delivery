@@ -22,7 +22,7 @@ const parseOptionalBoolean = (value: unknown): boolean | undefined => {
 };
 
 const uploadOfferImage = async (req: Request): Promise<string | undefined> => {
-  const file = req.file as Express.Multer.File | undefined;
+  const file = req.file;
   if (!file) return undefined;
   return uploadToMinio(file.buffer, file.originalname, file.mimetype, "offers");
 };

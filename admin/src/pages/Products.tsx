@@ -23,13 +23,19 @@ const COLORS = [
 
 // ─── Category Card ────────────────────────────────────────────────────────────
 
+type CategoryCardProps = {
+  category: Category;
+  count: number;
+  colorIdx: number;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+};
+
 function CategoryCard({
   category, count, colorIdx,
   onOpen, onEdit, onDelete,
-}: {
-  category: Category; count: number; colorIdx: number;
-  onOpen: () => void; onEdit: () => void; onDelete: () => void;
-}) {
+}: Readonly<CategoryCardProps>) {
   const c = COLORS[colorIdx % COLORS.length];
 
   return (
@@ -85,7 +91,7 @@ export default function Products() {
 
   const {
     sortedItems, subCategoryGroups,
-    categories, parentCategories, subCategoriesOf,
+    parentCategories, subCategoriesOf,
     total, page, totalPages, hasPerm,
     search, setSearch,
     stockFilter, setStockFilter,
@@ -133,7 +139,7 @@ export default function Products() {
 
   // ── Shared header action bar ───────────────────────────────────────────────
 
-  const ActionBar = () => (
+  const actionBar = (
     <div className="flex items-center gap-2 flex-wrap">
       <div className="text-right hidden sm:block">
         <div className="text-xs text-slate-400">
@@ -176,7 +182,7 @@ export default function Products() {
 
   // ── CSV box ────────────────────────────────────────────────────────────────
 
-  const CsvBox = () => !showCsv ? null : (
+  const csvBox = showCsv ? (
     <div className="mb-4 bg-white rounded-lg shadow p-4">
       <div className="flex items-center justify-between mb-2">
         <h4 className="font-medium text-slate-700 text-sm">CSV Import</h4>
@@ -197,11 +203,11 @@ export default function Products() {
         </button>
       </div>
     </div>
-  );
+  ) : null;
 
   // ── All modals (rendered at bottom of both views) ─────────────────────────
 
-  const Modals = () => (
+  const modals = (
     <>
       {showAddCategory && (
         <AddCategoryModal
@@ -254,10 +260,10 @@ export default function Products() {
             <h2 className="text-2xl font-semibold text-slate-800">Products</h2>
             <p className="text-sm text-slate-400 mt-0.5">{total} products · {parentCategories.length} categories</p>
           </div>
-          <ActionBar />
+          {actionBar}
         </div>
 
-        <CsvBox />
+        {csvBox}
 
         {parentCategories.length === 0 ? (
           <div className="mt-16 text-center">
@@ -285,7 +291,7 @@ export default function Products() {
           </div>
         )}
 
-        <Modals />
+        {modals}
 
         {toast && (
           <Toast
@@ -321,10 +327,10 @@ export default function Products() {
             <p className="text-sm text-slate-400 mt-0.5">{sortedItems.length} products</p>
           </div>
         </div>
-        <ActionBar />
+        {actionBar}
       </div>
 
-      <CsvBox />
+      {csvBox}
 
       {/* Search + filters */}
       <div className="my-4 flex gap-2 items-center">
@@ -384,7 +390,7 @@ export default function Products() {
         </div>
       </div>
 
-      <Modals />
+      {modals}
 
       {toast && (
         <Toast

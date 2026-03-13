@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes";
 import categoryRoutes from "./routes/category.routes";
 import productRoutes from "./routes/product.routes";
 import offerRoutes from "./routes/offer.routes";
+import notificationRoutes from "./routes/notification.routes";
 import adminRoutes from "./routes/admin.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
@@ -75,33 +76,39 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 /* =========================================================
    📡 DATABASE CONNECTION
 ========================================================= */
-mongoose
-  .connect(process.env.MONGO_URI as string)
-  .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) => {
+const bootstrapInfrastructure = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI as string);
+    console.log("✅ MongoDB connected");
+  } catch (err) {
     console.error("❌ Mongo error:", err);
     process.exit(1);
-  });
+  }
 
 /* =========================================================
    📬 RABBITMQ CONNECTION
 ========================================================= */
-connectRabbitMQ()
-  .then(() => console.log("✅ RabbitMQ connected"))
-  .catch((err) => {
+  try {
+    await connectRabbitMQ();
+    console.log("✅ RabbitMQ connected");
+  } catch (err) {
     console.error("❌ RabbitMQ error:", err);
     process.exit(1);
-  });
+  }
 
 /* =========================================================
    🗂 MINIO CONNECTION
 ========================================================= */
-initMinio()
-  .then(() => console.log("✅ MinIO ready"))
-  .catch((err) => {
+  try {
+    await initMinio();
+    console.log("✅ MinIO ready");
+  } catch (err) {
     console.error("❌ MinIO error:", err);
     process.exit(1);
-  });
+  }
+};
+
+void bootstrapInfrastructure();
 
 /* =========================================================
    ❤️ HEALTH CHECK
@@ -133,6 +140,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/offers", offerRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);

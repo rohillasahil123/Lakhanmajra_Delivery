@@ -13,9 +13,9 @@
 
 import { API_BASE_URL } from '@/config/api';
 import { tokenManager } from '@/utils/tokenManager';
+import { unregisterCurrentDeviceForPush } from '@/services/pushNotificationService';
 import {
   RegisterRequest,
-  LoginRequest,
   RegisterResponse,
   LoginResponse,
   GetUserResponse,
@@ -38,7 +38,7 @@ class ApiErrorHandler {
         status: response.status,
         details: data,
       };
-    } catch (error) {
+    } catch {
       return {
         message: `Server error (${response.status})`,
         code: `HTTP_${response.status}`,
@@ -110,7 +110,7 @@ class RequestValidator {
    * Validate register request
    */
   static validateRegister(data: RegisterRequest): void {
-    if (!data.name || !data.name.trim()) {
+    if (!data.name?.trim()) {
       throw new Error('Name is required');
     }
 
@@ -131,7 +131,7 @@ class RequestValidator {
    * Validate login request
    */
   static validateLogin(identifier: string, password: string): void {
-    if (!identifier || !identifier.trim()) {
+    if (!identifier?.trim()) {
       throw new Error('Email or phone is required');
     }
 
@@ -159,8 +159,8 @@ class RequestValidator {
 
 // ============ MAIN AUTH SERVICE ============
 class AuthService {
-  private baseURL: string = API_BASE_URL;
-  private timeout: number = 15000; // 15 seconds
+  private readonly baseURL: string = API_BASE_URL;
+  private readonly timeout: number = 15000; // 15 seconds
 
   /**
    * Make HTTP request with timeout and error handling
@@ -288,6 +288,7 @@ class AuthService {
    */
   async logout(): Promise<void> {
     try {
+      await unregisterCurrentDeviceForPush();
       await tokenManager.clearToken();
       console.log('✅ Logout successful');
     } catch (error) {
@@ -424,7 +425,7 @@ class AuthService {
         throw new Error('User ID is required');
       }
 
-      if (!payload.name || !payload.name.trim()) {
+      if (!payload.name?.trim()) {
         throw new Error('Name is required');
       }
 

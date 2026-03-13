@@ -5,12 +5,10 @@ import useLocationStore from '@/stores/locationStore';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Image,
   ImageSourcePropType,
   ImageBackground,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -19,10 +17,12 @@ import {
   useWindowDimensions,
   FlatList,
 } from 'react-native';/*  */
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient as ExpoLinearGradient } from 'expo-linear-gradient';
-import catalogService, { fetchCategories, fetchProducts, fetchOffers } from '@/services/catalogService';
+import { fetchCategories, fetchProducts, fetchOffers } from '@/services/catalogService';
 import { resolveImageUrl } from '@/config/api';
 import { getMyOrdersApi, OrderRow } from '@/services/orderService';
+import { getMyNotifications } from '@/services/notificationService';
 // Local offer images
 const shamImg = require('../assets/images/sham.png');
 const msaleImg = require('../assets/images/msale.png');
@@ -111,8 +111,8 @@ export default function HomeScreen() {
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [latestOrder, setLatestOrder] = useState<OrderRow | null>(null);
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
   const getParamText = (value: unknown) => {
     if (typeof value === 'string') return value;
@@ -142,7 +142,6 @@ export default function HomeScreen() {
   useEffect(() => {
     let mounted = true;
     async function loadCatalog() {
-      setLoading(true);
       try {
         const [cats, prods, offs] = await Promise.all([
           fetchCategories(),
@@ -173,13 +172,37 @@ export default function HomeScreen() {
           setSelectedCategory(mainCategories[0]._id);
         }
       } finally {
-        if (mounted) setLoading(false);
+        // no-op: screen renders independently without explicit loading spinner
       }
     }
 
     loadCatalog();
     return () => {
       mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUnreadCount = async () => {
+      try {
+        const result = await getMyNotifications('unread');
+        if (!mounted) return;
+        setUnreadNotificationCount(Number(result.unreadCount || 0));
+      } catch {
+        if (mounted) setUnreadNotificationCount(0);
+      }
+    };
+
+    loadUnreadCount().catch(() => {});
+    const intervalId = setInterval(() => {
+      loadUnreadCount().catch(() => {});
+    }, 25000);
+
+    return () => {
+      mounted = false;
+      clearInterval(intervalId);
     };
   }, []);
 
@@ -266,8 +289,6 @@ export default function HomeScreen() {
   const headerPadding = getResponsiveValue(12, 16, width);
   const horizontalPadding = getResponsiveValue(12, 16, width);
   const heroFontSize = getResponsiveValue(28, 36, width);
-  const productGridColumns = width < 360 ? 1.8 : 2;
-  const productCardWidth = (width - horizontalPadding * 2 - 8) / productGridColumns;
   const offerCardWidth = width - horizontalPadding * 2;
 
   const handleOfferScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -293,8 +314,8 @@ export default function HomeScreen() {
       const next = (offerIndexRef.current + 1) % offers.length;
       try {
         offerScrollRef.current?.scrollTo({ x: next * offerCardWidth, animated: true });
-      } catch (e) {
-        // ignore if ref not ready
+      } catch {
+        // ref may not be mounted during initial render
       }
       offerIndexRef.current = next;
       // update visible index state
@@ -346,9 +367,15 @@ export default function HomeScreen() {
         {/* Search Bar & Actions Row */}
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {/* Header Actions */}
-          <TouchableOpacity style={[styles.iconBtn, { width: 44, height: 44 }]}>
+          <TouchableOpacity
+            style={[styles.iconBtn, { width: 44, height: 44 }]}
+            onPress={() => {
+              setUnreadNotificationCount(0);
+              router.push('/notifications');
+            }}
+          >
             <ThemedText style={{ fontSize: 22 }}>🔔</ThemedText>
-            <View style={styles.dot} />
+            {unreadNotificationCount > 0 && <View style={styles.dot} />}
           </TouchableOpacity>
 
           <TouchableOpacity style={[styles.cartBtn, { paddingHorizontal: 14, paddingVertical: 10, height: 44, justifyContent: 'center' }]} onPress={() => router.push('/cart')}>
@@ -726,14 +753,11 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: COLORS.bg,
-    paddingVertical: 40,
   },
   header: {
     backgroundColor: COLORS.white,
-    borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.06)',
     flexDirection: 'column',
-    
   
   },
   locationPill: {
