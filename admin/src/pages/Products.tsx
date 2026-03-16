@@ -553,7 +553,7 @@ export default function Products() {
         <div className="flex gap-2 items-center">
           <button
             disabled={page === 1}
-            onClick={() => load(Math.max(1, page - 1))}
+            onClick={() => load(Math.max(1, page - 1), selectedCatId)}
             className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-slate-50 text-sm"
           >
             Prev
@@ -563,7 +563,7 @@ export default function Products() {
           </span>
           <button
             disabled={page >= totalPages}
-            onClick={() => load(Math.min(totalPages, page + 1))}
+            onClick={() => load(Math.min(totalPages, page + 1), selectedCatId)}
             className="px-3 py-1 border rounded disabled:opacity-40 hover:bg-slate-50 text-sm"
           >
             Next

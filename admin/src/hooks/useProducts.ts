@@ -143,6 +143,10 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [importing, setImporting] = useState(false);
+  // Track total count per category (fetched once)
+  const [categoryTotalCounts, setCategoryTotalCounts] = useState<Record<string, number>>({});
+  // Track all products loaded for selected category
+  const [selectedCatAllProducts, setSelectedCatAllProducts] = useState<Product[]>([]);
 
   const LIMIT = 50;
 
@@ -171,7 +175,8 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
 
   // ── Load products ─────────────────────────────────────────────────────────
 
-  const load = async (pageNum = 1) => {
+  // Load paginated products for general view OR all products for selected category
+  const load = async (pageNum = 1, catId: string | null = null) => {
     try {
       const q = new URLSearchParams();
       q.set('page', String(pageNum));
@@ -179,12 +184,21 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
       q.set('_ts', String(Date.now()));
       if (search.trim()) q.set('q', search.trim());
       if (stockFilter === 'out') q.set('stockStatus', 'out');
+      if (catId) q.set('categoryId', catId);
+      
       const res = await api.get(`/products?${q.toString()}`);
       const data = res.data?.data ?? res.data;
-      setAllItems(Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : []);
+      const products = Array.isArray(data?.data) ? data.data : Array.isArray(data) ? data : [];
+      
+      setAllItems(products);
       setTotal(data?.total ?? 0);
       setPage(pageNum);
       setLastRefreshedAt(new Date());
+      
+      // Store total count for this category if provided
+      if (catId && data?.total) {
+        setCategoryTotalCounts(prev => ({ ...prev, [catId]: data.total }));
+      }
     } catch (err) {
       console.error(err);
       setAllItems([]);
@@ -193,11 +207,63 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
 
   // ── Load categories (called externally after modal changes) ───────────────
 
+  // Load product count for all categories
+  const loadCategoryProductCounts = useCallback(async () => {
+    try {
+      if (categories.length === 0) return;
+      
+      const counts: Record<string, number> = {};
+      
+      // Fetch count for each category
+      await Promise.all(
+        categories.map(async (cat) => {
+          try {
+            const q = new URLSearchParams();
+            q.set('categoryId', cat._id);
+            q.set('limit', '1'); // We only need the total count
+            q.set('page', '1');
+            const res = await api.get(`/products?${q.toString()}`);
+            const data = res.data?.data ?? res.data;
+            counts[cat._id] = data?.total ?? 0;
+          } catch {
+            counts[cat._id] = 0;
+          }
+        })
+      );
+      
+      setCategoryTotalCounts(counts);
+    } catch {
+      /* silent */
+    }
+  }, [categories]);
+
   const reloadCategories = useCallback(async () => {
     try {
       const res = await api.get('/categories');
       const data = res.data?.data ?? res.data ?? [];
-      setCategories(Array.isArray(data) ? data : []);
+      const catData = Array.isArray(data) ? data : [];
+      setCategories(catData);
+      
+      // Fetch counts for all categories
+      if (catData.length > 0) {
+        const counts: Record<string, number> = {};
+        await Promise.all(
+          catData.map(async (cat) => {
+            try {
+              const q = new URLSearchParams();
+              q.set('categoryId', cat._id);
+              q.set('limit', '1');
+              q.set('page', '1');
+              const res = await api.get(`/products?${q.toString()}`);
+              const responseData = res.data?.data ?? res.data;
+              counts[cat._id] = responseData?.total ?? 0;
+            } catch {
+              counts[cat._id] = 0;
+            }
+          })
+        );
+        setCategoryTotalCounts(counts);
+      }
     } catch {
       /* silent */
     }
@@ -206,7 +272,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   const manualRefresh = async () => {
     setRefreshing(true);
     try {
-      await Promise.all([load(page), reloadCategories()]);
+      await Promise.all([load(page, selectedCatId), reloadCategories()]);
     } finally {
       setRefreshing(false);
     }
@@ -218,7 +284,34 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     (async () => {
       try {
         setPermissions(await getPermissions());
-        await reloadCategories();
+        // Load categories first
+        const res = await api.get('/categories');
+        const data = res.data?.data ?? res.data ?? [];
+        const catData = Array.isArray(data) ? data : [];
+        setCategories(catData);
+        
+        // Then load counts for all categories
+        if (catData.length > 0) {
+          const counts: Record<string, number> = {};
+          await Promise.all(
+            catData.map(async (cat) => {
+              try {
+                const q = new URLSearchParams();
+                q.set('categoryId', cat._id);
+                q.set('limit', '1');
+                q.set('page', '1');
+                const res = await api.get(`/products?${q.toString()}`);
+                const responseData = res.data?.data ?? res.data;
+                counts[cat._id] = responseData?.total ?? 0;
+              } catch {
+                counts[cat._id] = 0;
+              }
+            })
+          );
+          setCategoryTotalCounts(counts);
+        }
+        
+        // Finally load products for display
         await load(1);
       } catch (err) {
         console.error(err);
@@ -227,16 +320,16 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   }, []);
 
   useEffect(() => {
-    load(1);
-  }, [stockFilter]);
+    load(1, selectedCatId);
+  }, [stockFilter, selectedCatId]);
 
   // ── Auto-refresh ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (creating || updating || importing || autoRefreshMs <= 0) return;
-    const id = setInterval(() => load(page), autoRefreshMs);
+    const id = setInterval(() => load(page, selectedCatId), autoRefreshMs);
     return () => clearInterval(id);
-  }, [page, search, stockFilter, creating, updating, importing, autoRefreshMs]);
+  }, [page, search, stockFilter, selectedCatId, creating, updating, importing, autoRefreshMs]);
 
   // ── Sort ──────────────────────────────────────────────────────────────────
 
@@ -259,8 +352,12 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     ? categoryProducts.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
     : categoryProducts;
 
+  // Sort products alphabetically by default, then apply user-selected sorts
   const sortedItems = [...searchedProducts].sort((a, b) => {
-    if (!sortKey) return 0;
+    if (!sortKey) {
+      // Default: sort alphabetically by name
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    }
     const dir = sortOrder === 'asc' ? 1 : -1;
     if (sortKey === 'name')
       return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) * dir;
@@ -273,9 +370,17 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     return ((a.stock as number) - (b.stock as number)) * dir;
   });
 
-  const categoryProductCount = (catId: string) =>
-    allItems.filter((p) => getRefId(p.categoryId) === catId).length;
+  // Get accurate category product count from tracked totals
+  const categoryProductCount = (catId: string): number => {
+    // Return tracked total if available (most accurate)
+    if (categoryTotalCounts[catId] !== undefined) {
+      return categoryTotalCounts[catId];
+    }
+    // Fallback: count from current data
+    return allItems.filter((p) => getRefId(p.categoryId) === catId).length;
+  };
 
+  // Group products by subcategory and sort each group alphabetically
   const subCategoryGroups: Record<string, Product[]> = sortedItems.reduce<
     Record<string, Product[]>
   >((acc, p) => {
@@ -284,6 +389,13 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     acc[sub].push(p);
     return acc;
   }, {});
+  
+  // Sort products within each subcategory alphabetically
+  Object.keys(subCategoryGroups).forEach((key) => {
+    subCategoryGroups[key].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    );
+  });
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
 
@@ -455,6 +567,8 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     creating,
     updating,
     importing,
+    categoryTotalCounts,
+    loadCategoryProductCounts,
     load,
     manualRefresh,
     reloadCategories,
