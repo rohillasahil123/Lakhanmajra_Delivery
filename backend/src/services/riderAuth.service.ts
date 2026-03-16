@@ -494,8 +494,42 @@ export const riderLogin = async (req: Request, res: Response): Promise<void> => 
       {expiresIn: '7d'}
     );
 
+    // Generate XSRF token for CSRF protection
+    const xsrfToken = jwt.sign(
+      { type: 'csrf', timestamp: Date.now() },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    /**
+     * SECURITY: Set httpOnly cookie for token (same as admin/frontend)
+     * This prevents XSS attacks
+     */
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    /**
+     * SECURITY: Set XSRF token cookie for CSRF protection
+     */
+    res.cookie('XSRF-TOKEN', xsrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 1000, // 1 hour
+      path: '/',
+    });
+
+    /**
+     * Return rider data WITHOUT token
+     * Token is now in httpOnly cookie, inaccessible to JavaScript
+     */
     res.status(200).json({
-      token,
+      message: 'Rider login successful',
       rider: {
         id: String(rider._id),
         name: rider.name,
@@ -1167,5 +1201,39 @@ export const updateRiderLocation = async (req: Request, res: Response): Promise<
     });
   } catch (error) {
     res.status(500).json({ message: 'Unable to update rider location' });
+  }
+};
+
+/**
+ * RIDER LOGOUT
+ * Clears authentication and XSRF cookies
+ * Same pattern as admin logout for consistency
+ */
+export const riderLogout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    /**
+     * SECURITY: Clear authentication cookies
+     * This logs out the rider by removing httpOnly tokens
+     */
+    res.clearCookie('token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+
+    res.clearCookie('XSRF-TOKEN', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+    });
+
+    res.status(200).json({
+      message: "Rider logged out successfully",
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Rider logout failed" });
   }
 };

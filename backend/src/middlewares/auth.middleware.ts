@@ -9,13 +9,27 @@ export interface AuthRequest extends Request {
 }
 
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
+  let token: string | null = null;
 
-  if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token missing' });
+  /**
+   * SECURITY: Get token from httpOnly cookie (preferred method)
+   * Fallback to Authorization header for backward compatibility
+   */
+  // First, try to get token from httpOnly cookie
+  const cookieToken = (req.cookies as any)?.token;
+  if (cookieToken) {
+    token = cookieToken;
   }
 
-  const token = authHeader.split(' ')[1];
+  // Fallback to Authorization header
+  const authHeader = req.headers.authorization;
+  if (!token && authHeader?.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+
+  if (!token) {
+    return res.status(401).json({ message: 'Token missing' });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;

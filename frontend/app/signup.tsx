@@ -7,6 +7,11 @@ import {
   createResponsiveStyles,
 } from "@/utils/responsive";
 import { tokenManager } from "@/utils/tokenManager";
+import {
+  sanitizeFormInput,
+  sanitizeEmail,
+  sanitizePhone,
+} from "@/utils/sanitize";
 import { useRouter } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
@@ -100,14 +105,23 @@ export default function SignupScreen() {
         return;
       }
 
+      /**
+       * SECURITY: Sanitize phone before sending
+       */
+      const sanitized = sanitizePhone(cleanPhone);
+      if (!sanitized) {
+        Alert.alert("Error", "Invalid phone number format");
+        return;
+      }
+
       setLoading(true);
 
-      await postAuth("/send-otp", { phone: cleanPhone });
+      await postAuth("/send-otp", { phone: sanitized });
 
       setTimer(120); // 2 minutes timer
       setStep(2);
-      setPhone(cleanPhone);
-      Alert.alert("Success", `OTP sent successfully to ${cleanPhone}`);
+      setPhone(sanitized);
+      Alert.alert("Success", `OTP sent successfully to ${sanitized}`);
     } catch (error: any) {
       const errorMsg =
         error?.name === "AbortError"
@@ -184,6 +198,19 @@ export default function SignupScreen() {
         return;
       }
 
+      /**
+       * SECURITY: Sanitize all user inputs before registration
+       */
+      const sanitizedName = sanitizeFormInput(name.trim(), 100);
+      const sanitizedEmail = sanitizeEmail(email.trim());
+      const sanitizedPhone = sanitizePhone(phone);
+      const sanitizedVillage = sanitizeFormInput(village.trim(), 100);
+
+      if (!sanitizedName || !sanitizedEmail || !sanitizedPhone || !sanitizedVillage) {
+        Alert.alert("Error", "Please enter valid information");
+        return;
+      }
+
       setLoading(true);
 
       const data = await postAuth<{
@@ -191,11 +218,11 @@ export default function SignupScreen() {
         user?: any;
         message?: string;
       }>("/register-with-otp", {
-        phone: normalizePhone(phone),
+        phone: sanitizedPhone,
         otp: otp.trim(),
-        name: name.trim(),
-        email: email.toLowerCase().trim(),
-        village: village.trim(),
+        name: sanitizedName,
+        email: sanitizedEmail,
+        village: sanitizedVillage,
       });
 
       if (data.token) {

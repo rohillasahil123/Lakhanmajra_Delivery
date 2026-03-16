@@ -17,8 +17,8 @@ const NAV_ITEMS = [
         label: 'Dashboard',
         icon: (
           <svg
-            width="16"
-            height="16"
+            width="32"
+            height="32"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -41,37 +41,37 @@ const NAV_ITEMS = [
         to: '/users',
         label: 'Users',
         key: 'users',
-        icon: <span className="text-lg">👤</span>,
+        icon: <span className="text-4xl">👤</span>,
       },
       {
         to: '/riders',
         label: 'Riders',
         key: 'riders',
-        icon: <span className="text-lg">🚴</span>,
+        icon: <span className="text-4xl">🚴</span>,
       },
       {
         to: '/products',
         label: 'Products',
         key: 'products',
-        icon: <span className="text-lg">📦</span>,
+        icon: <span className="text-4xl">📦</span>,
       },
       {
         to: '/offers',
         label: 'Offers',
         key: 'offers',
-        icon: <span className="text-lg">🎁</span>,
+        icon: <span className="text-4xl">🎁</span>,
       },
       {
         to: '/notifications',
         label: 'Notifications',
         key: 'notifications',
-        icon: <span className="text-lg">🔔</span>,
+        icon: <span className="text-4xl">🔔</span>,
       },
       {
         to: '/orders',
         label: 'Orders',
         key: 'orders',
-        icon: <span className="text-lg">🧾</span>,
+        icon: <span className="text-4xl">🧾</span>,
       },
     ],
   },
@@ -82,7 +82,7 @@ const NAV_ITEMS = [
         to: '/roles',
         label: 'Roles',
         key: 'roles',
-        icon: <span className="text-lg">🛡</span>,
+        icon: <span className="text-4xl">🛡</span>,
       },
     ],
   },

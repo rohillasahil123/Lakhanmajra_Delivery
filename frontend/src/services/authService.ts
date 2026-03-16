@@ -6,7 +6,8 @@
  * Production-grade with:
  * - Proper error handling
  * - Request validation
- * - Token management
+ * - Input sanitization (prevents XSS/injection)
+ * - Token management via httpOnly cookies
  * - Retry logic
  * - Type safety
  */
@@ -14,6 +15,7 @@
 import { API_BASE_URL } from '@/config/api';
 import { tokenManager } from '@/utils/tokenManager';
 import { unregisterCurrentDeviceForPush } from '@/services/pushNotificationService';
+import { sanitizeFormInput, sanitizeEmail, sanitizePhone, sanitizePassword, sanitizeSearchQuery, sanitizeNumber } from '@/utils/sanitize';
 import {
   RegisterRequest,
   RegisterResponse,
@@ -161,9 +163,33 @@ class RequestValidator {
 class AuthService {
   private readonly baseURL: string = API_BASE_URL;
   private readonly timeout: number = 15000; // 15 seconds
+  private csrfToken: string | null = null;
+
+  /**
+   * SECURITY: Get CSRF token from cookies
+   * Used for state-changing requests (POST, PUT, PATCH, DELETE)
+   */
+  private getCsrfToken(): string | null {
+    if (typeof document === 'undefined') return null; // Server-side rendering
+    
+    const name = 'XSRF-TOKEN=';
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const cookieArray = decodedCookie.split('; ');
+    
+    for (let cookie of cookieArray) {
+      if (cookie.startsWith(name)) {
+        return cookie.substring(name.length);
+      }
+    }
+    return null;
+  }
 
   /**
    * Make HTTP request with timeout and error handling
+   * 
+   * SECURITY:
+   * - credentials: 'include' for automatic httpOnly cookie sending
+   * - CSRF token added for state-changing requests
    */
   private async request<T>(
     endpoint: string,
@@ -178,13 +204,30 @@ class AuthService {
     try {
       console.log(`📡 [${options.method || 'GET'}] ${url}`);
 
+      /**
+       * SECURITY: Enable cookie sending (httpOnly token in cookie)
+       */
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      };
+
+      /**
+       * SECURITY: Add CSRF token for state-changing requests
+       */
+      const method = options.method || 'GET';
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const csrfToken = this.getCsrfToken();
+        if (csrfToken) {
+          headers['X-CSRF-Token'] = csrfToken;
+        }
+      }
+
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          ...options.headers,
-        },
+        headers,
+        credentials: 'include', // Enable sending httpOnly cookies
       });
 
       clearTimeout(timeoutId);
@@ -207,36 +250,45 @@ class AuthService {
 
   /**
    * Build authorization header
+   * @deprecated - Token is now in httpOnly cookie, no need for manual header
    */
   private async getAuthHeader(): Promise<Record<string, string>> {
-    const token = await tokenManager.getToken();
-    if (!token) {
-      return {};
-    }
-    return {
-      Authorization: `Bearer ${token}`,
-    };
+    // Kept for backward compatibility, returns empty
+    return {};
   }
 
   // ========== PUBLIC METHODS ==========
 
   /**
    * Register new user
+   * 
+   * SECURITY: Sanitize all inputs before sending to backend
    */
   async register(data: RegisterRequest): Promise<User> {
     try {
       // Validate input
       RequestValidator.validateRegister(data);
 
+      /**
+       * SECURITY: Sanitize all user inputs to prevent XSS/injection
+       */
+      const sanitizedData = {
+        name: sanitizeFormInput(data.name.trim(), 100),
+        email: sanitizeEmail(data.email),
+        phone: sanitizePhone(data.phone),
+        village: sanitizeFormInput(data.village?.trim() || '', 100),
+        password: sanitizePassword(data.password, 6),
+      };
+
+      // Validate after sanitization
+      if (!sanitizedData.name || !sanitizedData.email || !sanitizedData.phone || !sanitizedData.password) {
+        throw new Error('Invalid input format');
+      }
+
       // Make request
       const response = await this.request<RegisterResponse>('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({
-          name: data.name.trim(),
-          email: data.email.toLowerCase().trim(),
-          phone: data.phone.trim(),
-          password: data.password,
-        }),
+        body: JSON.stringify(sanitizedData),
       });
 
       console.log('✅ Registration successful');
@@ -250,30 +302,59 @@ class AuthService {
 
   /**
    * Login user
+   * 
+   * SECURITY: Backend returns token in httpOnly cookie, not in response body
+   * Frontend stores user data but NOT the token
+   * Sanitize inputs to prevent injection attacks
    */
   async login(identifier: string, password: string): Promise<{ token: string; user: User }> {
     try {
       // Validate input
       RequestValidator.validateLogin(identifier, password);
 
+      /**
+       * SECURITY: Sanitize inputs before sending
+       * Identifier can be email or phone, sanitize accordingly
+       */
+      let sanitizedIdentifier: string;
+      
+      // Try to detect if it's email or phone
+      if (identifier.includes('@')) {
+        sanitizedIdentifier = sanitizeEmail(identifier);
+      } else {
+        // Assume phone if it looks like numbers
+        const digits = identifier.replace(/\D/g, '');
+        if (digits.length >= 10) {
+          sanitizedIdentifier = sanitizePhone(identifier);
+        } else {
+          sanitizedIdentifier = sanitizeFormInput(identifier.trim(), 100);
+        }
+      }
+
+      if (!sanitizedIdentifier) {
+        throw new Error('Invalid identifier format');
+      }
+
       // Make request
       const response = await this.request<LoginResponse>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({
-          identifier: identifier.trim(),
-          password,
+          identifier: sanitizedIdentifier,
+          password: sanitizePassword(password, 6),
         }),
       });
 
-      // Store token and user
-      if (response.token) {
-        await tokenManager.storeToken(response.token);
-        await tokenManager.storeUser(response.user);
-      }
+      /**
+       * SECURITY: Token is in httpOnly cookie (set by backend)
+       * Frontend stores user data for UI and offline access
+       * Token is sent automatically with credentials: 'include'
+       */
+      await tokenManager.storeUser(response.user);
+      // Token NOT stored - it's in httpOnly cookie
 
       console.log('✅ Login successful');
       return {
-        token: response.token,
+        token: '', // Empty - token is in httpOnly cookie
         user: response.user,
       };
     } catch (error: any) {
@@ -285,33 +366,40 @@ class AuthService {
 
   /**
    * Logout user
+   * 
+   * SECURITY: Call backend logout endpoint to clear httpOnly cookies
    */
   async logout(): Promise<void> {
     try {
       await unregisterCurrentDeviceForPush();
-      await tokenManager.clearToken();
+      // Call backend to clear cookies
+      await this.request<{ message: string }>('/api/auth/logout', {
+        method: 'POST',
+      });
+      await tokenManager.clearUser(); // Clear stored user data
       console.log('✅ Logout successful');
     } catch (error) {
       console.error('❌ Logout error:', error);
+      // Even if logout fails, clear local data
+      await tokenManager.clearUser();
       throw new Error('Logout failed');
     }
   }
 
   /**
    * Get current logged-in user
+   * 
+   * SECURITY: Token in httpOnly cookie is sent automatically
+   * No need to manually set Authorization header
    */
   async getUser(): Promise<User | null> {
     try {
-      const token = await tokenManager.getToken();
-      if (!token) {
-        console.log('⚠️  No token found');
-        return null;
-      }
-
-      const authHeader = await this.getAuthHeader();
+      /**
+       * httpOnly cookie sent automatically with credentials: 'include'
+       * No need for manual token retrieval
+       */
       const response = await this.request<GetUserResponse>('/api/auth/users', {
         method: 'GET',
-        headers: authHeader,
       });
 
       const user: User = {
@@ -337,19 +425,17 @@ class AuthService {
 
   /**
    * Get current user permissions
+   * 
+   * SECURITY: Token in httpOnly cookie sent automatically
    */
   async getPermissions(): Promise<string[]> {
     try {
-      const token = await tokenManager.getToken();
-      if (!token) {
-        console.log('⚠️  No token found');
-        return [];
-      }
-
-      const authHeader = await this.getAuthHeader();
+      /**
+       * httpOnly cookie sent automatically with credentials: 'include'
+       * No need for manual token check
+       */
       const response = await this.request<PermissionsResponse>('/api/auth/permissions', {
         method: 'GET',
-        headers: authHeader,
       });
 
       console.log('✅ Permissions fetched successfully');
@@ -362,20 +448,28 @@ class AuthService {
 
   /**
    * Verify if user is authenticated
+   * 
+   * SECURITY: Validate by attempting to fetch user from backend
+   * 401 response means authentication failed
    */
   async isAuthenticated(): Promise<boolean> {
     try {
-      const token = await tokenManager.getToken();
-      if (!token) return false;
-
-      // Check if token is expired
-      if (tokenManager.isTokenExpired(token)) {
-        await tokenManager.clearToken();
+      // Try to fetch user - if it fails with 401, auth is invalid
+      const response = await this.request<GetUserResponse>('/api/auth/users', {
+        method: 'GET',
+      });
+      
+      // If we got here, user is authenticated
+      return !!response._id;
+    } catch (error: any) {
+      // If 401, user is not authenticated
+      if (error.status === 401) {
+        console.log('⚠️  User not authenticated');
+        await tokenManager.clearUser();
         return false;
       }
-
-      return true;
-    } catch (error) {
+      
+      // For other errors, assume not authenticated
       console.error('❌ Auth check error:', error);
       return false;
     }
@@ -395,10 +489,13 @@ class AuthService {
 
   /**
    * Get current token
+   * @deprecated - Token is now in httpOnly cookie, not available to JavaScript
    */
   async getToken(): Promise<string | null> {
     try {
-      return await tokenManager.getToken();
+      // In production, token is in httpOnly cookie and not accessible
+      // Kept for backward compatibility, always returns null
+      return null;
     } catch (error) {
       console.error('❌ Get token error:', error);
       return null;
@@ -407,6 +504,9 @@ class AuthService {
 
   /**
    * Update current user profile fields
+   * 
+   * SECURITY: Token in httpOnly cookie sent automatically
+   * All inputs are sanitized before sending to backend
    */
   async updateProfile(
     userId: string,
@@ -425,30 +525,44 @@ class AuthService {
         throw new Error('User ID is required');
       }
 
-      if (!payload.name?.trim()) {
+      /**
+       * SECURITY: Sanitize all user input fields
+       */
+      const sanitizedName = sanitizeFormInput(payload.name?.trim() || '', 100);
+      const sanitizedEmail = sanitizeEmail(payload.email || '');
+      const sanitizedPhone = sanitizePhone(payload.phone || '');
+      const sanitizedAddress = sanitizeFormInput(payload.address?.trim() || '', 200);
+      const sanitizedInstructions = sanitizeFormInput(payload.deliveryInstructions?.trim() || '', 300);
+      const sanitizedLat = payload.latitude !== undefined ? sanitizeCoordinate(payload.latitude) : undefined;
+      const sanitizedLng = payload.longitude !== undefined ? sanitizeCoordinate(payload.longitude) : undefined;
+
+      // Validate after sanitization
+      if (!sanitizedName) {
         throw new Error('Name is required');
       }
 
-      if (!payload.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email.trim())) {
+      if (!sanitizedEmail) {
         throw new Error('Valid email is required');
       }
 
-      if (!payload.phone || payload.phone.replaceAll(/\D/g, '').length < 10) {
+      if (!sanitizedPhone) {
         throw new Error('Valid phone number is required (10 digits)');
       }
 
-      const authHeader = await this.getAuthHeader();
+      /**
+       * httpOnly cookie sent automatically with credentials: 'include'
+       * No need for manual authorization header
+       */
       const response = await this.request<any>(`/api/auth/users/${userId}`, {
         method: 'PUT',
-        headers: authHeader,
         body: JSON.stringify({
-          name: payload.name.trim(),
-          email: payload.email.trim().toLowerCase(),
-          phone: payload.phone.trim(),
-          address: payload.address?.trim() || '',
-          deliveryInstructions: payload.deliveryInstructions?.trim() || '',
-          latitude: payload.latitude,
-          longitude: payload.longitude,
+          name: sanitizedName,
+          email: sanitizedEmail,
+          phone: sanitizedPhone,
+          address: sanitizedAddress,
+          deliveryInstructions: sanitizedInstructions,
+          ...(sanitizedLat !== undefined && { latitude: sanitizedLat }),
+          ...(sanitizedLng !== undefined && { longitude: sanitizedLng }),
         }),
       });
 

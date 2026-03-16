@@ -4,6 +4,7 @@ export {
   verifyOtp,
   register,
   login,
+  logout,
   getUsers,
   getPermissions,
   updateUser,

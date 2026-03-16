@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import compression from "compression";
 import hpp from "hpp";
+import cookieParser from "cookie-parser";
 import mongoose from "mongoose";
 
 import authRoutes from "./routes/auth.routes";
@@ -16,6 +17,7 @@ import orderRoutes from "./routes/order.routes";
 import riderRoutes from "./routes/rider.routes";
 
 import { apiLimiter } from "./middlewares/rateLimiter.middleware";
+import verifyCsrfToken from "./middlewares/csrf.middleware";
 import { connectRabbitMQ } from "./config/rabbitmq";
 import { initMinio } from "./services/minio.service";
 
@@ -29,7 +31,28 @@ app.set("trust proxy", 1);
 /* =========================================================
    🛡 SECURITY MIDDLEWARE
 ========================================================= */
-app.use(helmet());
+/**
+ * SECURITY: Helmet.js configuration
+ * - Sets various HTTP headers for security
+ * - HSTS (HTTP Strict-Transport-Security) forces HTTPS in production
+ * - CSP (Content-Security-Policy) prevents XSS attacks
+ * - X-Frame-Options prevents clickjacking
+ */
+app.use(helmet({
+  hsts: {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true, // Allow preload to HSTS list
+  },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
+    },
+  },
+}));
 app.use(hpp());
 
 /* =========================================================
@@ -62,7 +85,7 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
     optionsSuccessStatus: 200,
   })
 );
@@ -72,6 +95,7 @@ app.use(
 ========================================================= */
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cookieParser()); // Parse cookies for request.cookies access
 
 /* =========================================================
    📡 DATABASE CONNECTION
@@ -141,7 +165,13 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/offers", offerRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/admin", adminRoutes);
+
+/**
+ * CSRF Protection: Admin routes with state-changing operations
+ * All POST, PUT, PATCH, DELETE requests must include valid CSRF token
+ */
+app.use("/api/admin", verifyCsrfToken, adminRoutes);
+
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/rider", riderRoutes);

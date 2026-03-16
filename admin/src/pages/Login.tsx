@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../auth';
+import { sanitizeError, logErrorSafely } from '../utils/errorHandler';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -16,9 +17,11 @@ export default function Login() {
 
     try {
       await login(identifier.trim(), password);
-      nav('/', { replace: true }); // 🔥 avoid stale state
-    } catch (err: any) {
-      setError(err?.response?.data?.message || err?.message || 'Login failed');
+      nav('/', { replace: true }); // Avoid stale state after successful login
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('login', err);
+      setError(sanitized.userMessage);
     } finally {
       setLoading(false);
     }

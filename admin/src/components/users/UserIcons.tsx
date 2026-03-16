@@ -7,8 +7,8 @@ import React from 'react';
 export const UserIcons = {
   Search: () => (
     <svg
-      width="13"
-      height="13"
+      width="26"
+      height="26"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -20,8 +20,8 @@ export const UserIcons = {
   ),
   Plus: () => (
     <svg
-      width="13"
-      height="13"
+      width="26"
+      height="26"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -33,8 +33,8 @@ export const UserIcons = {
   ),
   ChevDown: () => (
     <svg
-      width="11"
-      height="11"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -45,8 +45,8 @@ export const UserIcons = {
   ),
   ChevLeft: () => (
     <svg
-      width="12"
-      height="12"
+      width="24"
+      height="24"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -57,8 +57,8 @@ export const UserIcons = {
   ),
   ChevRight: () => (
     <svg
-      width="12"
-      height="12"
+      width="24"
+      height="24"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -69,8 +69,8 @@ export const UserIcons = {
   ),
   Users: () => (
     <svg
-      width="14"
-      height="14"
+      width="28"
+      height="28"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -83,8 +83,8 @@ export const UserIcons = {
   ),
   Export: () => (
     <svg
-      width="12"
-      height="12"
+      width="24"
+      height="24"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -97,8 +97,8 @@ export const UserIcons = {
   ),
   Eye: () => (
     <svg
-      width="13"
-      height="13"
+      width="26"
+      height="26"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -110,8 +110,8 @@ export const UserIcons = {
   ),
   Edit: () => (
     <svg
-      width="13"
-      height="13"
+      width="26"
+      height="26"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -123,8 +123,8 @@ export const UserIcons = {
   ),
   Trash: () => (
     <svg
-      width="13"
-      height="13"
+      width="26"
+      height="26"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"

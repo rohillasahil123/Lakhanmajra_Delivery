@@ -6,6 +6,10 @@ import {
   isSmallScreen,
   createResponsiveStyles,
 } from "@/utils/responsive";
+import {
+  sanitizeFormInput,
+  sanitizePassword,
+} from "@/utils/sanitize";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -39,12 +43,23 @@ export default function LoginScreen() {
         return;
       }
 
+      /**
+       * SECURITY: Sanitize login inputs before submission
+       */
+      const sanitizedIdentifier = sanitizeFormInput(identifier.trim(), 254);
+      const sanitizedPassword = sanitizePassword(password, 6);
+
+      if (!sanitizedIdentifier || !sanitizedPassword) {
+        Alert.alert("Error", "Please enter valid credentials");
+        return;
+      }
+
       setLoading(true);
 
-      // Call auth service
+      // Call auth service with sanitized inputs
       const { token, user } = await authService.login(
-        identifier.trim(),
-        password,
+        sanitizedIdentifier,
+        sanitizedPassword,
       );
 
       setLoading(false);

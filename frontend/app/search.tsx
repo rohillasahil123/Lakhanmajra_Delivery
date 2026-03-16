@@ -7,6 +7,7 @@ import {
   createResponsiveStyles,
   responsiveVerticalScale,
 } from "@/utils/responsive";
+import { sanitizeSearchQuery } from "@/utils/sanitize";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -140,15 +141,19 @@ export default function SearchScreen() {
   };
 
   const handleSearch = (query: string) => {
-    const normalized = query.trim();
-    if (!normalized) return;
+    /**
+     * SECURITY: Sanitize search query before storing or searching
+     */
+    const sanitized = sanitizeSearchQuery(query.trim(), 100);
+    if (!sanitized) return;
+
     const exists = recentSearches.some(
-      (item) => item.toLowerCase() === normalized.toLowerCase(),
+      (item) => item.toLowerCase() === sanitized.toLowerCase(),
     );
     if (!exists) {
-      setRecentSearches([normalized, ...recentSearches.slice(0, 4)]);
+      setRecentSearches([sanitized, ...recentSearches.slice(0, 4)]);
     }
-    setSearchQuery(normalized);
+    setSearchQuery(sanitized);
   };
 
   const clearRecentSearch = (index: number) => {

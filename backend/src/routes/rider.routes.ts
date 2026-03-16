@@ -7,6 +7,7 @@ import {
 	ocrRiderDocumentPrefill,
 	requestRiderProfileOtp,
 	riderLogin,
+	riderLogout,
 	uploadRiderDocument,
 	updateRiderProfile,
 	updateRiderOrderStatus,
@@ -20,6 +21,7 @@ import { handleUploadError, uploadRiderDocument as riderDocumentUploader } from 
 const router = Router();
 
 router.post('/login', authLimiter, riderLogin);
+router.post('/logout', verifyRiderToken, riderLogout);
 router.get('/me', verifyRiderToken, getRiderMe);
 router.get('/profile', verifyRiderToken, getRiderProfile);
 router.post('/profile/request-otp', verifyRiderToken, requestRiderProfileOtp);

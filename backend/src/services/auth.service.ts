@@ -147,11 +147,35 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 			{ expiresIn: "7d" }
 		);
 
+		// Generate XSRF token for CSRF protection
+		const xsrfToken = jwt.sign(
+			{ type: 'csrf', timestamp: Date.now() },
+			JWT_SECRET,
+			{ expiresIn: "1h" }
+		);
+
+		// Set httpOnly cookie with token
+		res.cookie('token', token, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 7 * 24 * 60 * 60 * 1000,
+			path: '/',
+		});
+
+		// Set XSRF token cookie
+		res.cookie('XSRF-TOKEN', xsrfToken, {
+			httpOnly: false,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 60 * 60 * 1000,
+			path: '/',
+		});
+
 		await User.findById(newUser._id).select("-password").populate("roleId");
 
 		res.status(201).json({
 			message: "User registered successfully",
-			token,
 			user: {
 				id: newUser._id,
 				name: newUser.name,
@@ -159,7 +183,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 				phone: newUser.phone,
 				village: newUser.village,
 				role: role?.name || "user",
-			},
+			}
 		});
 	} catch (err) {
 		res.status(500).json({ message: "Registration failed" });
@@ -210,11 +234,35 @@ export const verifyOtp = async (req: Request, res: Response) => {
 				{ expiresIn: "7d" }
 			);
 
+			// Generate XSRF token for CSRF protection
+			const xsrfToken = jwt.sign(
+				{ type: 'csrf', timestamp: Date.now() },
+				JWT_SECRET,
+				{ expiresIn: "1h" }
+			);
+
+			// Set httpOnly cookie with token
+			res.cookie('token', token, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: 7 * 24 * 60 * 60 * 1000,
+				path: '/',
+			});
+
+			// Set XSRF token cookie
+			res.cookie('XSRF-TOKEN', xsrfToken, {
+				httpOnly: false,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: 60 * 60 * 1000,
+				path: '/',
+			});
+
 			return res.json({
 				message: "OTP verified. Login successful",
 				verified: true,
 				isExistingUser: true,
-				token,
 				user: {
 					id: existingUser._id,
 					name: existingUser.name,
@@ -295,8 +343,43 @@ export const login = async (req: Request, res: Response) => {
 			{ expiresIn: "7d" }
 		);
 
-		res.json({
-			token,
+		// Generate XSRF token for CSRF protection
+		const xsrfToken = jwt.sign(
+			{ type: 'csrf', timestamp: Date.now() },
+			JWT_SECRET,
+			{ expiresIn: "1h" }
+		);
+
+		/**
+		 * SECURITY: Set httpOnly cookie instead of returning token in response body
+		 * This prevents XSS attacks from stealing the authentication token
+		 */
+		res.cookie('token', token, {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+			path: '/',
+		});
+
+		/**
+		 * SECURITY: Set XSRF token in separate cookie for CSRF protection
+		 * Frontend will read this and send it back in X-CSRF-Token header
+		 */
+		res.cookie('XSRF-TOKEN', xsrfToken, {
+			httpOnly: false, // Frontend needs to read this via JavaScript
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			maxAge: 60 * 60 * 1000, // 1 hour
+			path: '/',
+		});
+
+		/**
+		 * Return user data but NOT the token
+		 * Token is now in httpOnly cookie, inaccessible to JavaScript
+		 */
+		res.status(200).json({
+			message: "Login successful",
 			user: {
 				id: user._id,
 				name: user.name,
@@ -435,3 +518,33 @@ export const assignRole = async (req: Request, res: Response) => {
 		res.status(500).json({ message: "Update failed", error: err.message });
 	}
 }
+
+/* ================= LOGOUT ================= */
+export const logout = async (req: Request, res: Response) => {
+	try {
+		/**
+		 * SECURITY: Clear authentication cookies
+		 * This logs out the user by removing httpOnly tokens
+		 */
+		res.clearCookie('token', {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			path: '/',
+		});
+
+		res.clearCookie('XSRF-TOKEN', {
+			httpOnly: false,
+			secure: process.env.NODE_ENV === 'production',
+			sameSite: 'strict',
+			path: '/',
+		});
+
+		res.status(200).json({
+			message: "Logged out successfully",
+			success: true,
+		});
+	} catch (err) {
+		res.status(500).json({ message: "Logout failed" });
+	}
+};

@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   register,
   login,
+  logout,
   getUsers,
   updateUser,
   getPermissions,
@@ -19,6 +20,7 @@ const router = Router();
 // Traditional registration and login
 router.post("/register", authLimiter, register);
 router.post("/login", authLimiter, login);
+router.post("/logout", protect, logout);
 
 // OTP-based registration
 router.post("/send-otp", authLimiter, sendOtp);

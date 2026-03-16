@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
+import { logErrorSafely, sanitizeError } from '../utils/errorHandler';
+import {
+  sanitizeFormInput,
+  sanitizeNumber,
+  sanitizeSearchQuery,
+  sanitizeObject,
+} from '../utils/sanitize';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,7 +207,8 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         setCategoryTotalCounts(prev => ({ ...prev, [catId]: data.total }));
       }
     } catch (err) {
-      console.error(err);
+      const sanitized = sanitizeError(err);
+      logErrorSafely('loadProducts', err);
       setAllItems([]);
     }
   };
@@ -314,7 +322,8 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         // Finally load products for display
         await load(1);
       } catch (err) {
-        console.error(err);
+        const sanitized = sanitizeError(err);
+        logErrorSafely('reloadCategories', err);
       }
     })();
   }, []);
@@ -414,26 +423,41 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     variants: ProductVariant[];
     files: File[];
   }) => {
+    /**
+     * SECURITY: Sanitize all product input fields
+     */
+    const sanitizedName = sanitizeFormInput(payload.name?.trim() || '', 100);
+    const sanitizedPrice = String(sanitizeNumber(parseFloat(payload.price) || 0, 0, 999999));
+    const sanitizedMrp = payload.mrp ? String(sanitizeNumber(parseFloat(payload.mrp) || 0, 0, 999999)) : '';
+    const sanitizedDiscount = payload.discount ? String(sanitizeNumber(parseFloat(payload.discount) || 0, 0, 100)) : '';
+    const sanitizedStock = payload.stock ? String(sanitizeNumber(parseFloat(payload.stock) || 0, 0, 999999)) : '';
+    const sanitizedUnit = sanitizeFormInput(payload.unit?.trim() || '', 50);
+    const sanitizedUnitType = sanitizeFormInput(payload.unitType?.trim() || '', 50);
+    const sanitizedDescription = sanitizeFormInput(payload.description?.trim() || '', 500);
+    const sanitizedTags = sanitizeSearchQuery(payload.tags?.trim() || '', 200);
+
+    if (!sanitizedName || !sanitizedPrice) throw new Error('Name and price are required');
+
     const norm = normalizeVariantsForPayload(payload.variants, payload.unit);
     const defV = norm.find((v) => v.isDefault) || norm[0];
-    const price = payload.price || (defV ? String(defV.price) : '');
-    if (!payload.name || !price) throw new Error('Name and price are required');
+    const price = sanitizedPrice || (defV ? String(defV.price) : '');
+    if (!sanitizedName || !price) throw new Error('Name and price are required');
 
     setCreating(true);
     try {
       const fd = new FormData();
-      fd.append('name', payload.name);
+      fd.append('name', sanitizedName);
       fd.append('price', price);
       if (payload.catId) fd.append('categoryId', payload.catId);
       if (payload.subcategoryId) fd.append('subcategoryId', payload.subcategoryId);
-      if (payload.mrp) fd.append('mrp', payload.mrp);
-      if (payload.discount) fd.append('discount', payload.discount);
-      if (payload.stock) fd.append('stock', payload.stock);
+      if (sanitizedMrp) fd.append('mrp', sanitizedMrp);
+      if (sanitizedDiscount) fd.append('discount', sanitizedDiscount);
+      if (sanitizedStock) fd.append('stock', sanitizedStock);
       if (norm.length) fd.append('variants', JSON.stringify(norm));
-      fd.append('unit', payload.unit);
-      if (payload.unitType) fd.append('unitType', payload.unitType);
-      if (payload.description) fd.append('description', payload.description);
-      if (payload.tags) fd.append('tags', payload.tags);
+      fd.append('unit', sanitizedUnit);
+      if (sanitizedUnitType) fd.append('unitType', sanitizedUnitType);
+      if (sanitizedDescription) fd.append('description', sanitizedDescription);
+      if (sanitizedTags) fd.append('tags', sanitizedTags);
       payload.files.forEach((f) => fd.append('images', f));
       await api.post('/products', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       await load(1);
@@ -458,17 +482,28 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
       unit: string;
     }
   ) => {
+    /**
+     * SECURITY: Sanitize all product input fields
+     */
+    const sanitizedName = sanitizeFormInput(payload.name?.trim() || '', 100);
+    const sanitizedPrice = String(sanitizeNumber(parseFloat(payload.price) || 0, 0, 999999));
+    const sanitizedMrp = payload.mrp ? String(sanitizeNumber(parseFloat(payload.mrp) || 0, 0, 999999)) : '';
+    const sanitizedDiscount = payload.discount ? String(sanitizeNumber(parseFloat(payload.discount) || 0, 0, 100)) : '';
+    const sanitizedStock = payload.stock ? String(sanitizeNumber(parseFloat(payload.stock) || 0, 0, 999999)) : '';
+    const sanitizedUnit = sanitizeFormInput(payload.unit?.trim() || '', 50);
+
+    if (!sanitizedName) throw new Error('Product name is required');
+    if (!sanitizedPrice) throw new Error('Price is required');
+
     const norm = normalizeVariantsForPayload(payload.variants, payload.unit);
     const defV = norm.find((v) => v.isDefault) || norm[0];
-    const price = payload.price || (defV ? String(defV.price) : '');
-    if (!payload.name.trim()) throw new Error('Product name is required');
-    if (!price) throw new Error('Price is required');
+    const price = sanitizedPrice || (defV ? String(defV.price) : '');
 
     setUpdating(true);
     try {
       if (payload.newFiles.length > 0) {
         const fd = new FormData();
-        fd.append('name', payload.name.trim());
+        fd.append('name', sanitizedName);
         fd.append('price', String(Number(price)));
         if (payload.mrp.trim()) fd.append('mrp', String(Number(payload.mrp)));
         if (payload.discount.trim()) fd.append('discount', String(Number(payload.discount)));

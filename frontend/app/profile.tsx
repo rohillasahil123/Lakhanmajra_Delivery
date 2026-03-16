@@ -13,6 +13,14 @@ import {
   createResponsiveStyles,
   responsiveVerticalScale,
 } from "@/utils/responsive";
+import {
+  sanitizeFormInput,
+  sanitizeEmail,
+  sanitizePhone,
+  sanitizeCoordinate,
+  sanitizeDeliveryInstructions,
+  sanitizeAddress,
+} from "@/utils/sanitize";
 import { User } from "@/types/auth.types";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -231,17 +239,26 @@ export default function ProfileScreen() {
       return;
     }
 
-    if (!editName.trim()) {
+    /**
+     * SECURITY: Sanitize all profile input fields
+     */
+    const sanitizedName = sanitizeFormInput(editName.trim(), 100);
+    const sanitizedEmail = sanitizeEmail(editEmail.trim());
+    const sanitizedPhone = sanitizePhone(editPhone);
+    const sanitizedAddress = sanitizeAddress(editAddress);
+    const sanitizedInstructions = sanitizeDeliveryInstructions(editInstructions);
+
+    if (!sanitizedName) {
       Alert.alert("Validation", "Name is required.");
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())) {
+    if (!sanitizedEmail) {
       Alert.alert("Validation", "Please enter a valid email address.");
       return;
     }
 
-    if (editPhone.replaceAll(/\D/g, "").length < 10) {
+    if (!sanitizedPhone) {
       Alert.alert("Validation", "Please enter a valid phone number.");
       return;
     }
@@ -251,13 +268,13 @@ export default function ProfileScreen() {
       const updatedUser = await authService.updateProfile(
         String(user._id || user.id),
         {
-          name: editName,
-          email: editEmail,
-          phone: editPhone,
-          address: editAddress,
-          deliveryInstructions: editInstructions,
-          latitude: selectedLocation.latitude,
-          longitude: selectedLocation.longitude,
+          name: sanitizedName,
+          email: sanitizedEmail,
+          phone: sanitizedPhone,
+          address: sanitizedAddress,
+          deliveryInstructions: sanitizedInstructions,
+          latitude: sanitizeCoordinate(selectedLocation.latitude, true),
+          longitude: sanitizeCoordinate(selectedLocation.longitude, false),
         },
       );
 

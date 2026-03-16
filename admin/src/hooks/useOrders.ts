@@ -4,6 +4,11 @@ import { useSearchParams } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import api from '../api/client';
 import { getPermissions } from '../auth';
+import { logErrorSafely, sanitizeError } from '../utils/errorHandler';
+import {
+  sanitizeFormInput,
+  sanitizeSearchQuery,
+} from '../utils/sanitize';
 
 export type OrderItem = {
   productId?: { _id?: string; name?: string; images?: string[] };
@@ -238,14 +243,17 @@ export function useOrders() {
       const q = new URLSearchParams();
       q.set('page', String(pageNum));
       q.set('limit', String(PAGE_LIMIT));
-      if (search.trim()) q.set('q', search.trim());
-      if (filters.status !== 'all') q.set('status', filters.status);
-      if (filters.paymentMethod !== 'all') q.set('paymentMethod', filters.paymentMethod);
+      /**
+       * SECURITY: Sanitize search and filter parameters before building query
+       */
+      if (search.trim()) q.set('q', sanitizeSearchQuery(search.trim(), 100));
+      if (filters.status !== 'all') q.set('status', sanitizeFormInput(filters.status, 50));
+      if (filters.paymentMethod !== 'all') q.set('paymentMethod', sanitizeFormInput(filters.paymentMethod, 50));
       if (filters.today) {
         q.set('today', '1');
       } else {
-        if (filters.from) q.set('from', filters.from);
-        if (filters.to) q.set('to', filters.to);
+        if (filters.from) q.set('from', sanitizeFormInput(filters.from, 20));
+        if (filters.to) q.set('to', sanitizeFormInput(filters.to, 20));
       }
       return q.toString();
     },
@@ -263,7 +271,8 @@ export function useOrders() {
         setTotal(resolveTotal(payload, list.length));
         setPage(pageNum);
       } catch (err) {
-        console.error(err);
+        const sanitized = sanitizeError(err);
+        logErrorSafely('loadOrders', err);
         setItems([]);
       } finally {
         setLoading(false);
@@ -285,7 +294,8 @@ export function useOrders() {
         setRiders(resolveRiders(rRes.data?.data ?? rRes.data));
         await load(1);
       } catch (err) {
-        console.error(err);
+        const sanitized = sanitizeError(err);
+        logErrorSafely('initializeOrders', err);
       }
     })();
     return () => {
@@ -371,13 +381,24 @@ export function useOrders() {
 
   const updateStatus = async () => {
     if (!detail || !editStatus) return;
+    /**
+     * SECURITY: Sanitize status value before sending to backend
+     */
+    const sanitizedStatus = sanitizeFormInput(editStatus, 50);
+    if (!sanitizedStatus) {
+      alert('Invalid status');
+      return;
+    }
+
     setUpdating(true);
     try {
-      await api.patch(`/admin/orders/${detail._id}/status`, { status: editStatus });
+      await api.patch(`/admin/orders/${detail._id}/status`, { status: sanitizedStatus });
       await load(page);
-      setDetail((prev) => (prev ? { ...prev, status: editStatus } : prev));
-    } catch (err: any) {
-      alert(err?.response?.data?.message || 'Update failed');
+      setDetail((prev) => (prev ? { ...prev, status: sanitizedStatus } : prev));
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('updateOrderStatus', err);
+      alert(sanitized.userMessage);
     } finally {
       setUpdating(false);
     }
@@ -391,8 +412,10 @@ export function useOrders() {
       await load(page);
       const assigned = riders.find((r) => r._id === editRider);
       setDetail((prev) => (prev ? { ...prev, assignedRiderId: assigned as any } : prev));
-    } catch (err: any) {
-      alert(err?.response?.data?.message || 'Assign failed');
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('assignOrderRider', err);
+      alert(sanitized.userMessage);
     } finally {
       setUpdating(false);
     }
