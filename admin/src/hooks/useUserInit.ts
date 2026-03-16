@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef } from "react";
-import api from "../api/client";
+import { useEffect, useState, useRef } from 'react';
+import api from '../api/client';
 
-interface IRole {
+export interface IRole {
   _id: string;
   name: string;
   description?: string;
@@ -16,7 +16,7 @@ interface FetchUsersParams {
   page?: number;
   role?: string;
   search?: string;
-  status?: "active" | "inactive";
+  status?: 'active' | 'inactive';
 }
 
 type FetchUsersFn = (params?: FetchUsersParams) => Promise<void>;
@@ -38,15 +38,15 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
         setLoading(true);
 
         const [rolesRes, summaryRes, permRes] = await Promise.all([
-          api.get("/admin/roles"),
-          api.get("/admin/users/summary"),
-          api.get("/auth/permissions"),
+          api.get('/admin/roles'),
+          api.get('/admin/users/summary'),
+          api.get('/auth/permissions'),
         ]);
 
-        const rolesData = Array.isArray(rolesRes.data?.data) 
-          ? rolesRes.data.data 
-          : Array.isArray(rolesRes.data) 
-            ? rolesRes.data 
+        const rolesData = Array.isArray(rolesRes.data?.data)
+          ? rolesRes.data.data
+          : Array.isArray(rolesRes.data)
+            ? rolesRes.data
             : [];
 
         const summaryData = summaryRes.data?.data ?? summaryRes.data ?? null;
@@ -64,8 +64,8 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
         // Fetch users after initialization
         await fetchUsers({ page: 1 });
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : "User initialization failed";
-        console.error("User init failed:", errorMsg);
+        const errorMsg = error instanceof Error ? error.message : 'User initialization failed';
+        console.error('User init failed:', errorMsg);
       } finally {
         setLoading(false);
       }

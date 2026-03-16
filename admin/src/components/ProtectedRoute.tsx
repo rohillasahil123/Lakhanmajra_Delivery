@@ -31,7 +31,8 @@ export default function ProtectedRoute({ children }: Props) {
     fetchUserRole();
   }, [token]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (loading)
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   if (!token) return <Navigate to="/login" replace />;
   if (role !== 'superadmin') return <Navigate to="/login" replace />;
   return children;

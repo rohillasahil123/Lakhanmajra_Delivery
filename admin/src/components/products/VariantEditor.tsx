@@ -1,5 +1,9 @@
 import React from 'react';
-import { ProductVariant, createEmptyVariant, calculateDiscountPercent } from '../../hooks/useProducts';
+import {
+  ProductVariant,
+  createEmptyVariant,
+  calculateDiscountPercent,
+} from '../../hooks/useProducts';
 
 interface Props {
   variants: ProductVariant[];
@@ -29,9 +33,9 @@ export default function VariantEditor({ variants, onChange }: Props) {
         if (i !== index) return v;
         const updated = { ...v, [field]: value };
         if (field === 'price') updated.discount = calculateDiscountPercent(v.mrp, value);
-        if (field === 'mrp')   updated.discount = calculateDiscountPercent(value, v.price);
+        if (field === 'mrp') updated.discount = calculateDiscountPercent(value, v.price);
         return updated;
-      }),
+      })
     );
   };
 

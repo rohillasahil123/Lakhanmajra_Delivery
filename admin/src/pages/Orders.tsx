@@ -1,13 +1,23 @@
-import React from "react";
-import { useOrders, getStatus, formatDate, formatTime, timeAgo, PLACEHOLDER_IMAGE, STATUS_META } from "../hooks/useOrders";
-import OrderDetailModal from "../components/orders/OrderDetailModal";
+import React from 'react';
+import {
+  useOrders,
+  getStatus,
+  formatDate,
+  formatTime,
+  timeAgo,
+  PLACEHOLDER_IMAGE,
+  STATUS_META,
+} from '../hooks/useOrders';
+import OrderDetailModal from '../components/orders/OrderDetailModal';
 
 // ─── Status pill ──────────────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: string }) {
   const m = getStatus(status);
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${m.bg} ${m.text} border ${m.border}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${m.bg} ${m.text} border ${m.border}`}
+    >
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
       {m.label}
     </span>
@@ -17,16 +27,20 @@ function StatusPill({ status }: { status: string }) {
 // ─── Payment pill ─────────────────────────────────────────────────────────────
 
 function PaymentPill({ method, status }: { method?: string; status?: string }) {
-  const isCod    = method === "cod";
-  const isPaid   = status === "paid";
-  const isFailed = status === "failed";
+  const isCod = method === 'cod';
+  const isPaid = status === 'paid';
+  const isFailed = status === 'failed';
   return (
     <div className="space-y-1">
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${isCod ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}>
-        {isCod ? "💵 COD" : "💳 Online"}
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${isCod ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}
+      >
+        {isCod ? '💵 COD' : '💳 Online'}
       </span>
-      <div className={`text-xs font-medium ${isPaid ? "text-emerald-600" : isFailed ? "text-red-500" : "text-amber-600"}`}>
-        {isPaid ? "✓ Paid" : isFailed ? "✗ Failed" : "⏳ Pending"}
+      <div
+        className={`text-xs font-medium ${isPaid ? 'text-emerald-600' : isFailed ? 'text-red-500' : 'text-amber-600'}`}
+      >
+        {isPaid ? '✓ Paid' : isFailed ? '✗ Failed' : '⏳ Pending'}
       </div>
     </div>
   );
@@ -34,7 +48,17 @@ function PaymentPill({ method, status }: { method?: string; status?: string }) {
 
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) {
+function StatCard({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string;
+  value: string | number;
+  icon: string;
+  color: string;
+}) {
   return (
     <div className={`rounded-2xl border p-4 flex items-center gap-3 bg-white ${color}`}>
       <span className="text-2xl">{icon}</span>
@@ -50,24 +74,44 @@ function StatCard({ label, value, icon, color }: { label: string; value: string 
 
 export default function Orders() {
   const {
-    items, total, page, loading,
-    search, setSearch,
-    filters, setFilter, applyFilters, clearFilters,
-    riders, stats,
-    detail, detailLoading, openDetail, closeDetail,
-    editStatus, setEditStatus, editRider, setEditRider,
-    updating, updateStatus, assignRider,
-    hasPerm, load, totalPages,
+    items,
+    total,
+    page,
+    loading,
+    search,
+    setSearch,
+    filters,
+    setFilter,
+    applyFilters,
+    clearFilters,
+    riders,
+    stats,
+    detail,
+    detailLoading,
+    openDetail,
+    closeDetail,
+    editStatus,
+    setEditStatus,
+    editRider,
+    setEditRider,
+    updating,
+    updateStatus,
+    assignRider,
+    hasPerm,
+    load,
+    totalPages,
   } = useOrders();
 
   const allStatuses = Object.keys(STATUS_META);
   const hasActiveFilters =
-    filters.status !== "all" || filters.paymentMethod !== "all" ||
-    filters.today || !!filters.from || !!filters.to;
+    filters.status !== 'all' ||
+    filters.paymentMethod !== 'all' ||
+    filters.today ||
+    !!filters.from ||
+    !!filters.to;
 
   return (
     <div className="p-6 space-y-5">
-
       {/* ── Page header ── */}
       <div className="flex items-center justify-between">
         <div>
@@ -82,57 +126,83 @@ export default function Orders() {
 
       {/* ── Stats bar ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard label="Total Orders"  value={total}           icon="📦" color="border-slate-200" />
-        <StatCard label="Pending"       value={stats.pending}   icon="⏳" color="border-amber-200"   />
-        <StatCard label="Shipped"       value={stats.shipped}   icon="🚴" color="border-purple-200"  />
-        <StatCard label="Delivered"     value={stats.delivered} icon="✅" color="border-emerald-200" />
-        <StatCard label="Cancelled"     value={stats.cancelled} icon="❌" color="border-red-200"     />
-        <StatCard label="Revenue"       value={`₹${stats.revenue.toLocaleString("en-IN")}`} icon="💰" color="border-blue-200" />
+        <StatCard label="Total Orders" value={total} icon="📦" color="border-slate-200" />
+        <StatCard label="Pending" value={stats.pending} icon="⏳" color="border-amber-200" />
+        <StatCard label="Shipped" value={stats.shipped} icon="🚴" color="border-purple-200" />
+        <StatCard label="Delivered" value={stats.delivered} icon="✅" color="border-emerald-200" />
+        <StatCard label="Cancelled" value={stats.cancelled} icon="❌" color="border-red-200" />
+        <StatCard
+          label="Revenue"
+          value={`₹${stats.revenue.toLocaleString('en-IN')}`}
+          icon="💰"
+          color="border-blue-200"
+        />
       </div>
 
       {/* ── Search + filters ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
-
         {/* Search row */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"
+              />
             </svg>
             <input
               className="border border-slate-200 pl-9 pr-4 py-2.5 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
               placeholder="Search by order #, customer name, phone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && load(1)}
+              onKeyDown={(e) => e.key === 'Enter' && load(1)}
             />
           </div>
-          <button className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700 transition-colors"
-            onClick={() => load(1)}>Search</button>
+          <button
+            className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700 transition-colors"
+            onClick={() => load(1)}
+          >
+            Search
+          </button>
         </div>
 
         {/* Filter row */}
         <div className="flex flex-wrap gap-2 items-center">
-
           {/* Status chips */}
           <div className="flex items-center gap-1 flex-wrap">
             <button
-              onClick={() => setFilter("status", "all")}
+              onClick={() => setFilter('status', 'all')}
               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-                filters.status === "all"
-                  ? "bg-slate-800 text-white border-slate-800"
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-              }`}>All</button>
+                filters.status === 'all'
+                  ? 'bg-slate-800 text-white border-slate-800'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              All
+            </button>
             {allStatuses.map((s) => {
               const m = getStatus(s);
               const active = filters.status === s;
               return (
-                <button key={s}
-                  onClick={() => setFilter("status", s)}
+                <button
+                  key={s}
+                  onClick={() => setFilter('status', s)}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                    active ? `${m.bg} ${m.text} ${m.border} shadow-sm` : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                  }`}>
-                  <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${active ? m.dot : "bg-slate-300"}`} />
+                    active
+                      ? `${m.bg} ${m.text} ${m.border} shadow-sm`
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <span
+                    className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${active ? m.dot : 'bg-slate-300'}`}
+                  />
                   {m.label}
                 </button>
               );
@@ -145,17 +215,21 @@ export default function Orders() {
           {/* Payment filter */}
           <div className="flex gap-1">
             {[
-              { value: "all",    label: "All Pay" },
-              { value: "cod",    label: "💵 COD"  },
-              { value: "online", label: "💳 Online"},
+              { value: 'all', label: 'All Pay' },
+              { value: 'cod', label: '💵 COD' },
+              { value: 'online', label: '💳 Online' },
             ].map((opt) => (
-              <button key={opt.value}
-                onClick={() => setFilter("paymentMethod", opt.value)}
+              <button
+                key={opt.value}
+                onClick={() => setFilter('paymentMethod', opt.value)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
                   filters.paymentMethod === opt.value
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-                }`}>{opt.label}</button>
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {opt.label}
+              </button>
             ))}
           </div>
 
@@ -164,29 +238,46 @@ export default function Orders() {
 
           {/* Date filters */}
           <button
-            onClick={() => setFilter("today", !filters.today)}
+            onClick={() => setFilter('today', !filters.today)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
-              filters.today ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
-            }`}>📅 Today</button>
+              filters.today
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            📅 Today
+          </button>
 
           {!filters.today && (
             <div className="flex items-center gap-1.5">
-              <input type="date" className="border border-slate-200 px-2 py-1.5 rounded-xl text-xs"
-                value={filters.from} onChange={(e) => setFilter("from", e.target.value)} />
+              <input
+                type="date"
+                className="border border-slate-200 px-2 py-1.5 rounded-xl text-xs"
+                value={filters.from}
+                onChange={(e) => setFilter('from', e.target.value)}
+              />
               <span className="text-slate-400 text-xs">to</span>
-              <input type="date" className="border border-slate-200 px-2 py-1.5 rounded-xl text-xs"
-                value={filters.to} onChange={(e) => setFilter("to", e.target.value)} />
+              <input
+                type="date"
+                className="border border-slate-200 px-2 py-1.5 rounded-xl text-xs"
+                value={filters.to}
+                onChange={(e) => setFilter('to', e.target.value)}
+              />
             </div>
           )}
 
-          <button onClick={applyFilters}
-            className="px-4 py-1.5 bg-indigo-600 text-white rounded-full text-xs font-medium hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={applyFilters}
+            className="px-4 py-1.5 bg-indigo-600 text-white rounded-full text-xs font-medium hover:bg-indigo-700 transition-colors"
+          >
             Apply
           </button>
 
           {hasActiveFilters && (
-            <button onClick={clearFilters}
-              className="px-4 py-1.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium hover:bg-slate-200 transition-colors">
+            <button
+              onClick={clearFilters}
+              className="px-4 py-1.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium hover:bg-slate-200 transition-colors"
+            >
               ✕ Clear
             </button>
           )}
@@ -211,8 +302,23 @@ export default function Orders() {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50">
-                  {["Order", "Customer", "Items", "Amount", "Payment", "Status", "Rider", "Time", ""].map((h) => (
-                    <th key={h} className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                  {[
+                    'Order',
+                    'Customer',
+                    'Items',
+                    'Amount',
+                    'Payment',
+                    'Status',
+                    'Rider',
+                    'Time',
+                    '',
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -224,27 +330,28 @@ export default function Orders() {
 
                   return (
                     <tr key={order._id} className="hover:bg-slate-50/80 transition-colors group">
-
                       {/* Order # */}
                       <td className="px-4 py-3.5">
                         <p className="font-mono text-xs font-semibold text-slate-700">
                           #{order.orderNumber || order._id.slice(-8).toUpperCase()}
                         </p>
-                        <p className="text-xs text-slate-400 mt-0.5">{formatDate(order.createdAt)}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {formatDate(order.createdAt)}
+                        </p>
                       </td>
 
                       {/* Customer */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                            {(order.userId?.name || "?")[0].toUpperCase()}
+                            {(order.userId?.name || '?')[0].toUpperCase()}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-slate-800 leading-tight">
-                              {order.userId?.name || "Unknown"}
+                              {order.userId?.name || 'Unknown'}
                             </p>
                             <p className="text-xs text-slate-400">
-                              {order.userId?.phone || order.userId?.email || "—"}
+                              {order.userId?.phone || order.userId?.email || '—'}
                             </p>
                           </div>
                         </div>
@@ -255,16 +362,20 @@ export default function Orders() {
                         <div className="flex items-center gap-2">
                           <img
                             src={firstItem?.productId?.images?.[0] || PLACEHOLDER_IMAGE}
-                            alt={firstItem?.productId?.name || "Item"}
+                            alt={firstItem?.productId?.name || 'Item'}
                             className="w-10 h-10 object-cover rounded-lg border border-slate-200 flex-shrink-0"
-                            onError={(e) => { (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE; }}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
+                            }}
                           />
                           <div>
                             <p className="text-sm text-slate-700 font-medium leading-tight max-w-[120px] truncate">
-                              {firstItem?.productId?.name || "Product"}
+                              {firstItem?.productId?.name || 'Product'}
                             </p>
                             <p className="text-xs text-slate-400">
-                              {extraCount > 0 ? `+${extraCount} more` : `Qty: ${firstItem?.quantity ?? 1}`}
+                              {extraCount > 0
+                                ? `+${extraCount} more`
+                                : `Qty: ${firstItem?.quantity ?? 1}`}
                             </p>
                           </div>
                         </div>
@@ -273,7 +384,9 @@ export default function Orders() {
                       {/* Amount */}
                       <td className="px-4 py-3.5">
                         <p className="font-bold text-slate-800">₹{order.totalAmount}</p>
-                        <p className="text-xs text-slate-400">+₹{Number(order.deliveryFee ?? 0)} delivery</p>
+                        <p className="text-xs text-slate-400">
+                          +₹{Number(order.deliveryFee ?? 0)} delivery
+                        </p>
                       </td>
 
                       {/* Payment */}
@@ -291,11 +404,15 @@ export default function Orders() {
                         {rider ? (
                           <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-xs flex-shrink-0">
-                              {(rider.name || "R")[0].toUpperCase()}
+                              {(rider.name || 'R')[0].toUpperCase()}
                             </div>
                             <div>
-                              <p className="text-xs font-medium text-slate-700 leading-tight">{rider.name}</p>
-                              {rider.phone && <p className="text-xs text-slate-400">{rider.phone}</p>}
+                              <p className="text-xs font-medium text-slate-700 leading-tight">
+                                {rider.name}
+                              </p>
+                              {rider.phone && (
+                                <p className="text-xs text-slate-400">{rider.phone}</p>
+                              )}
                             </div>
                           </div>
                         ) : (
@@ -305,7 +422,9 @@ export default function Orders() {
 
                       {/* Time */}
                       <td className="px-4 py-3.5 whitespace-nowrap">
-                        <p className="text-xs text-slate-600 font-medium">{formatTime(order.createdAt)}</p>
+                        <p className="text-xs text-slate-600 font-medium">
+                          {formatTime(order.createdAt)}
+                        </p>
                         <p className="text-xs text-slate-400">{timeAgo(order.createdAt)}</p>
                       </td>
 
@@ -313,7 +432,8 @@ export default function Orders() {
                       <td className="px-4 py-3.5">
                         <button
                           onClick={() => openDetail(order._id)}
-                          className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors whitespace-nowrap">
+                          className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors whitespace-nowrap"
+                        >
                           View →
                         </button>
                       </td>
@@ -330,11 +450,15 @@ export default function Orders() {
       {!loading && total > 0 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            Showing {((page - 1) * 20) + 1}–{Math.min(page * 20, total)} of <strong>{total}</strong> orders
+            Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of <strong>{total}</strong>{' '}
+            orders
           </p>
           <div className="flex items-center gap-1.5">
-            <button disabled={page === 1} onClick={() => load(Math.max(1, page - 1))}
-              className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm disabled:opacity-40 hover:bg-slate-50 transition-colors">
+            <button
+              disabled={page === 1}
+              onClick={() => load(Math.max(1, page - 1))}
+              className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm disabled:opacity-40 hover:bg-slate-50 transition-colors"
+            >
               ← Prev
             </button>
             <div className="flex gap-1">
@@ -342,15 +466,21 @@ export default function Orders() {
                 const p = page <= 3 ? i + 1 : page - 2 + i;
                 if (p > totalPages || p < 1) return null;
                 return (
-                  <button key={p} onClick={() => load(p)}
-                    className={`w-8 h-8 rounded-xl text-sm font-medium transition-colors ${p === page ? "bg-slate-800 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                  <button
+                    key={p}
+                    onClick={() => load(p)}
+                    className={`w-8 h-8 rounded-xl text-sm font-medium transition-colors ${p === page ? 'bg-slate-800 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
                     {p}
                   </button>
                 );
               })}
             </div>
-            <button disabled={page >= totalPages} onClick={() => load(Math.min(totalPages, page + 1))}
-              className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm disabled:opacity-40 hover:bg-slate-50 transition-colors">
+            <button
+              disabled={page >= totalPages}
+              onClick={() => load(Math.min(totalPages, page + 1))}
+              className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm disabled:opacity-40 hover:bg-slate-50 transition-colors"
+            >
               Next →
             </button>
           </div>

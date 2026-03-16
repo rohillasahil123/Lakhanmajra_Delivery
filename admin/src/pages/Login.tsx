@@ -18,11 +18,7 @@ export default function Login() {
       await login(identifier.trim(), password);
       nav('/', { replace: true }); // 🔥 avoid stale state
     } catch (err: any) {
-      setError(
-        err?.response?.data?.message ||
-          err?.message ||
-          'Login failed'
-      );
+      setError(err?.response?.data?.message || err?.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -33,9 +29,7 @@ export default function Login() {
       <div className="w-full max-w-md bg-white rounded-lg shadow p-6">
         <h1 className="text-2xl font-semibold mb-4">Admin Sign in</h1>
 
-        {error && (
-          <div className="text-red-600 mb-3">{error}</div>
-        )}
+        {error && <div className="text-red-600 mb-3">{error}</div>}
 
         <form onSubmit={submit} className="space-y-4">
           <input

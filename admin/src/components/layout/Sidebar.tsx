@@ -1,6 +1,6 @@
-import { NavLink } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
-import api from "../../api/client";
+import { NavLink } from 'react-router-dom';
+import { useEffect, useState, useRef } from 'react';
+import api from '../../api/client';
 
 interface SidebarStats {
   users?: number;
@@ -10,38 +10,80 @@ interface SidebarStats {
 
 const NAV_ITEMS = [
   {
-    section: "Overview",
+    section: 'Overview',
     links: [
       {
-        to: "/",
-        label: "Dashboard",
+        to: '/',
+        label: 'Dashboard',
         icon: (
-          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="3" width="7" height="7" rx="1.5"/>
-            <rect x="3" y="14" width="7" height="7" rx="1.5"/>
-            <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1.5" />
+            <rect x="14" y="3" width="7" height="7" rx="1.5" />
+            <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <rect x="14" y="14" width="7" height="7" rx="1.5" />
           </svg>
         ),
-        key: "dashboard",
+        key: 'dashboard',
       },
     ],
   },
   {
-    section: "Management",
+    section: 'Management',
     links: [
-      { to: "/users",    label: "Users",    key: "users",    icon: <span style={{ fontSize: '12px' }}>👤</span> },
-      { to: "/riders",   label: "Riders",   key: "riders",   icon: <span style={{ fontSize: '12px' }}>🚴</span> },
-      { to: "/products", label: "Products", key: "products", icon: <span style={{ fontSize: '12px' }}>📦</span> },
-      { to: "/offers",   label: "Offers",   key: "offers",   icon: <span style={{ fontSize: '12px' }}>🎁</span> },
-      { to: "/notifications", label: "Notifications", key: "notifications", icon: <span style={{ fontSize: '12px' }}>🔔</span> },
-      { to: "/orders",   label: "Orders",   key: "orders",   icon: <span style={{ fontSize: '12px' }}>🧾</span> },
+      {
+        to: '/users',
+        label: 'Users',
+        key: 'users',
+        icon: <span className="text-lg">👤</span>,
+      },
+      {
+        to: '/riders',
+        label: 'Riders',
+        key: 'riders',
+        icon: <span className="text-lg">🚴</span>,
+      },
+      {
+        to: '/products',
+        label: 'Products',
+        key: 'products',
+        icon: <span className="text-lg">📦</span>,
+      },
+      {
+        to: '/offers',
+        label: 'Offers',
+        key: 'offers',
+        icon: <span className="text-lg">🎁</span>,
+      },
+      {
+        to: '/notifications',
+        label: 'Notifications',
+        key: 'notifications',
+        icon: <span className="text-lg">🔔</span>,
+      },
+      {
+        to: '/orders',
+        label: 'Orders',
+        key: 'orders',
+        icon: <span className="text-lg">🧾</span>,
+      },
     ],
   },
   {
-    section: "System",
+    section: 'System',
     links: [
-      { to: "/roles", label: "Roles", key: "roles", icon: <span style={{ fontSize: '12px' }}>🛡</span> },
+      {
+        to: '/roles',
+        label: 'Roles',
+        key: 'roles',
+        icon: <span className="text-lg">🛡</span>,
+      },
     ],
   },
 ];
@@ -67,21 +109,21 @@ export default function Sidebar() {
     const hoverZone = hoverZoneRef.current;
 
     if (sidebar) {
-      sidebar.addEventListener("mouseenter", handleMouseEnter);
-      sidebar.addEventListener("mouseleave", handleMouseLeave);
+      sidebar.addEventListener('mouseenter', handleMouseEnter);
+      sidebar.addEventListener('mouseleave', handleMouseLeave);
     }
 
     if (hoverZone) {
-      hoverZone.addEventListener("mouseenter", handleMouseEnter);
+      hoverZone.addEventListener('mouseenter', handleMouseEnter);
     }
 
     return () => {
       if (sidebar) {
-        sidebar.removeEventListener("mouseenter", handleMouseEnter);
-        sidebar.removeEventListener("mouseleave", handleMouseLeave);
+        sidebar.removeEventListener('mouseenter', handleMouseEnter);
+        sidebar.removeEventListener('mouseleave', handleMouseLeave);
       }
       if (hoverZone) {
-        hoverZone.removeEventListener("mouseenter", handleMouseEnter);
+        hoverZone.removeEventListener('mouseenter', handleMouseEnter);
       }
     };
   }, []);
@@ -89,10 +131,16 @@ export default function Sidebar() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await api.get("/admin/users/summary");
-        const d   = res.data?.data ?? res.data;
-        setStats({ users: d?.total ?? 0, riders: d?.summary?.rider ?? 0, orders: d?.summary?.orders ?? 0 });
-      } catch { /* silent */ }
+        const res = await api.get('/admin/users/summary');
+        const d = res.data?.data ?? res.data;
+        setStats({
+          users: d?.total ?? 0,
+          riders: d?.summary?.rider ?? 0,
+          orders: d?.summary?.orders ?? 0,
+        });
+      } catch {
+        /* silent */
+      }
     };
     fetchStats();
     const id = setInterval(fetchStats, 30_000);
@@ -100,15 +148,15 @@ export default function Sidebar() {
   }, []);
 
   const getBadge = (key: string) => {
-    if (key === "users")  return stats.users;
-    if (key === "riders") return stats.riders;
-    if (key === "orders") return stats.orders;
+    if (key === 'users') return stats.users;
+    if (key === 'riders') return stats.riders;
+    if (key === 'orders') return stats.orders;
     return undefined;
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    globalThis.location.href = "/login";
+    localStorage.removeItem('token');
+    globalThis.location.href = '/login';
   };
 
   return (
@@ -116,134 +164,134 @@ export default function Sidebar() {
       {/* Hover Zone - Invisible zone on left edge to trigger sidebar expansion */}
       <div
         ref={hoverZoneRef}
-        style={{
-          position: "fixed",
-          left: 0,
-          top: 0,
-          width: 10,
-          height: "100vh",
-          zIndex: 40,
-          cursor: "pointer",
-        }}
+        className="fixed left-0 top-0 w-[10px] h-screen z-40 cursor-pointer"
       />
 
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        style={{
-          width: isCollapsed ? 60 : 200,
-          minHeight: "100vh",
-          background: "#fff",
-          borderRight: "1px solid #e8eaf0",
-          display: "flex",
-          flexDirection: "column",
-          flexShrink: 0,
-          transition: "width 0.3s ease-in-out",
-          overflow: "hidden",
-          position: "relative",
-          zIndex: 41,
-        }}
-        className="dark:bg-slate-900 dark:border-slate-700"
+        className={`min-h-screen bg-white border-r border-[#e8eaf0] dark:bg-slate-900 dark:border-slate-700 flex flex-col flex-shrink-0 relative z-41 transition-all duration-300 overflow-hidden ${
+          isCollapsed ? 'w-[60px]' : 'w-[200px]'
+        }`}
       >
         {/* Logo */}
-        <div style={{ padding: "16px 14px 14px", borderBottom: "1px solid #e8eaf0", minHeight: 70, display: "flex", alignItems: "center", justifyContent: isCollapsed ? "center" : "flex-start" }} className="dark:border-slate-700">
-          <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-            <div style={{ width: 30, height: 30, background: "#3b6ef8", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(59,110,248,.3)", flexShrink: 0 }}>
-              <span style={{ color: "white", fontWeight: 700 }}>A</span>
+        <div
+          className={`border-b border-[#e8eaf0] dark:border-slate-700 min-h-[70px] flex items-center ${
+            isCollapsed ? 'justify-center' : 'justify-start'
+          } px-3.5 py-4`}
+        >
+          <div className="flex items-center gap-2.25 flex-shrink-0">
+            <div className="w-[30px] h-[30px] bg-[#3b6ef8] rounded-lg flex items-center justify-center shadow-[0_2px_8px_rgba(59,110,248,.3)]">
+              <span className="text-white font-bold text-sm">A</span>
             </div>
             {!isCollapsed && (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: "#0f1623" }} className="dark:text-white">AdminOS</div>
-                <div style={{ fontSize: 9.5, color: "#8b92a9" }}>Management Suite</div>
+                <div className="text-sm font-bold text-[#0f1623] dark:text-white">AdminOS</div>
+                <div className="text-[9.5px] text-[#8b92a9]">Management Suite</div>
               </div>
             )}
           </div>
         </div>
 
-      {/* Nav */}
-      <nav style={{ flex: 1, padding: "10px 8px", overflowY: "auto" }}>
-        {NAV_ITEMS.map((group) => (
-          <div key={group.section} style={{ marginBottom: 4 }}>
-            {!isCollapsed && (
-              <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px", color: "#8b92a9", padding: "8px 8px 4px" }}>
-                {group.section}
-              </div>
-            )}
-            {group.links.map((link) => {
-              const badge = getBadge(link.key);
-              return (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  end={link.to === "/"}
-                  style={({ isActive }) => ({
-                    display: "flex", alignItems: "center", justifyContent: isCollapsed ? "center" : "flex-start", gap: isCollapsed ? 0 : 8,
-                    padding: "7px 9px", borderRadius: 7, marginBottom: 1,
-                    fontSize: 12.5, fontWeight: isActive ? 600 : 500,
-                    textDecoration: "none", transition: "all 0.13s",
-                    background: isActive ? "#eef2ff" : "transparent",
-                    color: isActive ? "#3b6ef8" : "#4b5470",
-                    position: "relative",
-                  })}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <span style={{ opacity: isActive ? 1 : 0.7, flexShrink: 0 }}>{link.icon}</span>
-                      {!isCollapsed && (
-                        <>
-                          <span style={{ flex: 1 }}>{link.label}</span>
-                          {badge !== undefined && badge > 0 && (
-                            <span style={{ background: isActive ? "rgba(59,110,248,.12)" : "#f5f6fa", borderRadius: 99, fontSize: 10, fontWeight: 600, padding: "1px 6px", color: isActive ? "#3b6ef8" : "#8b92a9" }}>
-                              {badge}
-                            </span>
-                          )}
-                        </>
-                      )}
-                      {isCollapsed && badge !== undefined && badge > 0 && (
-                        <span style={{ position: "absolute", top: 2, right: 4, width: 16, height: 16, background: "#ef4444", borderRadius: "50%", fontSize: 10, fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {badge > 9 ? "9+" : badge}
+        {/* Nav */}
+        <nav className="flex-1 p-2 overflow-y-auto">
+          {NAV_ITEMS.map((group) => (
+            <div key={group.section} className="mb-1">
+              {!isCollapsed && (
+                <div className="text-[9.5px] font-bold uppercase tracking-wider text-[#8b92a9] px-2 py-2 pb-1">
+                  {group.section}
+                </div>
+              )}
+              {group.links.map((link) => {
+                const badge = getBadge(link.key);
+                return (
+                  <NavLink
+                    key={link.to}
+                    to={link.to}
+                    end={link.to === '/'}
+                    className={({ isActive }) =>
+                      `flex ${isCollapsed ? 'justify-center' : 'justify-start'} items-center ${
+                        isCollapsed ? 'gap-0' : 'gap-2'
+                      } px-2.25 py-1.75 rounded-lg mb-0.25 text-[12.5px] transition-all duration-[0.13s] relative no-underline ${
+                        isActive
+                          ? 'bg-[#eef2ff] font-semibold text-[#3b6ef8]'
+                          : 'text-[#4b5470] font-medium hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <span
+                          className={`flex-shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}
+                        >
+                          {link.icon}
                         </span>
-                      )}
-                    </>
-                  )}
-                </NavLink>
-              );
-            })}
-          </div>
-        ))}
-      </nav>
+                        {!isCollapsed && (
+                          <>
+                            <span className="flex-1">{link.label}</span>
+                            {badge !== undefined && badge > 0 && (
+                              <span
+                                className={`rounded-full text-[10px] font-semibold px-1.5 py-0.5 ${
+                                  isActive
+                                    ? 'bg-[rgba(59,110,248,.12)] text-[#3b6ef8]'
+                                    : 'bg-[#f5f6fa] text-[#8b92a9]'
+                                }`}
+                              >
+                                {badge}
+                              </span>
+                            )}
+                          </>
+                        )}
+                        {isCollapsed && badge !== undefined && badge > 0 && (
+                          <span className="absolute top-0.5 right-1 w-4 h-4 bg-red-500 rounded-full text-[10px] font-bold text-white flex items-center justify-center">
+                            {badge > 9 ? '9+' : badge}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
 
-      {/* Footer */}
-      <div style={{ padding: "10px 8px", borderTop: "1px solid #e8eaf0" }} className="dark:border-slate-700">
-        {!isCollapsed && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#3b6ef8,#7c3aed)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff" }}>
+        {/* Footer */}
+        <div className="p-2 border-t border-[#e8eaf0] dark:border-slate-700">
+          {!isCollapsed && (
+            <>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 bg-gradient-to-br from-[#3b6ef8] to-[#7c3aed] rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0">
+                  SA
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-white">
+                    Super Admin
+                  </div>
+                  <div className="text-[10.5px] text-[#8b92a9]">superadmin</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-2 w-full px-2.25 py-1.75 rounded-lg text-[12.5px] font-medium text-red-500 bg-transparent border-none cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors mt-2"
+              >
+                Sign out
+              </button>
+            </>
+          )}
+          {isCollapsed && (
+            <div className="flex justify-center">
+              <div
+                className="w-7 h-7 bg-gradient-to-br from-[#3b6ef8] to-[#7c3aed] rounded-lg flex items-center justify-center text-[10px] font-bold text-white cursor-pointer"
+                title="Super Admin"
+              >
                 SA
               </div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600 }}>Super Admin</div>
-                <div style={{ fontSize: 10.5, color: "#8b92a9" }}>superadmin</div>
-              </div>
             </div>
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 9px", borderRadius: 7, fontSize: 12.5, fontWeight: 500, color: "#ef4444", background: "transparent", border: "none", cursor: "pointer", marginTop: 8 }}
-            >
-              Sign out
-            </button>
-          </>
-        )}
-        {isCollapsed && (
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ width: 28, height: 28, background: "linear-gradient(135deg,#3b6ef8,#7c3aed)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", cursor: "pointer" }} title="Super Admin">
-              SA
-            </div>
-          </div>
-        )}
-      </div>
-    </aside>
+          )}
+        </div>
+      </aside>
     </>
   );
 }

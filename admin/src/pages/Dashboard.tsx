@@ -39,18 +39,21 @@ export default function Dashboard() {
     (async () => setPermissions(await getPermissions()))();
   }, []);
 
-  const fetchMetrics = useCallback(async (showLoader = true) => {
-    if (showLoader) setLoading(true);
-    try {
-      const res = await api.get(`/admin/metrics?range=${rangeDays}`);
-      setMetrics(res.data?.data ?? res.data);
-      setLastUpdatedAt(new Date());
-    } catch (err) {
-      console.error('Metrics fetch failed', err);
-    } finally {
-      if (showLoader) setLoading(false);
-    }
-  }, [rangeDays]);
+  const fetchMetrics = useCallback(
+    async (showLoader = true) => {
+      if (showLoader) setLoading(true);
+      try {
+        const res = await api.get(`/admin/metrics?range=${rangeDays}`);
+        setMetrics(res.data?.data ?? res.data);
+        setLastUpdatedAt(new Date());
+      } catch (err) {
+        console.error('Metrics fetch failed', err);
+      } finally {
+        if (showLoader) setLoading(false);
+      }
+    },
+    [rangeDays]
+  );
 
   useEffect(() => {
     if (!hasPerm('reports:view')) return;
@@ -65,13 +68,25 @@ export default function Dashboard() {
   }, [permissions, rangeDays, fetchMetrics]);
 
   const formatCurrency = (v: number) => {
-    return Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v || 0);
+    return Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(v || 0);
   };
 
   const kpis: Array<KPI & { key: string }> = [
     { key: 'total-orders', title: 'Total orders', value: metrics?.totalOrders ?? '-' },
-    { key: 'orders-range', title: `Orders (last ${rangeDays}d)`, value: metrics?.ordersInRange ?? '-' },
-    { key: 'revenue-range', title: 'Revenue (range)', value: metrics ? formatCurrency(metrics.revenue) : '-' },
+    {
+      key: 'orders-range',
+      title: `Orders (last ${rangeDays}d)`,
+      value: metrics?.ordersInRange ?? '-',
+    },
+    {
+      key: 'revenue-range',
+      title: 'Revenue (range)',
+      value: metrics ? formatCurrency(metrics.revenue) : '-',
+    },
     { key: 'orders-today', title: 'Orders today', value: metrics?.ordersToday ?? '-' },
     { key: 'pending-orders', title: 'Pending orders', value: metrics?.pendingOrders ?? '-' },
     { key: 'active-users', title: 'Active users (range)', value: metrics?.activeUsers ?? '-' },
@@ -113,7 +128,9 @@ export default function Dashboard() {
     return (
       <div className="p-6">
         <h2 className="text-2xl font-semibold mb-4">Dashboard</h2>
-        <div className="bg-white p-6 rounded shadow">You do not have permission to view dashboard metrics.</div>
+        <div className="bg-white p-6 rounded shadow">
+          You do not have permission to view dashboard metrics.
+        </div>
       </div>
     );
   }
@@ -124,7 +141,8 @@ export default function Dashboard() {
         <h2 className="text-2xl font-semibold">Dashboard</h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-slate-500">
-            Auto-refresh: 15s{lastUpdatedAt ? ` • Updated ${lastUpdatedAt.toLocaleTimeString()}` : ''}
+            Auto-refresh: 15s
+            {lastUpdatedAt ? ` • Updated ${lastUpdatedAt.toLocaleTimeString()}` : ''}
           </span>
           <div className="flex gap-2">
             {[7, 30, 90].map((d) => (
@@ -197,7 +215,13 @@ export default function Dashboard() {
           <div style={{ width: '100%', height: 240 }}>
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={metrics?.statusBreakdown ?? []} dataKey="count" nameKey="status" outerRadius={80} label>
+                <Pie
+                  data={metrics?.statusBreakdown ?? []}
+                  dataKey="count"
+                  nameKey="status"
+                  outerRadius={80}
+                  label
+                >
                   {(metrics?.statusBreakdown ?? []).map((entry: any, idx: number) => (
                     <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
                   ))}

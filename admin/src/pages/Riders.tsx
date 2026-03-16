@@ -20,7 +20,15 @@ type RiderProfile = {
   insuranceImage?: string;
 };
 
-type Rider = { _id: string; name: string; email?: string; phone?: string; roleId?: any; isActive?: boolean; riderProfile?: RiderProfile };
+type Rider = {
+  _id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  roleId?: any;
+  isActive?: boolean;
+  riderProfile?: RiderProfile;
+};
 type KycStatus = 'not_submitted' | 'pending' | 'approved' | 'rejected';
 type RiderWithKyc = Rider & {
   kycStatus?: KycStatus;
@@ -59,8 +67,16 @@ const getKycCompletion = (rider: Rider): number => {
 };
 
 const AVATAR_COLORS = [
-  '#4CAF50', '#2196F3', '#9C27B0', '#FF5722', '#009688',
-  '#3F51B5', '#E91E63', '#00BCD4', '#FF9800', '#607D8B',
+  '#4CAF50',
+  '#2196F3',
+  '#9C27B0',
+  '#FF5722',
+  '#009688',
+  '#3F51B5',
+  '#E91E63',
+  '#00BCD4',
+  '#FF9800',
+  '#607D8B',
 ];
 
 function getAvatarColor(name: string) {
@@ -72,7 +88,7 @@ function getAvatarColor(name: string) {
 function getInitials(name: string) {
   return name
     .split(' ')
-    .map(w => w[0])
+    .map((w) => w[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
@@ -106,15 +122,17 @@ export default function Riders() {
 
   const loadRiders = async (pageNum = 1, status: 'all' | 'incomplete' | KycStatus = kycFilter) => {
     try {
-      const res = await api.get(`/admin/users/rider-kyc?status=${status}&page=${pageNum}&limit=${limit}`);
+      const res = await api.get(
+        `/admin/users/rider-kyc?status=${status}&page=${pageNum}&limit=${limit}`
+      );
       const data = res.data?.data ?? res.data;
       const riderRows = Array.isArray(data?.users)
         ? data.users
         : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data)
-        ? data
-        : [];
+          ? data.data
+          : Array.isArray(data)
+            ? data
+            : [];
       setRiders(riderRows as RiderWithKyc[]);
       setTotal(data?.total ?? 0);
       setPage(pageNum);
@@ -188,11 +206,14 @@ export default function Riders() {
         password: newPassword,
       });
       const riderId = regRes.data?.user?._id || regRes.data?.user?.id;
-      const riderRole = roles.find(r => r.name === 'rider' || r.name === 'Rider');
+      const riderRole = roles.find((r) => r.name === 'rider' || r.name === 'Rider');
       if (riderId && riderRole) {
         await api.patch(`/auth/users/${riderId}/role`, { roleId: riderRole._id });
       }
-      setNewName(''); setNewEmail(''); setNewPhone(''); setNewPassword('');
+      setNewName('');
+      setNewEmail('');
+      setNewPhone('');
+      setNewPassword('');
       await loadRiders(1);
       alert('Rider created');
     } catch (err: any) {
@@ -211,7 +232,9 @@ export default function Riders() {
 
   const cancelEdit = () => {
     setEditingId(null);
-    setEditName(''); setEditEmail(''); setEditPhone('');
+    setEditName('');
+    setEditEmail('');
+    setEditPhone('');
   };
 
   const saveEdit = async (riderId: string) => {
@@ -287,21 +310,23 @@ export default function Riders() {
       normalized === 'approved'
         ? 'bg-emerald-100 text-emerald-700'
         : normalized === 'pending'
-        ? 'bg-amber-100 text-amber-700'
-        : normalized === 'rejected'
-        ? 'bg-rose-100 text-rose-700'
-        : 'bg-slate-100 text-slate-700';
+          ? 'bg-amber-100 text-amber-700'
+          : normalized === 'rejected'
+            ? 'bg-rose-100 text-rose-700'
+            : 'bg-slate-100 text-slate-700';
 
     const label =
       normalized === 'approved'
         ? 'Approved'
         : normalized === 'pending'
-        ? 'Incomplete'
-        : normalized === 'rejected'
-        ? 'Rejected'
-        : 'Not Submitted';
+          ? 'Incomplete'
+          : normalized === 'rejected'
+            ? 'Rejected'
+            : 'Not Submitted';
 
-    return <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${className}`}>{label}</span>;
+    return (
+      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${className}`}>{label}</span>
+    );
   };
 
   const totalPages = Math.ceil((total || 0) / limit);
@@ -330,16 +355,45 @@ export default function Riders() {
           <div className="bg-white p-6 rounded-lg shadow-xl w-[480px]">
             <h3 className="text-lg font-semibold mb-4 text-slate-800">Create Rider</h3>
             <div className="flex flex-col gap-3">
-              <input className="border px-3 py-2 rounded text-sm" placeholder="Name" value={newName} onChange={e => setNewName(e.target.value)} />
-              <input className="border px-3 py-2 rounded text-sm" placeholder="Email" value={newEmail} onChange={e => setNewEmail(e.target.value)} />
-              <input className="border px-3 py-2 rounded text-sm" placeholder="Phone" value={newPhone} onChange={e => setNewPhone(e.target.value)} />
-              <input className="border px-3 py-2 rounded text-sm" placeholder="Password" type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+              <input
+                className="border px-3 py-2 rounded text-sm"
+                placeholder="Name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+              <input
+                className="border px-3 py-2 rounded text-sm"
+                placeholder="Email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+              <input
+                className="border px-3 py-2 rounded text-sm"
+                placeholder="Phone"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+              />
+              <input
+                className="border px-3 py-2 rounded text-sm"
+                placeholder="Password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
             </div>
             <div className="flex justify-end gap-2 mt-4">
-              <button className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm" onClick={() => setShowCreateModal(false)}>Cancel</button>
+              <button
+                className="px-4 py-2 bg-gray-100 rounded hover:bg-gray-200 text-sm"
+                onClick={() => setShowCreateModal(false)}
+              >
+                Cancel
+              </button>
               <button
                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-60 text-sm"
-                onClick={() => { createRider(); setShowCreateModal(false); }}
+                onClick={() => {
+                  createRider();
+                  setShowCreateModal(false);
+                }}
                 disabled={creating}
               >
                 {creating ? 'Creating...' : 'Create Rider'}
@@ -391,37 +445,73 @@ export default function Riders() {
               const kycStatus = r.kycStatus || 'not_submitted';
 
               return (
-                <tr key={r._id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
+                <tr
+                  key={r._id}
+                  className="border-b last:border-0 hover:bg-slate-50 transition-colors"
+                >
                   {editingId === r._id ? (
                     <>
                       <td className="px-5 py-3">
-                        <input className="border px-2 py-1 rounded w-full text-sm" value={editName} onChange={e => setEditName(e.target.value)} />
+                        <input
+                          className="border px-2 py-1 rounded w-full text-sm"
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                        />
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex gap-2">
-                          <input className="border px-2 py-1 rounded flex-1 text-sm" placeholder="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
-                          <input className="border px-2 py-1 rounded flex-1 text-sm" placeholder="phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                          <input
+                            className="border px-2 py-1 rounded flex-1 text-sm"
+                            placeholder="email"
+                            value={editEmail}
+                            onChange={(e) => setEditEmail(e.target.value)}
+                          />
+                          <input
+                            className="border px-2 py-1 rounded flex-1 text-sm"
+                            placeholder="phone"
+                            value={editPhone}
+                            onChange={(e) => setEditPhone(e.target.value)}
+                          />
                         </div>
                       </td>
                       <td className="px-5 py-3">
-                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">rider</span>
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          rider
+                        </span>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${kycComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium ${kycComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}
+                        >
                           {kycComplete ? 'Complete (100%)' : `Incomplete (${kycCompletion}%)`}
                         </span>
                       </td>
                       <td className="px-5 py-3">{renderKycStatusBadge(kycStatus)}</td>
                       <td className="px-5 py-3">
-                        <span className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}>
-                          <span className={`w-2 h-2 rounded-full ${r.isActive ? 'bg-green-500' : 'bg-red-400'}`} />
+                        <span
+                          className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full ${r.isActive ? 'bg-green-500' : 'bg-red-400'}`}
+                          />
                           {r.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex gap-2">
-                          <button className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700" onClick={() => saveEdit(r._id)} disabled={editUpdating}>Save</button>
-                          <button className="px-3 py-1 bg-slate-200 text-sm rounded hover:bg-slate-300" onClick={cancelEdit}>Cancel</button>
+                          <button
+                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                            onClick={() => saveEdit(r._id)}
+                            disabled={editUpdating}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="px-3 py-1 bg-slate-200 text-sm rounded hover:bg-slate-300"
+                            onClick={cancelEdit}
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </td>
                     </>
@@ -437,8 +527,12 @@ export default function Riders() {
                             {initials}
                           </div>
                           <div>
-                            <div className="font-medium text-slate-800 text-sm leading-tight">{r.name}</div>
-                            {r.email && <div className="text-xs text-slate-400 mt-0.5">{r.email}</div>}
+                            <div className="font-medium text-slate-800 text-sm leading-tight">
+                              {r.name}
+                            </div>
+                            {r.email && (
+                              <div className="text-xs text-slate-400 mt-0.5">{r.email}</div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -455,7 +549,9 @@ export default function Riders() {
 
                       {/* KYC column */}
                       <td className="px-5 py-3">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${kycComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium ${kycComplete ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}
+                        >
                           {kycComplete ? 'Complete (100%)' : `Incomplete (${kycCompletion}%)`}
                         </span>
                       </td>
@@ -471,8 +567,12 @@ export default function Riders() {
 
                       {/* STATUS column — dot + text */}
                       <td className="px-5 py-3">
-                        <span className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}>
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${r.isActive ? 'bg-green-500' : 'bg-red-400'}`} />
+                        <span
+                          className={`flex items-center gap-1.5 text-sm font-medium ${r.isActive ? 'text-green-600' : 'text-red-500'}`}
+                        >
+                          <span
+                            className={`w-2 h-2 rounded-full flex-shrink-0 ${r.isActive ? 'bg-green-500' : 'bg-red-400'}`}
+                          />
                           {r.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -486,8 +586,19 @@ export default function Riders() {
                               className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-blue-600 transition-colors"
                               onClick={() => startEdit(r)}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828A2 2 0 0110 16.414H8v-2a2 2 0 01.586-1.414z" />
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828A2 2 0 0110 16.414H8v-2a2 2 0 01.586-1.414z"
+                                />
                               </svg>
                             </button>
                           )}
@@ -497,8 +608,19 @@ export default function Riders() {
                               className={`p-1.5 rounded transition-colors ${r.isActive ? 'text-slate-400 hover:text-amber-600 hover:bg-amber-50' : 'text-slate-400 hover:text-green-600 hover:bg-green-50'}`}
                               onClick={() => toggleActive(r._id, r.isActive ?? true)}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9" />
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9"
+                                />
                               </svg>
                             </button>
                           )}
@@ -528,8 +650,19 @@ export default function Riders() {
                               className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               onClick={() => deleteRider(r._id)}
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4h6v3M3 7h18" />
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4h6v3M3 7h18"
+                                />
                               </svg>
                             </button>
                           )}
@@ -542,7 +675,9 @@ export default function Riders() {
             })}
             {filteredRiders.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm">No riders found</td>
+                <td colSpan={7} className="px-5 py-10 text-center text-slate-400 text-sm">
+                  No riders found
+                </td>
               </tr>
             )}
           </tbody>
@@ -560,7 +695,9 @@ export default function Riders() {
           >
             Prev
           </button>
-          <span className="px-2 text-sm text-slate-500">{page} / {totalPages}</span>
+          <span className="px-2 text-sm text-slate-500">
+            {page} / {totalPages}
+          </span>
           <button
             disabled={page >= totalPages}
             onClick={() => loadRiders(Math.min(totalPages, page + 1), kycFilter)}

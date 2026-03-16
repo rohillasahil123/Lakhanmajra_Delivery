@@ -58,20 +58,62 @@ const MODULE_ICONS: Record<string, string> = {
 };
 
 const ROLE_COLORS = [
-  { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500' },
-  { bg: 'bg-purple-50', border: 'border-purple-200', icon: 'bg-purple-100 text-purple-700', dot: 'bg-purple-500' },
-  { bg: 'bg-emerald-50', border: 'border-emerald-200', icon: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
-  { bg: 'bg-orange-50', border: 'border-orange-200', icon: 'bg-orange-100 text-orange-700', dot: 'bg-orange-500' },
-  { bg: 'bg-rose-50', border: 'border-rose-200', icon: 'bg-rose-100 text-rose-700', dot: 'bg-rose-500' },
-  { bg: 'bg-cyan-50', border: 'border-cyan-200', icon: 'bg-cyan-100 text-cyan-700', dot: 'bg-cyan-500' },
-  { bg: 'bg-indigo-50', border: 'border-indigo-200', icon: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500' },
-  { bg: 'bg-yellow-50', border: 'border-yellow-200', icon: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-500' },
+  {
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    icon: 'bg-blue-100 text-blue-700',
+    dot: 'bg-blue-500',
+  },
+  {
+    bg: 'bg-purple-50',
+    border: 'border-purple-200',
+    icon: 'bg-purple-100 text-purple-700',
+    dot: 'bg-purple-500',
+  },
+  {
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    icon: 'bg-emerald-100 text-emerald-700',
+    dot: 'bg-emerald-500',
+  },
+  {
+    bg: 'bg-orange-50',
+    border: 'border-orange-200',
+    icon: 'bg-orange-100 text-orange-700',
+    dot: 'bg-orange-500',
+  },
+  {
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    icon: 'bg-rose-100 text-rose-700',
+    dot: 'bg-rose-500',
+  },
+  {
+    bg: 'bg-cyan-50',
+    border: 'border-cyan-200',
+    icon: 'bg-cyan-100 text-cyan-700',
+    dot: 'bg-cyan-500',
+  },
+  {
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-200',
+    icon: 'bg-indigo-100 text-indigo-700',
+    dot: 'bg-indigo-500',
+  },
+  {
+    bg: 'bg-yellow-50',
+    border: 'border-yellow-200',
+    icon: 'bg-yellow-100 text-yellow-700',
+    dot: 'bg-yellow-500',
+  },
 ];
 
 // ─── Create Role Modal ────────────────────────────────────────────────────────
 
 function CreateRoleModal({
-  availablePermissions, onCreate, onClose,
+  availablePermissions,
+  onCreate,
+  onClose,
 }: Readonly<CreateRoleModalProps>) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
@@ -82,7 +124,7 @@ function CreateRoleModal({
   const groups = groupPermissions(availablePermissions);
 
   const toggle = (id: string) =>
-    setPerms((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+    setPerms((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const toggleModulePerms = (modulePerms: Permission[]) => {
     const allSelected = modulePerms.every((p) => perms.includes(p._id));
@@ -132,11 +174,20 @@ function CreateRoleModal({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h3 className="font-bold text-slate-800 text-lg">Create New Role</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500">✕</button>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
-          {error && <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">{error}</div>}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded-lg">
+              {error}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
@@ -153,7 +204,10 @@ function CreateRoleModal({
             </div>
 
             <div className="col-span-2">
-              <label htmlFor="roleDescription" className="text-xs text-slate-500 mb-1 block font-medium">
+              <label
+                htmlFor="roleDescription"
+                className="text-xs text-slate-500 mb-1 block font-medium"
+              >
                 Description
               </label>
               <input
@@ -174,17 +228,25 @@ function CreateRoleModal({
                 {Object.entries(groups)
                   .sort(([a], [b]) => a.localeCompare(b))
                   .map(([module, modulePerms]) => (
-                    <div key={module} className="border border-slate-100 rounded-xl overflow-hidden">
+                    <div
+                      key={module}
+                      className="border border-slate-100 rounded-xl overflow-hidden"
+                    >
                       <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
                         <div className="flex items-center gap-2">
                           <span>{MODULE_ICONS[module] || '⚙️'}</span>
-                          <span className="text-xs font-semibold text-slate-600 capitalize">{module}</span>
+                          <span className="text-xs font-semibold text-slate-600 capitalize">
+                            {module}
+                          </span>
                         </div>
                         <button
                           type="button"
                           className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
-                          onClick={() => toggleModulePerms(modulePerms)}>
-                          {modulePerms.every((p) => perms.includes(p._id)) ? 'Deselect all' : 'Select all'}
+                          onClick={() => toggleModulePerms(modulePerms)}
+                        >
+                          {modulePerms.every((p) => perms.includes(p._id))
+                            ? 'Deselect all'
+                            : 'Select all'}
                         </button>
                       </div>
                       <div className="px-3 py-2 flex flex-wrap gap-2">
@@ -195,7 +257,8 @@ function CreateRoleModal({
                               perms.includes(p._id)
                                 ? 'bg-blue-600 text-white border-blue-600'
                                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                            }`}>
+                            }`}
+                          >
                             <input
                               type="checkbox"
                               className="hidden"
@@ -213,8 +276,18 @@ function CreateRoleModal({
           </div>
 
           <div className="flex justify-end gap-2 px-6 py-4 border-t bg-slate-50 rounded-b-2xl">
-            <button className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-300 transition-colors" onClick={onClose} disabled={saving}>Cancel</button>
-            <button className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors" onClick={handleCreate} disabled={saving}>
+            <button
+              className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-300 transition-colors"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors"
+              onClick={handleCreate}
+              disabled={saving}
+            >
               {saving ? 'Creating...' : 'Create Role'}
             </button>
           </div>
@@ -249,7 +322,7 @@ function RoleDetailModal({
   const [error, setError] = useState('');
 
   const togglePerm = (id: string) =>
-    setEditPerms((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
+    setEditPerms((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const toggleModuleEditPerms = (modulePerms: Permission[]) => {
     const allSel = modulePerms.every((p) => editPerms.includes(p._id));
@@ -275,7 +348,9 @@ function RoleDetailModal({
     setEditPerms((prev) => [...new Set([...prev, ...moduleIds])]);
   };
 
-  let usersContent: React.ReactNode = <div className="py-8 text-center text-slate-400 text-sm">Loading users...</div>;
+  let usersContent: React.ReactNode = (
+    <div className="py-8 text-center text-slate-400 text-sm">Loading users...</div>
+  );
   if (usersLoaded && users.length === 0) {
     usersContent = (
       <div className="py-8 text-center">
@@ -289,7 +364,8 @@ function RoleDetailModal({
         {users.map((u) => (
           <div
             key={u._id}
-            className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+            className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100"
+          >
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
               {(u.name || '?')[0].toUpperCase()}
             </div>
@@ -299,10 +375,9 @@ function RoleDetailModal({
             </div>
             <span
               className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                u.isActive
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'bg-slate-100 text-slate-500'
-              }`}>
+                u.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+              }`}
+            >
               {u.isActive ? 'Active' : 'Inactive'}
             </span>
           </div>
@@ -364,7 +439,9 @@ function RoleDetailModal({
         <div className={`px-6 py-5 rounded-t-2xl ${c.bg} border-b ${c.border}`}>
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${c.icon}`}>
+              <div
+                className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${c.icon}`}
+              >
                 {(role.name || '?')[0].toUpperCase()}
               </div>
               <div>
@@ -375,7 +452,9 @@ function RoleDetailModal({
                     onChange={(e) => setEditName(e.target.value)}
                   />
                 ) : (
-                  <h3 className="font-bold text-slate-800 text-lg leading-tight capitalize">{role.name}</h3>
+                  <h3 className="font-bold text-slate-800 text-lg leading-tight capitalize">
+                    {role.name}
+                  </h3>
                 )}
                 {isEditing ? (
                   <input
@@ -385,7 +464,9 @@ function RoleDetailModal({
                     onChange={(e) => setEditDesc(e.target.value)}
                   />
                 ) : (
-                  <p className="text-sm text-slate-500 mt-0.5">{role.description || 'No description'}</p>
+                  <p className="text-sm text-slate-500 mt-0.5">
+                    {role.description || 'No description'}
+                  </p>
                 )}
               </div>
             </div>
@@ -393,7 +474,8 @@ function RoleDetailModal({
               onClick={onClose}
               className="w-8 h-8 rounded-full bg-white/70 hover:bg-white flex items-center justify-center text-slate-500 transition-colors"
               type="button"
-              aria-label="Close">
+              aria-label="Close"
+            >
               ✕
             </button>
           </div>
@@ -425,7 +507,8 @@ function RoleDetailModal({
                 activeTab === tab
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}>
+              }`}
+            >
               {tab}
             </button>
           ))}
@@ -451,11 +534,16 @@ function RoleDetailModal({
                   }
 
                   return (
-                    <div key={module} className="border border-slate-100 rounded-xl overflow-hidden">
+                    <div
+                      key={module}
+                      className="border border-slate-100 rounded-xl overflow-hidden"
+                    >
                       <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
                         <div className="flex items-center gap-2">
                           <span>{MODULE_ICONS[module] || '⚙️'}</span>
-                          <span className="text-xs font-semibold text-slate-600 capitalize">{module}</span>
+                          <span className="text-xs font-semibold text-slate-600 capitalize">
+                            {module}
+                          </span>
                           <span className="text-xs text-slate-400">
                             {isEditing
                               ? `${selectedInEdit.length}/${modulePerms.length}`
@@ -466,7 +554,8 @@ function RoleDetailModal({
                           <button
                             type="button"
                             className="text-xs text-blue-500 hover:text-blue-700 transition-colors"
-                            onClick={() => toggleModuleEditPerms(modulePerms)}>
+                            onClick={() => toggleModuleEditPerms(modulePerms)}
+                          >
                             {modulePerms.every((p) => editPerms.includes(p._id)) ? 'None' : 'All'}
                           </button>
                         )}
@@ -482,7 +571,8 @@ function RoleDetailModal({
                                 active
                                   ? 'bg-blue-600 text-white border-blue-600'
                                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
-                              }`}>
+                              }`}
+                            >
                               <input
                                 type="checkbox"
                                 className="hidden"
@@ -494,7 +584,8 @@ function RoleDetailModal({
                           ) : (
                             <span
                               key={p._id}
-                              className={`px-2.5 py-1 rounded-full text-xs font-medium border ${c.icon} ${c.border}`}>
+                              className={`px-2.5 py-1 rounded-full text-xs font-medium border ${c.icon} ${c.border}`}
+                            >
                               {action}
                             </span>
                           );
@@ -511,11 +602,7 @@ function RoleDetailModal({
             </div>
           )}
 
-          {activeTab === 'users' && (
-            <div>
-              {usersContent}
-            </div>
-          )}
+          {activeTab === 'users' && <div>{usersContent}</div>}
         </div>
 
         {/* Footer */}
@@ -530,13 +617,15 @@ function RoleDetailModal({
                   setEditDesc(role.description || '');
                   setEditPerms(role.permissions?.map((p) => p._id) || []);
                   setError('');
-                }}>
+                }}
+              >
                 Cancel
               </button>
               <button
                 className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 font-medium transition-colors flex-1"
                 onClick={handleSave}
-                disabled={saving}>
+                disabled={saving}
+              >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
@@ -547,22 +636,24 @@ function RoleDetailModal({
               <button
                 className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm hover:bg-red-100 transition-colors"
                 onClick={async () => {
-                  // eslint-disable-next-line no-alert
                   if (confirm(`Delete role "${role.name}"?`)) {
                     await onDelete(role._id);
                     onClose();
                   }
-                }}>
+                }}
+              >
                 Delete
               </button>
               <button
                 className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm hover:bg-slate-300 transition-colors ml-auto"
-                onClick={onClose}>
+                onClick={onClose}
+              >
                 Close
               </button>
               <button
                 className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 font-medium transition-colors"
-                onClick={() => setIsEditing(true)}>
+                onClick={() => setIsEditing(true)}
+              >
                 ✏️ Edit Role
               </button>
             </div>
@@ -571,7 +662,8 @@ function RoleDetailModal({
           {!hasPerm('roles:manage') && (
             <button
               className="px-4 py-2 bg-slate-200 text-slate-700 rounded-xl text-sm ml-auto"
-              onClick={onClose}>
+              onClick={onClose}
+            >
               Close
             </button>
           )}
@@ -583,11 +675,7 @@ function RoleDetailModal({
 
 // ─── Role Card ────────────────────────────────────────────────────════════════
 
-function RoleCard({
-  role,
-  colorIdx,
-  onClick,
-}: Readonly<RoleCardProps>) {
+function RoleCard({ role, colorIdx, onClick }: Readonly<RoleCardProps>) {
   const c = ROLE_COLORS[colorIdx % ROLE_COLORS.length];
   const groups = groupPermissions(role.permissions || []);
   const modules = Object.keys(groups);
@@ -595,13 +683,18 @@ function RoleCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded-2xl border-2 p-5 transition-all duration-150 hover:shadow-lg hover:scale-[1.02] active:scale-[0.99] ${c.bg} ${c.border}`}>
+      className={`w-full text-left rounded-2xl border-2 p-5 transition-all duration-150 hover:shadow-lg hover:scale-[1.02] active:scale-[0.99] ${c.bg} ${c.border}`}
+    >
       {/* Top row */}
       <div className="flex items-start justify-between mb-4">
-        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${c.icon}`}>
+        <div
+          className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${c.icon}`}
+        >
           {(role.name || '?')[0].toUpperCase()}
         </div>
-        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${c.icon} border ${c.border}`}>
+        <span
+          className={`text-xs font-semibold px-2.5 py-1 rounded-full ${c.icon} border ${c.border}`}
+        >
           {role.permissions?.length ?? 0} perms
         </span>
       </div>
@@ -618,7 +711,8 @@ function RoleCard({
           {modules.slice(0, 4).map((mod) => (
             <span
               key={mod}
-              className="inline-flex items-center gap-0.5 text-xs text-slate-500 bg-white/80 border border-slate-200 px-2 py-0.5 rounded-full">
+              className="inline-flex items-center gap-0.5 text-xs text-slate-500 bg-white/80 border border-slate-200 px-2 py-0.5 rounded-full"
+            >
               {MODULE_ICONS[mod] || '⚙️'} {mod}
             </span>
           ))}
@@ -724,11 +818,14 @@ export default function Roles() {
       <div className="text-center py-20">
         <div className="text-4xl mb-3">🛡</div>
         <p className="text-slate-500 font-medium">No roles created yet</p>
-        <p className="text-slate-400 text-sm mt-1 mb-4">Create a role to assign permissions to users</p>
+        <p className="text-slate-400 text-sm mt-1 mb-4">
+          Create a role to assign permissions to users
+        </p>
         {hasPerm('roles:manage') && (
           <button
             className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 transition-colors"
-            onClick={() => setShowCreate(true)}>
+            onClick={() => setShowCreate(true)}
+          >
             + Create First Role
           </button>
         )}
@@ -749,14 +846,16 @@ export default function Roles() {
         {hasPerm('roles:manage') && (
           <button
             className="px-4 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-sm"
-            onClick={() => setShowCreate(true)}>
+            onClick={() => setShowCreate(true)}
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="w-4 h-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              strokeWidth={2}>
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             Create Role

@@ -1,5 +1,6 @@
-import Sidebar from "./Sidebar";
-import Header from "./Header";
+import React from 'react';
+import Sidebar from './Sidebar';
+import Header from './Header';
 
 type Props = {
   readonly children: React.ReactNode;

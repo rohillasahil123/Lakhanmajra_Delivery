@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from 'react';
 
 interface Role {
   _id: string;
@@ -14,12 +14,12 @@ interface Props {
 }
 
 const roleColors: Record<string, string> = {
-  superadmin: "bg-red-100 text-red-700",
-  admin: "bg-purple-100 text-purple-700",
-  manager: "bg-blue-100 text-blue-700",
-  vendor: "bg-orange-100 text-orange-700",
-  rider: "bg-yellow-100 text-yellow-700",
-  user: "bg-gray-100 text-gray-700",
+  superadmin: 'bg-red-100 text-red-700',
+  admin: 'bg-purple-100 text-purple-700',
+  manager: 'bg-blue-100 text-blue-700',
+  vendor: 'bg-orange-100 text-orange-700',
+  rider: 'bg-yellow-100 text-yellow-700',
+  user: 'bg-gray-100 text-gray-700',
 };
 
 export default function RoleBadge({
@@ -32,7 +32,7 @@ export default function RoleBadge({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const canEdit = hasPermission("roles:manage") && role !== "superadmin";
+  const canEdit = hasPermission('roles:manage') && role !== 'superadmin';
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -41,8 +41,8 @@ export default function RoleBadge({
       }
     };
 
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const handleRoleChange = (roleId: string) => {
@@ -56,7 +56,7 @@ export default function RoleBadge({
         type="button"
         onClick={() => canEdit && setOpen((prev) => !prev)}
         className={`px-2 py-1 text-xs rounded-md font-medium ${
-          roleColors[role] ?? "bg-gray-100 text-gray-700"
+          roleColors[role] ?? 'bg-gray-100 text-gray-700'
         }`}
       >
         {role}
@@ -65,7 +65,7 @@ export default function RoleBadge({
       {open && canEdit && (
         <div className="absolute mt-1 w-32 bg-white border rounded shadow">
           {roles
-            .filter((r) => r.name !== "superadmin")
+            .filter((r) => r.name !== 'superadmin')
             .map((r) => (
               <button
                 key={r._id}

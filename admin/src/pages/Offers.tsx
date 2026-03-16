@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import api from "../api/client";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import api from '../api/client';
 
 type OfferItem = {
   _id: string;
@@ -22,11 +22,11 @@ type FormState = {
 };
 
 const initialForm: FormState = {
-  title: "",
-  subtitle: "",
-  cta: "",
-  linkUrl: "",
-  priority: "0",
+  title: '',
+  subtitle: '',
+  cta: '',
+  linkUrl: '',
+  priority: '0',
   isActive: true,
 };
 
@@ -37,20 +37,20 @@ export default function Offers() {
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(initialForm);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const title = useMemo(() => (editingId ? "Edit Offer Slide" : "Add Offer Slide"), [editingId]);
+  const title = useMemo(() => (editingId ? 'Edit Offer Slide' : 'Add Offer Slide'), [editingId]);
 
   const loadOffers = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/offers/admin");
+      const res = await api.get('/offers/admin');
       const payload = res.data?.data ?? res.data ?? [];
       setOffers(Array.isArray(payload) ? payload : []);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load offers");
+      setError(err?.response?.data?.message || 'Failed to load offers');
       setOffers([]);
     } finally {
       setLoading(false);
@@ -64,37 +64,37 @@ export default function Offers() {
   const resetForm = () => {
     setForm(initialForm);
     setSelectedFile(null);
-    setPreviewUrl("");
+    setPreviewUrl('');
     setEditingId(null);
-    if (fileRef.current) fileRef.current.value = "";
+    if (fileRef.current) fileRef.current.value = '';
   };
 
   const startEdit = (offer: OfferItem) => {
     setEditingId(offer._id);
     setForm({
-      title: offer.title || "",
-      subtitle: offer.subtitle || "",
-      cta: offer.cta || "",
-      linkUrl: offer.linkUrl || "",
+      title: offer.title || '',
+      subtitle: offer.subtitle || '',
+      cta: offer.cta || '',
+      linkUrl: offer.linkUrl || '',
       priority: String(offer.priority ?? 0),
       isActive: offer.isActive !== false,
     });
     setSelectedFile(null);
-    setPreviewUrl(offer.image || "");
-    if (fileRef.current) fileRef.current.value = "";
+    setPreviewUrl(offer.image || '');
+    if (fileRef.current) fileRef.current.value = '';
     setError(null);
   };
 
   const toFormData = () => {
     const fd = new FormData();
-    fd.append("title", form.title);
-    fd.append("subtitle", form.subtitle);
-    fd.append("cta", form.cta);
-    fd.append("linkUrl", form.linkUrl);
-    fd.append("priority", form.priority || "0");
-    fd.append("isActive", String(form.isActive));
+    fd.append('title', form.title);
+    fd.append('subtitle', form.subtitle);
+    fd.append('cta', form.cta);
+    fd.append('linkUrl', form.linkUrl);
+    fd.append('priority', form.priority || '0');
+    fd.append('isActive', String(form.isActive));
     if (selectedFile) {
-      fd.append("image", selectedFile);
+      fd.append('image', selectedFile);
     }
     return fd;
   };
@@ -105,31 +105,31 @@ export default function Offers() {
       setError(null);
 
       if (!editingId && !selectedFile) {
-        setError("Image is required for new offer");
+        setError('Image is required for new offer');
         return;
       }
 
       if (editingId) {
         await api.patch(`/offers/admin/${editingId}`, toFormData(), {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
       } else {
-        await api.post("/offers/admin", toFormData(), {
-          headers: { "Content-Type": "multipart/form-data" },
+        await api.post('/offers/admin', toFormData(), {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
       }
 
       resetForm();
       await loadOffers();
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Save failed");
+      setError(err?.response?.data?.message || 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    const ok = globalThis.confirm("Delete this offer slide?");
+    const ok = globalThis.confirm('Delete this offer slide?');
     if (!ok) return;
 
     try {
@@ -138,15 +138,15 @@ export default function Offers() {
       if (editingId === id) resetForm();
       await loadOffers();
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Delete failed");
+      setError(err?.response?.data?.message || 'Delete failed');
     }
   };
 
-  let submitLabel = "Create Slide";
+  let submitLabel = 'Create Slide';
   if (saving) {
-    submitLabel = "Saving...";
+    submitLabel = 'Saving...';
   } else if (editingId) {
-    submitLabel = "Update Slide";
+    submitLabel = 'Update Slide';
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,15 +169,15 @@ export default function Offers() {
         <div key={offer._id} className="border rounded-xl p-3 space-y-2">
           <img
             src={offer.image}
-            alt={offer.title || "Offer"}
+            alt={offer.title || 'Offer'}
             className="w-full h-32 object-cover rounded-lg border border-slate-200"
           />
           <div>
-            <div className="font-semibold text-slate-800">{offer.title || "(No title)"}</div>
-            <div className="text-xs text-slate-500">{offer.subtitle || "No subtitle"}</div>
+            <div className="font-semibold text-slate-800">{offer.title || '(No title)'}</div>
+            <div className="text-xs text-slate-500">{offer.subtitle || 'No subtitle'}</div>
           </div>
           <div className="text-xs text-slate-500">
-            Priority: {offer.priority ?? 0} · {offer.isActive === false ? "Inactive" : "Active"}
+            Priority: {offer.priority ?? 0} · {offer.isActive === false ? 'Inactive' : 'Active'}
           </div>
           <div className="flex gap-2">
             <button
@@ -210,7 +210,9 @@ export default function Offers() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold text-slate-800">Offer Slides</h2>
-        <p className="text-sm text-slate-500">Home page ka "Offers For You" slider yahan se manage karein.</p>
+        <p className="text-sm text-slate-500">
+          Home page ka "Offers For You" slider yahan se manage karein.
+        </p>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
@@ -265,14 +267,13 @@ export default function Offers() {
         </div>
 
         <div className="space-y-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-          />
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} />
           {previewUrl && (
-            <img src={previewUrl} alt="Offer preview" className="w-full max-w-xl h-40 object-cover rounded-lg border border-slate-200" />
+            <img
+              src={previewUrl}
+              alt="Offer preview"
+              className="w-full max-w-xl h-40 object-cover rounded-lg border border-slate-200"
+            />
           )}
         </div>
 

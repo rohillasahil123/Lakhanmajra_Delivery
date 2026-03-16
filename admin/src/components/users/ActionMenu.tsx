@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { IUser } from "../../hooks/useUsers";
+import { useState, useRef, useEffect } from 'react';
+import { IUser } from '../../hooks/useUsers';
 
 interface Props {
   user: IUser;
@@ -26,8 +26,8 @@ export default function ActionMenu({
       }
     };
 
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   return (
@@ -42,7 +42,7 @@ export default function ActionMenu({
 
       {open && (
         <div className="absolute right-0 mt-1 w-40 bg-white border rounded shadow">
-          {hasPermission("users:update") && (
+          {hasPermission('users:update') && (
             <button
               type="button"
               onClick={() => onEdit(user)}
@@ -52,7 +52,7 @@ export default function ActionMenu({
             </button>
           )}
 
-          {hasPermission("users:delete") && (
+          {hasPermission('users:delete') && (
             <button
               type="button"
               onClick={() => onDelete(user._id)}
@@ -62,13 +62,13 @@ export default function ActionMenu({
             </button>
           )}
 
-          {hasPermission("users:update") && (
+          {hasPermission('users:update') && (
             <button
               type="button"
               onClick={() => onToggleStatus(user._id, !user.isActive)}
               className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100"
             >
-              {user.isActive ? "Deactivate" : "Activate"}
+              {user.isActive ? 'Deactivate' : 'Activate'}
             </button>
           )}
         </div>

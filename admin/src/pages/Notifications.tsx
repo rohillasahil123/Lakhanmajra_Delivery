@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import api from "../api/client";
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import api from '../api/client';
 
 type UserRow = {
   _id: string;
@@ -13,7 +13,7 @@ type NotificationRow = {
   _id: string;
   title: string;
   body: string;
-  audience: "all" | "selected";
+  audience: 'all' | 'selected';
   recipients?: Array<{ _id: string; name?: string; email?: string; phone?: string } | string>;
   isActive: boolean;
   linkUrl?: string;
@@ -26,47 +26,51 @@ type FormState = {
   body: string;
   linkUrl: string;
   imageUrl: string;
-  audience: "all" | "selected";
+  audience: 'all' | 'selected';
 };
 
 const initialForm: FormState = {
-  title: "",
-  body: "",
-  linkUrl: "",
-  imageUrl: "",
-  audience: "all",
+  title: '',
+  body: '',
+  linkUrl: '',
+  imageUrl: '',
+  audience: 'all',
 };
 
 export default function Notifications() {
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-  const [userSearch, setUserSearch] = useState("");
+  const [userSearch, setUserSearch] = useState('');
   const [form, setForm] = useState<FormState>(initialForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>('');
 
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
     if (!q) return users;
     return users.filter((u) => {
-      const roleName = typeof u.roleId === "string" ? "" : u.roleId?.name || "";
-      return [u.name, u.email, u.phone, roleName].some((v) => String(v || "").toLowerCase().includes(q));
+      const roleName = typeof u.roleId === 'string' ? '' : u.roleId?.name || '';
+      return [u.name, u.email, u.phone, roleName].some((v) =>
+        String(v || '')
+          .toLowerCase()
+          .includes(q)
+      );
     });
   }, [users, userSearch]);
 
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/notifications/admin?limit=100");
+      const res = await api.get('/notifications/admin?limit=100');
       const payload = res.data?.data?.data ?? res.data?.data ?? [];
       setNotifications(Array.isArray(payload) ? payload : []);
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Failed to load notifications");
+      setError(err?.response?.data?.message || 'Failed to load notifications');
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -75,7 +79,7 @@ export default function Notifications() {
 
   const loadUsers = async () => {
     try {
-      const res = await api.get("/admin/users?limit=200");
+      const res = await api.get('/admin/users?limit=200');
       const payload = res.data?.data?.users ?? [];
       setUsers(Array.isArray(payload) ? payload : []);
     } catch {
@@ -92,36 +96,38 @@ export default function Notifications() {
     setForm(initialForm);
     setSelectedUserIds([]);
     setEditingId(null);
-    setUserSearch("");
+    setUserSearch('');
     setSelectedImage(null);
-    setImagePreviewUrl("");
+    setImagePreviewUrl('');
   };
 
   const toggleRecipient = (id: string) => {
-    setSelectedUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const startEdit = (row: NotificationRow) => {
     setEditingId(row._id);
     setForm({
-      title: row.title || "",
-      body: row.body || "",
-      linkUrl: row.linkUrl || "",
-      imageUrl: row.imageUrl || "",
-      audience: row.audience || "all",
+      title: row.title || '',
+      body: row.body || '',
+      linkUrl: row.linkUrl || '',
+      imageUrl: row.imageUrl || '',
+      audience: row.audience || 'all',
     });
     setSelectedUserIds(
       (row.recipients || []).map((r) => (typeof r === 'string' ? r : r._id)).filter(Boolean)
     );
     setSelectedImage(null);
-    setImagePreviewUrl(row.imageUrl || "");
+    setImagePreviewUrl(row.imageUrl || '');
     setError(null);
   };
 
   const onImageChange = (file: File | null) => {
     setSelectedImage(file);
     if (!file) {
-      setImagePreviewUrl(form.imageUrl || "");
+      setImagePreviewUrl(form.imageUrl || '');
       return;
     }
 
@@ -134,46 +140,46 @@ export default function Notifications() {
       setError(null);
 
       if (!form.title.trim()) {
-        setError("Title is required");
+        setError('Title is required');
         return;
       }
       if (!form.body.trim()) {
-        setError("Message body is required");
+        setError('Message body is required');
         return;
       }
-      if (form.audience === "selected" && selectedUserIds.length === 0) {
-        setError("Select at least one user for targeted notification");
+      if (form.audience === 'selected' && selectedUserIds.length === 0) {
+        setError('Select at least one user for targeted notification');
         return;
       }
 
       const payload = new FormData();
-      payload.append("title", form.title.trim());
-      payload.append("body", form.body.trim());
-      payload.append("linkUrl", form.linkUrl.trim());
-      payload.append("imageUrl", form.imageUrl.trim());
-      payload.append("audience", form.audience);
+      payload.append('title', form.title.trim());
+      payload.append('body', form.body.trim());
+      payload.append('linkUrl', form.linkUrl.trim());
+      payload.append('imageUrl', form.imageUrl.trim());
+      payload.append('audience', form.audience);
       payload.append(
-        "recipientIds",
-        JSON.stringify(form.audience === "selected" ? selectedUserIds : [])
+        'recipientIds',
+        JSON.stringify(form.audience === 'selected' ? selectedUserIds : [])
       );
       if (selectedImage) {
-        payload.append("image", selectedImage);
+        payload.append('image', selectedImage);
       }
 
       if (editingId) {
         await api.patch(`/notifications/admin/${editingId}`, payload, {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
       } else {
-        await api.post("/notifications/admin", payload, {
-          headers: { "Content-Type": "multipart/form-data" },
+        await api.post('/notifications/admin', payload, {
+          headers: { 'Content-Type': 'multipart/form-data' },
         });
       }
 
       resetForm();
       await loadNotifications();
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Save failed");
+      setError(err?.response?.data?.message || 'Save failed');
     } finally {
       setSaving(false);
     }
@@ -184,12 +190,12 @@ export default function Notifications() {
       await api.patch(`/notifications/admin/${row._id}`, { isActive: !row.isActive });
       await loadNotifications();
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Status update failed");
+      setError(err?.response?.data?.message || 'Status update failed');
     }
   };
 
   const handleDelete = async (id: string) => {
-    const ok = globalThis.confirm("Delete this notification?");
+    const ok = globalThis.confirm('Delete this notification?');
     if (!ok) return;
 
     try {
@@ -197,13 +203,13 @@ export default function Notifications() {
       if (editingId === id) resetForm();
       await loadNotifications();
     } catch (err: any) {
-      setError(err?.response?.data?.message || "Delete failed");
+      setError(err?.response?.data?.message || 'Delete failed');
     }
   };
 
-  let submitLabel = "Send Notification";
-  if (editingId) submitLabel = "Update Notification";
-  if (saving) submitLabel = "Saving...";
+  let submitLabel = 'Send Notification';
+  if (editingId) submitLabel = 'Update Notification';
+  if (saving) submitLabel = 'Saving...';
 
   let notificationListContent: ReactNode = (
     <div className="space-y-3">
@@ -221,26 +227,30 @@ export default function Notifications() {
                 />
               ) : null}
               <div className="text-xs text-slate-500 mt-1">
-                Audience: {row.audience === "all" ? "All users" : `Selected users (${row.recipients?.length || 0})`}
-                {row.createdAt ? ` · ${new Date(row.createdAt).toLocaleString()}` : ""}
+                Audience:{' '}
+                {row.audience === 'all'
+                  ? 'All users'
+                  : `Selected users (${row.recipients?.length || 0})`}
+                {row.createdAt ? ` · ${new Date(row.createdAt).toLocaleString()}` : ''}
               </div>
             </div>
             <span
               className={`px-2 py-1 rounded text-xs ${
-                row.isActive ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                row.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
               }`}
             >
-              {row.isActive ? "Active" : "Inactive"}
+              {row.isActive ? 'Active' : 'Inactive'}
             </span>
           </div>
 
-          {row.audience === "selected" && (row.recipients?.length || 0) > 0 && (
+          {row.audience === 'selected' && (row.recipients?.length || 0) > 0 && (
             <div className="text-xs text-slate-600">
-              Recipients: {(row.recipients || [])
+              Recipients:{' '}
+              {(row.recipients || [])
                 .slice(0, 4)
                 .map((r) => (typeof r === 'string' ? r.slice(-6) : r.name || r.phone || 'User'))
                 .join(', ')}
-              {(row.recipients?.length || 0) > 4 ? " ..." : ""}
+              {(row.recipients?.length || 0) > 4 ? ' ...' : ''}
             </div>
           )}
 
@@ -257,7 +267,7 @@ export default function Notifications() {
               onClick={() => toggleActive(row)}
               className="px-3 py-1.5 text-xs rounded bg-amber-50 text-amber-700 hover:bg-amber-100"
             >
-              {row.isActive ? "Disable" : "Enable"}
+              {row.isActive ? 'Disable' : 'Enable'}
             </button>
             <button
               type="button"
@@ -283,15 +293,20 @@ export default function Notifications() {
       <div>
         <h2 className="text-2xl font-semibold text-slate-800">Notifications</h2>
         <p className="text-sm text-slate-500">
-          Broadcast to all users or target selected users. Users will see these in app notification screen.
+          Broadcast to all users or target selected users. Users will see these in app notification
+          screen.
         </p>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-4">
-        <h3 className="text-lg font-semibold text-slate-800">{editingId ? "Edit Notification" : "Send Notification"}</h3>
+        <h3 className="text-lg font-semibold text-slate-800">
+          {editingId ? 'Edit Notification' : 'Send Notification'}
+        </h3>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">{error}</div>
+          <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -329,7 +344,9 @@ export default function Notifications() {
               className="h-28 w-full max-w-sm object-cover rounded-lg border border-slate-200"
             />
           ) : null}
-          <p className="text-xs text-slate-500">Tip: URL optional hai, aap direct file bhi upload kar sakte ho.</p>
+          <p className="text-xs text-slate-500">
+            Tip: URL optional hai, aap direct file bhi upload kar sakte ho.
+          </p>
         </div>
 
         <div className="flex items-center gap-4 text-sm text-slate-700">
@@ -337,8 +354,8 @@ export default function Notifications() {
             <input
               type="radio"
               name="audience"
-              checked={form.audience === "all"}
-              onChange={() => setForm((prev) => ({ ...prev, audience: "all" }))}
+              checked={form.audience === 'all'}
+              onChange={() => setForm((prev) => ({ ...prev, audience: 'all' }))}
             />
             <span>All users</span>
           </label>
@@ -346,14 +363,14 @@ export default function Notifications() {
             <input
               type="radio"
               name="audience"
-              checked={form.audience === "selected"}
-              onChange={() => setForm((prev) => ({ ...prev, audience: "selected" }))}
+              checked={form.audience === 'selected'}
+              onChange={() => setForm((prev) => ({ ...prev, audience: 'selected' }))}
             />
             <span>Selected users</span>
           </label>
         </div>
 
-        {form.audience === "selected" && (
+        {form.audience === 'selected' && (
           <div className="space-y-2 border rounded-lg p-3 bg-slate-50">
             <div className="flex items-center justify-between gap-2">
               <input
@@ -371,10 +388,17 @@ export default function Notifications() {
                 filteredUsers.map((user) => {
                   const checked = selectedUserIds.includes(user._id);
                   return (
-                    <label key={user._id} className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-white">
-                      <input type="checkbox" checked={checked} onChange={() => toggleRecipient(user._id)} />
-                      <span className="font-medium text-slate-800">{user.name || "User"}</span>
-                      <span className="text-slate-500">{user.phone || user.email || ""}</span>
+                    <label
+                      key={user._id}
+                      className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-white"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleRecipient(user._id)}
+                      />
+                      <span className="font-medium text-slate-800">{user.name || 'User'}</span>
+                      <span className="text-slate-500">{user.phone || user.email || ''}</span>
                     </label>
                   );
                 })

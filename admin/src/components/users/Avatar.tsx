@@ -1,9 +1,9 @@
-import React from "react";
+import React from 'react';
 
 const COLORS = [
-  "from-blue-400 to-blue-600",
-  "from-violet-400 to-violet-600",
-  "from-emerald-400 to-emerald-600",
+  'from-blue-400 to-blue-600',
+  'from-violet-400 to-violet-600',
+  'from-emerald-400 to-emerald-600',
 ];
 
 export default function Avatar({ name }: Readonly<{ name: string }>) {

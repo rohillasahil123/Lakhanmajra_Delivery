@@ -1,18 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from 'react';
 
 interface FilterParams {
   page?: number;
   role?: string;
   search?: string;
-  status?: "active" | "inactive";
+  status?: 'active' | 'inactive';
 }
 
-export const useUserFilters = (
-  fetchUsers: (params?: FilterParams) => Promise<void>
-) => {
-  const [search, setSearch] = useState<string>("");
+export const useUserFilters = (fetchUsers: (params?: FilterParams) => Promise<void>) => {
+  const [search, setSearch] = useState<string>('');
   const [activeRole, setActiveRole] = useState<string | null>(null);
-  const [debouncedSearch, setDebouncedSearch] = useState<string>("");
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
 
   // Debounce search input with trimming
   useEffect(() => {
@@ -39,9 +37,9 @@ export const useUserFilters = (
   }, [debouncedSearch, activeRole, fetchUsers]);
 
   const resetFilters = useCallback(async () => {
-    setSearch("");
+    setSearch('');
     setActiveRole(null);
-    setDebouncedSearch("");
+    setDebouncedSearch('');
     await fetchUsers({ page: 1 });
   }, [fetchUsers]);
 

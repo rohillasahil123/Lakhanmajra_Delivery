@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Product, ProductVariant, Category,
-  calculateDiscountPercent, getRefId,
+  Product,
+  ProductVariant,
+  Category,
+  calculateDiscountPercent,
+  getRefId,
 } from '../../hooks/useProducts';
 import VariantEditor from './VariantEditor';
 
@@ -11,29 +14,44 @@ interface Props {
   subCategoriesOf: (parentId: string) => Category[];
   updating: boolean;
   onClose: () => void;
-  onSave: (productId: string, payload: {
-    name: string; price: string; mrp: string; discount: string;
-    stock: string; catId: string; subcategoryId: string;
-    existingImages: string[]; newFiles: File[];
-    variants: ProductVariant[]; unit: string;
-  }) => Promise<void>;
+  onSave: (
+    productId: string,
+    payload: {
+      name: string;
+      price: string;
+      mrp: string;
+      discount: string;
+      stock: string;
+      catId: string;
+      subcategoryId: string;
+      existingImages: string[];
+      newFiles: File[];
+      variants: ProductVariant[];
+      unit: string;
+    }
+  ) => Promise<void>;
 }
 
 export default function EditProductModal({
-  product, parentCategories, subCategoriesOf, updating, onClose, onSave,
+  product,
+  parentCategories,
+  subCategoriesOf,
+  updating,
+  onClose,
+  onSave,
 }: Props) {
-  const [name,          setName]          = useState('');
-  const [price,         setPrice]         = useState('');
-  const [mrp,           setMrp]           = useState('');
-  const [discount,      setDiscount]      = useState('');
-  const [stock,         setStock]         = useState('');
-  const [catId,         setCatId]         = useState('');
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [mrp, setMrp] = useState('');
+  const [discount, setDiscount] = useState('');
+  const [stock, setStock] = useState('');
+  const [catId, setCatId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState('');
-  const [variants,      setVariants]      = useState<ProductVariant[]>([]);
-  const [existingImages,setExistingImages]= useState<string[]>([]);
-  const [newFiles,      setNewFiles]      = useState<File[]>([]);
-  const [newPreviews,   setNewPreviews]   = useState<string[]>([]);
-  const [error,         setError]         = useState('');
+  const [variants, setVariants] = useState<ProductVariant[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [newFiles, setNewFiles] = useState<File[]>([]);
+  const [newPreviews, setNewPreviews] = useState<string[]>([]);
+  const [error, setError] = useState('');
 
   // Populate from product on open
   useEffect(() => {
@@ -52,16 +70,18 @@ export default function EditProductModal({
     const srcVariants = Array.isArray((product as any).variants) ? (product as any).variants : [];
     setVariants(
       srcVariants.map((v: any, i: number) => ({
-        _id:       v?._id ? String(v._id) : undefined,
-        label:     String(v?.label || v?.unitType || ''),
-        price:     String(v?.price ?? ''),
-        mrp:       String(v?.mrp ?? ''),
-        discount:  String(v?.discount ?? calculateDiscountPercent(String(v?.mrp ?? ''), String(v?.price ?? ''))),
-        stock:     String(v?.stock ?? ''),
-        unit:      String(v?.unit || product.unit || 'piece'),
-        unitType:  String(v?.unitType || v?.label || ''),
+        _id: v?._id ? String(v._id) : undefined,
+        label: String(v?.label || v?.unitType || ''),
+        price: String(v?.price ?? ''),
+        mrp: String(v?.mrp ?? ''),
+        discount: String(
+          v?.discount ?? calculateDiscountPercent(String(v?.mrp ?? ''), String(v?.price ?? ''))
+        ),
+        stock: String(v?.stock ?? ''),
+        unit: String(v?.unit || product.unit || 'piece'),
+        unitType: String(v?.unitType || v?.label || ''),
         isDefault: Boolean(v?.isDefault || i === 0),
-      })),
+      }))
     );
   }, [product]);
 
@@ -80,9 +100,16 @@ export default function EditProductModal({
     setError('');
     try {
       await onSave(product._id, {
-        name, price, mrp, discount, stock,
-        catId, subcategoryId,
-        existingImages, newFiles, variants,
+        name,
+        price,
+        mrp,
+        discount,
+        stock,
+        catId,
+        subcategoryId,
+        existingImages,
+        newFiles,
+        variants,
         unit: product.unit || 'piece',
       });
       onClose();
@@ -94,7 +121,6 @@ export default function EditProductModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <div>
@@ -111,7 +137,6 @@ export default function EditProductModal({
 
         {/* Body */}
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-4">
-
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2 rounded">
               {error}
@@ -131,11 +156,16 @@ export default function EditProductModal({
             <select
               className="border px-3 py-2 rounded text-sm"
               value={catId}
-              onChange={(e) => { setCatId(e.target.value); setSubcategoryId(''); }}
+              onChange={(e) => {
+                setCatId(e.target.value);
+                setSubcategoryId('');
+              }}
             >
               <option value="">Select category</option>
               {parentCategories.map((c) => (
-                <option key={c._id} value={c._id}>{c.name}</option>
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
               ))}
             </select>
             <select
@@ -146,7 +176,9 @@ export default function EditProductModal({
             >
               <option value="">No sub-category</option>
               {subCategories.map((s) => (
-                <option key={s._id} value={s._id}>{s.name}</option>
+                <option key={s._id} value={s._id}>
+                  {s.name}
+                </option>
               ))}
             </select>
           </div>
@@ -158,14 +190,20 @@ export default function EditProductModal({
               placeholder="Price (₹) *"
               type="number"
               value={price}
-              onChange={(e) => { setPrice(e.target.value); setDiscount(calculateDiscountPercent(mrp, e.target.value)); }}
+              onChange={(e) => {
+                setPrice(e.target.value);
+                setDiscount(calculateDiscountPercent(mrp, e.target.value));
+              }}
             />
             <input
               className="border px-3 py-2 rounded text-sm"
               placeholder="MRP (₹)"
               type="number"
               value={mrp}
-              onChange={(e) => { setMrp(e.target.value); setDiscount(calculateDiscountPercent(e.target.value, price)); }}
+              onChange={(e) => {
+                setMrp(e.target.value);
+                setDiscount(calculateDiscountPercent(e.target.value, price));
+              }}
             />
             <input
               className="border px-3 py-2 rounded text-sm bg-slate-50"
@@ -200,7 +238,10 @@ export default function EditProductModal({
                       src={img}
                       alt={`existing-${i}`}
                       className="w-16 h-16 object-cover rounded-lg border border-slate-200"
-                      onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/64?text=No+Img'; }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          'https://via.placeholder.com/64?text=No+Img';
+                      }}
                     />
                     <button
                       type="button"
@@ -218,7 +259,9 @@ export default function EditProductModal({
             {/* Upload new */}
             <label className="border-2 border-dashed border-slate-300 rounded-lg p-3 text-center cursor-pointer hover:border-blue-400 transition-colors block">
               <p className="text-slate-500 text-sm">📷 Add / replace images</p>
-              <p className="text-slate-400 text-xs mt-0.5">JPEG · PNG · WEBP · SVG — max 5MB each</p>
+              <p className="text-slate-400 text-xs mt-0.5">
+                JPEG · PNG · WEBP · SVG — max 5MB each
+              </p>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
