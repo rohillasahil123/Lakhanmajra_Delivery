@@ -32,7 +32,7 @@ const generateInternalPassword = (): string => {
 const clearExpiredOtps = () => {
 	const now = Date.now();
 	for (const key in otpStore) {
-		if (otpStore[key].expiresAt < now) {
+		if (otpStore[key] && otpStore[key].expiresAt < now) {
 			delete otpStore[key];
 		}
 	}
@@ -64,7 +64,7 @@ export const sendOtp = async (req: Request, res: Response) => {
 		console.log(`\n🔐 OTP for ${phone}: ${otp}`);
 		console.log(`⏰ Expires in 10 minutes\n`);
 
-		res.json({
+		return res.json({
 			message: "OTP sent successfully",
 			phone: `${phone.slice(0, -4)}****`,
 			expiresIn: "10 minutes",
@@ -72,7 +72,7 @@ export const sendOtp = async (req: Request, res: Response) => {
 			// otp,
 		});
 	} catch (err) {
-		res.status(500).json({ message: "Failed to send OTP" });
+		return res.status(500).json({ message: "Failed to send OTP" });
 	}
 };
 
@@ -174,7 +174,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 
 		await User.findById(newUser._id).select("-password").populate("roleId");
 
-		res.status(201).json({
+		return res.status(201).json({
 			message: "User registered successfully",
 			user: {
 				id: newUser._id,
@@ -186,7 +186,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 			}
 		});
 	} catch (err) {
-		res.status(500).json({ message: "Registration failed" });
+		return res.status(500).json({ message: "Registration failed" });
 	}
 };
 
@@ -274,14 +274,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
 			});
 		}
 
-		res.json({
+		return res.json({
 			message: "OTP verified successfully",
 			phone,
 			verified: true,
 			isExistingUser: false,
 		});
 	} catch (err) {
-		res.status(500).json({ message: "OTP verification failed" });
+		return res.status(500).json({ message: "OTP verification failed" });
 	}
 };
 
@@ -312,9 +312,9 @@ export const register = async (req: Request, res: Response) => {
 		});
 
 		const safeUser = await User.findById(created._id).select('-password').populate('roleId');
-		res.status(201).json({ message: "User registered successfully", user: safeUser });
+		return res.status(201).json({ message: "User registered successfully", user: safeUser });
 	} catch (err) {
-		res.status(500).json({ message: "Register failed" });
+		return res.status(500).json({ message: "Register failed" });
 	}
 };
 
@@ -378,7 +378,7 @@ export const login = async (req: Request, res: Response) => {
 		 * Return user data but NOT the token
 		 * Token is now in httpOnly cookie, inaccessible to JavaScript
 		 */
-		res.status(200).json({
+		return res.status(200).json({
 			message: "Login successful",
 			user: {
 				id: user._id,
@@ -393,7 +393,7 @@ export const login = async (req: Request, res: Response) => {
 			}
 		});
 	} catch (err) {
-		res.status(500).json({ message: "Login failed" });
+		return res.status(500).json({ message: "Login failed" });
 	}
 };
 
@@ -483,9 +483,9 @@ export const deleteUser = async (req: Request, res: Response) => {
 		}
 
 		await User.findByIdAndDelete(id);
-		res.json({ message: "User deleted successfully" });
+		return res.json({ message: "User deleted successfully" });
 	} catch (err) {
-		res.status(500).json({ message: "Delete failed" });
+		return res.status(500).json({ message: "Delete failed" });
 	}
 };
 
@@ -513,9 +513,9 @@ export const assignRole = async (req: Request, res: Response) => {
 			return res.status(404).json({ message: "User not found" });
 		}
 
-		res.json({ message: "User role updated", user });
+		return res.json({ message: "User role updated", user });
 	} catch (err: any) {
-		res.status(500).json({ message: "Update failed", error: err.message });
+		return res.status(500).json({ message: "Update failed", error: err.message });
 	}
 }
 
