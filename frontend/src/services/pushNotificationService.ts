@@ -1,6 +1,5 @@
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '@/config/api';
 import { tokenManager } from '@/utils/tokenManager';
@@ -8,20 +7,32 @@ import { tokenManager } from '@/utils/tokenManager';
 const PUSH_TOKEN_KEY = '@lakhanmajra_expo_push_token';
 
 const isExpoGo = Constants.appOwnership === 'expo';
+let Notifications: typeof import('expo-notifications') | null = null;
 
-if (!isExpoGo) {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
-} else {
-  console.warn('Push notifications are not supported in Expo Go. Use a development build or standalone app for push notifications.');
-}
+const initializeNotifications = async (): Promise<void> => {
+  if (isExpoGo) {
+    console.warn('Push notifications are not supported in Expo Go. Use a development build or standalone/production app.');
+    return;
+  }
+
+  if (Notifications) return;
+
+  try {
+    Notifications = await import('expo-notifications');
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch (err) {
+    console.error('Failed to load expo-notifications module:', err);
+    Notifications = null;
+  }
+};
 
 const getProjectId = (): string | null => {
   const fromExpoConfig = (Constants.expoConfig as any)?.extra?.eas?.projectId;
@@ -45,7 +56,13 @@ export const registerDeviceForPush = async (): Promise<string | null> => {
       return null;
     }
 
+    await initializeNotifications();
+    if (!Notifications) {
+      return null;
+    }
+
     if (!Device.isDevice) {
+      console.warn('Push notifications require a physical device. Skipping registration.');
       return null;
     }
 
@@ -66,6 +83,7 @@ export const registerDeviceForPush = async (): Promise<string | null> => {
 
     const projectId = getProjectId();
     if (!projectId) {
+      console.warn('Project ID is missing from Constants.expoConfig or Constants.easConfig.');
       return null;
     }
 
@@ -82,7 +100,8 @@ export const registerDeviceForPush = async (): Promise<string | null> => {
     await AsyncStorage.setItem(PUSH_TOKEN_KEY, expoPushToken);
 
     return expoPushToken;
-  } catch {
+  } catch (err) {
+    console.error('Error in registerDeviceForPush:', err);
     return null;
   }
 };
