@@ -1,5 +1,4 @@
 import { Response } from 'express';
-import { Request } from 'express';
 import mongoose, { Types } from 'mongoose';
 import Order from '../models/order.model';
 import Cart from '../models/Cart.model';
@@ -9,6 +8,7 @@ import { OrderQueueMessage } from '../types';
 import User from '../models/user.model';
 import { recordAudit } from './audit.service';
 import { emitOrderRealtime } from './realtime.service';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 const CANCELLATION_THRESHOLD = 3;
 const ADVANCE_CHARGE = 20;
@@ -57,7 +57,7 @@ const getCancellationPolicy = async (userId: string) => {
   };
 };
 
-export const getOrderEligibility = async (req: Request, res: Response): Promise<void> => {
+export const getOrderEligibility = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const userId = String(req.user?.id || req.user?._id || '');
     if (!userId) {
@@ -71,7 +71,7 @@ export const getOrderEligibility = async (req: Request, res: Response): Promise<
   }
 };
 
-export const createOrder = async (req: Request, res: Response): Promise<void> => {
+export const createOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   let session: mongoose.ClientSession | null = null;
   try {
     const userId = String(req.user?.id || req.user?._id || '');
@@ -307,7 +307,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const getMyOrders = async (req: Request, res: Response): Promise<void> => {
+export const getMyOrders = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const orders = await Order.find({ userId: req.user!.id })
       .populate('items.productId')
@@ -336,7 +336,7 @@ export const getMyOrders = async (req: Request, res: Response): Promise<void> =>
   }
 };
 
-export const getOrderById = async (req: Request, res: Response): Promise<void> => {
+export const getOrderById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const order = await Order.findOne({ 
       _id: req.params.id, 
@@ -355,7 +355,7 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
 };
 
 // Admin: get order detail
-export const adminGetOrderById = async (req: Request, res: Response): Promise<void> => {
+export const adminGetOrderById = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
@@ -376,7 +376,7 @@ export const adminGetOrderById = async (req: Request, res: Response): Promise<vo
 };
 
 /* ================= ADMIN / STAFF: list & manage orders ================= */
-export const adminListOrders = async (req: Request, res: Response): Promise<void> => {
+export const adminListOrders = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { page = '1', limit = '20', status, paymentMethod, q, from, to, today } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
@@ -435,7 +435,7 @@ export const adminListOrders = async (req: Request, res: Response): Promise<void
   }
 };
 
-export const assignOrderToRider = async (req: Request, res: Response): Promise<void> => {
+export const assignOrderToRider = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
@@ -476,7 +476,7 @@ export const assignOrderToRider = async (req: Request, res: Response): Promise<v
   }
 };
 
-export const adminUpdateOrderStatus = async (req: Request, res: Response): Promise<void> => {
+export const adminUpdateOrderStatus = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
@@ -517,7 +517,7 @@ export const adminUpdateOrderStatus = async (req: Request, res: Response): Promi
   }
 };
 
-export const cancelMyOrder = async (req: Request, res: Response): Promise<void> => {
+export const cancelMyOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
