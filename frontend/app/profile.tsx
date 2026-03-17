@@ -273,8 +273,8 @@ export default function ProfileScreen() {
           phone: sanitizedPhone,
           address: sanitizedAddress,
           deliveryInstructions: sanitizedInstructions,
-          latitude: sanitizeCoordinate(selectedLocation.latitude, true),
-          longitude: sanitizeCoordinate(selectedLocation.longitude, false),
+          latitude: sanitizeCoordinate(selectedLocation.latitude),
+          longitude: sanitizeCoordinate(selectedLocation.longitude),
         },
       );
 

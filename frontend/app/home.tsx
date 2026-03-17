@@ -275,7 +275,7 @@ export default function HomeScreen() {
           return timeB - timeA;
         });
 
-        setLatestOrder(sortedOrders[0]);
+        setLatestOrder(sortedOrders[0] ?? null);
       } catch {
         if (mounted) setLatestOrder(null);
       }

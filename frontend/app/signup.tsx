@@ -38,6 +38,7 @@ type VerifyOtpResponse = {
   verified: boolean;
   isExistingUser?: boolean;
   token?: string;
+  verificationToken?: string;
   user?: any;
   message?: string;
 };
@@ -77,6 +78,8 @@ export default function SignupScreen() {
   const screenPadding = getScreenPadding(width);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [phone, setPhone] = useState("");
+  const [verifiedPhone, setVerifiedPhone] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
   const [otp, setOtp] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -86,10 +89,14 @@ export default function SignupScreen() {
   const [timer, setTimer] = useState(0);
 
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (timer > 0) {
-      const interval = setInterval(() => setTimer((t) => t - 1), 1000);
-      return () => clearInterval(interval);
+      interval = setInterval(() => setTimer((t) => t - 1), 1000);
     }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [timer]);
 
   function normalizePhone(value: string): string {
@@ -118,9 +125,10 @@ export default function SignupScreen() {
 
       await postAuth("/send-otp", { phone: sanitized });
 
-      setTimer(120); // 2 minutes timer
+      setTimer(30); // 30 seconds timer
       setStep(2);
       setPhone(sanitized);
+      setVerifiedPhone("");
       Alert.alert("Success", `OTP sent successfully to ${sanitized}`);
     } catch (error: any) {
       const errorMsg =
@@ -158,10 +166,20 @@ export default function SignupScreen() {
         otp: cleanOtp,
       });
 
-      if (data.isExistingUser && data.token && data.user) {
-        await tokenManager.storeToken(data.token);
+      if (!data.verificationToken) {
+        Alert.alert("Error", "OTP verification token missing.");
+        return;
+      }
+
+      setVerificationToken(data.verificationToken);
+
+      if (data.isExistingUser && data.user) {
+        if (data.token) {
+          await tokenManager.storeToken(data.token);
+        }
         await tokenManager.storeUser(data.user);
         setOtp(cleanOtp);
+        setVerifiedPhone(cleanPhone);
         Alert.alert("Success", "Welcome back!", [
           {
             text: "OK",
@@ -173,6 +191,7 @@ export default function SignupScreen() {
 
       setStep(3);
       setOtp(cleanOtp);
+      setVerifiedPhone(cleanPhone);
       Alert.alert("Success", "OTP verified! Now enter your details.");
     } catch (error: any) {
       const errorMsg =
@@ -213,16 +232,26 @@ export default function SignupScreen() {
 
       setLoading(true);
 
+      if (!verificationToken) {
+        Alert.alert("Error", "Please verify OTP before creating account.");
+        setStep(2);
+        return;
+      }
+
+      const phoneToUse = verifiedPhone || sanitizedPhone;
+
       const data = await postAuth<{
         token?: string;
         user?: any;
         message?: string;
+        isExistingUser?: boolean;
       }>("/register-with-otp", {
-        phone: sanitizedPhone,
+        phone: phoneToUse,
         otp: otp.trim(),
         name: sanitizedName,
         email: sanitizedEmail,
         village: sanitizedVillage,
+        verificationToken,
       });
 
       if (data.token) {
@@ -231,6 +260,16 @@ export default function SignupScreen() {
 
       if (data.user) {
         await tokenManager.storeUser(data.user);
+      }
+
+      if (data.isExistingUser) {
+        Alert.alert("Success", "Existing user logged in.", [
+          {
+            text: "OK",
+            onPress: () => router.replace("/home"),
+          },
+        ]);
+        return;
       }
 
       Alert.alert("Success", "Account created successfully!", [
@@ -325,7 +364,7 @@ export default function SignupScreen() {
                   Enter your mobile number
                 </ThemedText>
                 <ThemedText style={styles.stepSubtitle}>
-                  We’ll send a secure OTP for verification.
+                  We will send a secure OTP for verification.
                 </ThemedText>
                 <TextInput
                   placeholder="10-digit phone number"

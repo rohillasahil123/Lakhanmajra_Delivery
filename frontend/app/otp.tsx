@@ -34,7 +34,11 @@ export default function OTPScreen() {
     const next = [...digits];
     next[index] = val;
     setDigits(next);
-    if (val && index < refs.length - 1) refs[index + 1].current?.focus();
+
+    const nextRef = refs[index + 1];
+    if (val && nextRef && nextRef.current) {
+      nextRef.current.focus();
+    }
   }
 
   function onVerify() {

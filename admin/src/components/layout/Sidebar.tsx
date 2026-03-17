@@ -17,8 +17,7 @@ const NAV_ITEMS = [
         label: 'Dashboard',
         icon: (
           <svg
-            width="32"
-            height="32"
+            className="w-full h-full"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -41,37 +40,37 @@ const NAV_ITEMS = [
         to: '/users',
         label: 'Users',
         key: 'users',
-        icon: <span className="text-4xl">👤</span>,
+        icon: <span className="text-xl">👤</span>,
       },
       {
         to: '/riders',
         label: 'Riders',
         key: 'riders',
-        icon: <span className="text-4xl">🚴</span>,
+        icon: <span className="text-xl">🚴</span>,
       },
       {
         to: '/products',
         label: 'Products',
         key: 'products',
-        icon: <span className="text-4xl">📦</span>,
+        icon: <span className="text-xl">📦</span>,
       },
       {
         to: '/offers',
         label: 'Offers',
         key: 'offers',
-        icon: <span className="text-4xl">🎁</span>,
+        icon: <span className="text-xl">🎁</span>,
       },
       {
         to: '/notifications',
         label: 'Notifications',
         key: 'notifications',
-        icon: <span className="text-4xl">🔔</span>,
+        icon: <span className="text-xl">🔔</span>,
       },
       {
         to: '/orders',
         label: 'Orders',
         key: 'orders',
-        icon: <span className="text-4xl">🧾</span>,
+        icon: <span className="text-xl">🧾</span>,
       },
     ],
   },
@@ -212,7 +211,9 @@ export default function Sidebar() {
                     className={({ isActive }) =>
                       `flex ${isCollapsed ? 'justify-center' : 'justify-start'} items-center ${
                         isCollapsed ? 'gap-0' : 'gap-2'
-                      } px-2.25 py-1.75 rounded-lg mb-0.25 text-[12.5px] transition-all duration-[0.13s] relative no-underline ${
+                      } px-2.25 ${isCollapsed ? 'py-2' : 'py-1.75'} rounded-lg ${
+                        isCollapsed ? 'mb-2' : 'mb-0.25'
+                      } text-[12.5px] transition-all duration-[0.13s] relative no-underline ${
                         isActive
                           ? 'bg-[#eef2ff] font-semibold text-[#3b6ef8]'
                           : 'text-[#4b5470] font-medium hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -222,10 +223,11 @@ export default function Sidebar() {
                     {({ isActive }) => (
                       <>
                         <span
-                          className={`flex-shrink-0 ${isActive ? 'opacity-100' : 'opacity-70'}`}
+                          className={`flex-shrink-0 flex items-center justify-center transition-all duration-200 ${isCollapsed ? 'w-6 h-6 text-lg' : 'w-8 h-8 text-xl'} ${isActive ? 'opacity-100' : 'opacity-70'}`}
                         >
                           {link.icon}
                         </span>
+                        {isCollapsed && <span className="sr-only">{link.label}</span>}
                         {!isCollapsed && (
                           <>
                             <span className="flex-1">{link.label}</span>

@@ -26,6 +26,7 @@ export interface RegisterRequest {
   email: string;
   phone: string;
   password: string;
+  village?: string;
 }
 
 export interface LoginRequest {

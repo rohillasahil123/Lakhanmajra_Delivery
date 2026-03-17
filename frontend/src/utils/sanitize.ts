@@ -205,3 +205,20 @@ export const displaySafeText = (text: string | null | undefined): string => {
     .replace(/[<>]/g, '') // Remove dangerous characters
     .trim();
 };
+
+/**
+ * Sanitize general address fields (addresses can include commas, digits, and words)
+ */
+export const sanitizeAddress = (address: string | null | undefined, maxLength = 255): string => {
+  const sanitized = sanitizeFormInput(address, maxLength);
+  // allow comma and number characters for addresses but remove suspicious script tokens
+  return sanitized.replace(/<script.*?>.*?<\/script>/gi, '');
+};
+
+/**
+ * Sanitize delivery instructions text.
+ */
+export const sanitizeDeliveryInstructions = (instructions: string | null | undefined, maxLength = 500): string => {
+  const sanitized = sanitizeFormInput(instructions, maxLength);
+  return sanitized.replace(/\b(drop|hack|sql|rm\s+-rf)\b/gi, '');
+};

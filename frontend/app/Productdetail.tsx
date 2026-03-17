@@ -66,8 +66,9 @@ export default function ProductDetailScreen() {
   const screenPadding = getScreenPadding(width);
   const addItem = useCart((s) => s.addItem);
   const cartCount = useCart((s) => s.items.length);
+  const defaultVariant = PRODUCT_DETAIL.variants[0] || { id: 'default', size: '', price: 0 };
   const [selectedVariant, setSelectedVariant] = useState(
-    PRODUCT_DETAIL.variants[1],
+    PRODUCT_DETAIL.variants[1] || defaultVariant,
   );
   const [quantity, setQuantity] = useState(1);
 

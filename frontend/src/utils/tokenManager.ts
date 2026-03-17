@@ -91,6 +91,19 @@ class TokenManager {
   }
 
   /**
+   * Remove user profile (helper for logout flows)
+   */
+  async clearUser(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(USER_KEY);
+      console.log('✅ User data cleared');
+    } catch (error) {
+      console.error('❌ Error clearing user data:', error);
+      throw new Error('Failed to clear user data');
+    }
+  }
+
+  /**
    * Check if token exists
    */
   async hasToken(): Promise<boolean> {
@@ -130,13 +143,30 @@ class TokenManager {
    * Decode JWT token (without verification - for client-side only)
    * WARNING: Never use for security validation on client side
    */
+  private decodeBase64(payload: string): string {
+    if (!payload) return '';
+
+    if (typeof Buffer !== 'undefined') {
+      return Buffer.from(payload, 'base64').toString('utf-8');
+    }
+
+    if (typeof globalThis !== 'undefined' && (globalThis as any).atob) {
+      return (globalThis as any).atob(payload);
+    }
+
+    throw new Error('Base64 decode not available');
+  }
+
   decodeToken(token: string): any {
     try {
       if (!this.isValidToken(token)) {
         return null;
       }
+
       const payload = token.split('.')[1];
-      const decoded = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
+      if (!payload) return null;
+
+      const decoded = JSON.parse(this.decodeBase64(payload));
       return decoded;
     } catch (error) {
       console.error('❌ Error decoding token:', error);

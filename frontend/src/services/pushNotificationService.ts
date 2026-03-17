@@ -7,15 +7,21 @@ import { tokenManager } from '@/utils/tokenManager';
 
 const PUSH_TOKEN_KEY = '@lakhanmajra_expo_push_token';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+const isExpoGo = Constants.appOwnership === 'expo';
+
+if (!isExpoGo) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} else {
+  console.warn('Push notifications are not supported in Expo Go. Use a development build or standalone app for push notifications.');
+}
 
 const getProjectId = (): string | null => {
   const fromExpoConfig = (Constants.expoConfig as any)?.extra?.eas?.projectId;
@@ -34,6 +40,11 @@ const getAuthHeaders = async (): Promise<Record<string, string> | null> => {
 
 export const registerDeviceForPush = async (): Promise<string | null> => {
   try {
+    if (isExpoGo) {
+      console.warn('Expo Go cannot register for push notifications (SDK 53+); use a development build or standalone app.');
+      return null;
+    }
+
     if (!Device.isDevice) {
       return null;
     }

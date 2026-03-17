@@ -110,8 +110,9 @@ export default function LocationScreen() {
         longitude: lng,
       });
 
-      if (addressData.length > 0) {
-        setAddress(formatAddress(addressData[0]));
+      if (addressData.length > 0 && addressData[0]) {
+        const firstAddress = addressData[0];
+        setAddress(formatAddress(firstAddress));
       } else {
         setAddress("Pinned location");
       }

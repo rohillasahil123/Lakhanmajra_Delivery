@@ -17,6 +17,17 @@ interface OtpStore {
 }
 
 const otpStore: OtpStore = {};
+const verifiedOtps: Set<string> = new Set();
+
+const normalizePhoneForOtp = (rawPhone?: string): string => {
+	if (!rawPhone) return "";
+	const digits = String(rawPhone).replace(/\D/g, "");
+	// Normalize to 10-digit mobile so all requests are consistent
+	if (digits.startsWith("91") && digits.length > 10) {
+		return digits.slice(digits.length - 10);
+	}
+	return digits.slice(digits.length - 10);
+};
 
 // Generate random 4-digit OTP
 const generateOtp = (): string => {
@@ -41,34 +52,35 @@ const clearExpiredOtps = () => {
 export const sendOtp = async (req: Request, res: Response) => {
 	try {
 		const { phone } = req.body;
+		const normalizedPhone = normalizePhoneForOtp(phone);
 
-		if (!phone || phone.length < 10) {
+		if (!normalizedPhone || normalizedPhone.length < 10) {
 			return res.status(400).json({ message: "Valid phone number is required" });
 		}
 
 		clearExpiredOtps();
+		// Reset previous verify state for this phone (ensures fresh OTP in every cycle)
+		verifiedOtps.delete(normalizedPhone);
 
 		// Generate OTP
 		const otp = generateOtp();
 		const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
 		// Store OTP
-		otpStore[phone] = {
+		otpStore[normalizedPhone] = {
 			otp,
 			expiresAt,
 			attempts: 0,
 		};
 
-		// Show OTP in terminal (for development, will replace with SMS later)
-		console.log(`\n🔐 OTP for ${phone}: ${otp}`);
-		console.log(`⏰ Expires in 10 minutes\n`);
+		// Show OTP in terminal (development only)
+		console.log(`\n🔐 OTP for ${normalizedPhone}: ${otp}`);
+		console.log(`⏰ Expires in ${Math.round((expiresAt - Date.now())/1000)} seconds\n`);
 
 		return res.json({
 			message: "OTP sent successfully",
-			phone: `${phone.slice(0, -4)}****`,
+			phone: `${normalizedPhone.slice(0, 6)}****`,
 			expiresIn: "10 minutes",
-			// For development only - remove in production
-			// otp,
 		});
 	} catch (err) {
 		return res.status(500).json({ message: "Failed to send OTP" });
@@ -78,44 +90,106 @@ export const sendOtp = async (req: Request, res: Response) => {
 /* ================= VERIFY OTP & REGISTER ================= */
 export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 	try {
-		const { phone, otp, name, email, village } = req.body;
+		const { phone, otp, name, email, village, verificationToken } = req.body;
 
-		if (!phone || !otp || !name || !email || !village) {
+		if (!phone || !otp || !name || !email || !village || !verificationToken) {
 			return res.status(400).json({ message: "All fields are required" });
+		}
+
+		const normalizedPhone = normalizePhoneForOtp(phone);
+		if (!normalizedPhone || normalizedPhone.length < 10) {
+			return res.status(400).json({ message: "Valid phone number is required" });
+		}
+
+		let tokenData: any;
+		try {
+			tokenData = jwt.verify(verificationToken, JWT_SECRET) as { phone?: string };
+		} catch (err) {
+			return res.status(401).json({ message: "Invalid or expired verification token" });
+		}
+
+		const tokenPhone = normalizePhoneForOtp(tokenData?.phone);
+		if (tokenPhone !== normalizedPhone) {
+			return res.status(400).json({ message: "OTP verification mismatch. Please request a new OTP" });
 		}
 
 		clearExpiredOtps();
 
-		// Check if OTP exists
-		if (!otpStore[phone]) {
-			return res.status(400).json({ message: "OTP not found. Please request a new OTP" });
+		const storedOtp = otpStore[normalizedPhone];
+		if (storedOtp) {
+			if (storedOtp.expiresAt < Date.now()) {
+				delete otpStore[normalizedPhone];
+				return res.status(400).json({ message: "OTP expired. Please request a new OTP" });
+			}
+
+			if (storedOtp.otp !== otp) {
+				storedOtp.attempts += 1;
+				return res.status(400).json({ message: "Invalid OTP. Please try again" });
+			}
 		}
 
-		const storedOtp = otpStore[phone];
+		// Existing user by phone
+		const normalizedPhoneSearch = normalizePhoneForOtp(normalizedPhone);
+		const existingByPhone = await User.findOne({
+			$or: [
+				{ phone: normalizedPhoneSearch },
+				{ phone: `91${normalizedPhoneSearch}` },
+				{ phone: `+91${normalizedPhoneSearch}` },
+			],
+		}).populate("roleId");
 
-		// Check if OTP expired
-		if (storedOtp.expiresAt < Date.now()) {
-			delete otpStore[phone];
-			return res.status(400).json({ message: "OTP expired. Please request a new OTP" });
+		if (existingByPhone) {
+			delete otpStore[normalizedPhone];
+			verifiedOtps.delete(normalizedPhone);
+
+			const role = (existingByPhone as any).roleId;
+			const token = jwt.sign(
+				{
+					id: existingByPhone._id,
+					email: existingByPhone.email,
+					roleId: existingByPhone.roleId,
+					roleName: (role as any)?.name,
+				},
+				JWT_SECRET,
+				{ expiresIn: "7d" }
+			);
+
+			const xsrfToken = jwt.sign({ type: 'csrf', timestamp: Date.now() }, JWT_SECRET, { expiresIn: "1h" });
+
+			res.cookie('token', token, {
+				httpOnly: true,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: 7 * 24 * 60 * 60 * 1000,
+				path: '/',
+			});
+
+			res.cookie('XSRF-TOKEN', xsrfToken, {
+				httpOnly: false,
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: 60 * 60 * 1000,
+				path: '/',
+			});
+
+			return res.status(200).json({
+				message: "Existing user logged in successfully.",
+				isExistingUser: true,
+				token,
+				user: {
+					id: existingByPhone._id,
+					name: existingByPhone.name,
+					email: existingByPhone.email,
+					phone: existingByPhone.phone,
+					village: (existingByPhone as any).village,
+					role: (role as any)?.name || "user",
+				},
+			});
 		}
 
-		// Check attempt limit
-		if (storedOtp.attempts >= 3) {
-			delete otpStore[phone];
-			return res.status(400).json({ message: "Too many attempts. Please request a new OTP" });
-		}
-
-		// Verify OTP
-		if (storedOtp.otp !== otp) {
-			storedOtp.attempts += 1;
-			return res.status(400).json({ message: "Invalid OTP. Please try again" });
-		}
-
-		// OTP is valid - check if user exists
-		const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
-		if (existingUser) {
-			delete otpStore[phone];
-			return res.status(400).json({ message: "User already registered with this email or phone" });
+		const existingByEmail = await User.findOne({ email });
+		if (existingByEmail) {
+			return res.status(409).json({ message: "Email already registered. Please login." });
 		}
 
 		// Create new user
@@ -125,35 +199,23 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 		}
 
 		const hashedPassword = await bcrypt.hash(generateInternalPassword(), 10);
-
 		const newUser = await User.create({
 			name,
 			email,
-			phone,
+			phone: normalizedPhone,
 			village,
 			password: hashedPassword,
 			roleId: userRole._id,
 		});
 
-		// Delete OTP after successful registration
-		delete otpStore[phone];
+		// Clear OTP state after success
+		delete otpStore[normalizedPhone];
+		verifiedOtps.delete(normalizedPhone);
 
-		// Generate token
 		const role = userRole as any;
-		const token = jwt.sign(
-			{ id: newUser._id, email: newUser.email, roleId: newUser.roleId, roleName: role?.name },
-			JWT_SECRET,
-			{ expiresIn: "7d" }
-		);
+		const token = jwt.sign({ id: newUser._id, email: newUser.email, roleId: newUser.roleId, roleName: role?.name }, JWT_SECRET, { expiresIn: "7d" });
+		const xsrfToken = jwt.sign({ type: 'csrf', timestamp: Date.now() }, JWT_SECRET, { expiresIn: "1h" });
 
-		// Generate XSRF token for CSRF protection
-		const xsrfToken = jwt.sign(
-			{ type: 'csrf', timestamp: Date.now() },
-			JWT_SECRET,
-			{ expiresIn: "1h" }
-		);
-
-		// Set httpOnly cookie with token
 		res.cookie('token', token, {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === 'production',
@@ -162,7 +224,6 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 			path: '/',
 		});
 
-		// Set XSRF token cookie
 		res.cookie('XSRF-TOKEN', xsrfToken, {
 			httpOnly: false,
 			secure: process.env.NODE_ENV === 'production',
@@ -170,8 +231,6 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 			maxAge: 60 * 60 * 1000,
 			path: '/',
 		});
-
-		await User.findById(newUser._id).select("-password").populate("roleId");
 
 		return res.status(201).json({
 			message: "User registered successfully",
@@ -182,7 +241,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 				phone: newUser.phone,
 				village: newUser.village,
 				role: role?.name || "user",
-			}
+			},
 		});
 	} catch (err) {
 		return res.status(500).json({ message: "Registration failed" });
@@ -200,26 +259,48 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
 		clearExpiredOtps();
 
-		if (!otpStore[phone]) {
+		const normalizedPhone = normalizePhoneForOtp(phone);
+		if (!normalizedPhone || normalizedPhone.length < 10) {
 			return res.status(400).json({ message: "OTP not found" });
 		}
 
-		const storedOtp = otpStore[phone];
+		const storedOtp = otpStore[normalizedPhone];
+		const isPhoneVerified = verifiedOtps.has(normalizedPhone);
 
-		if (storedOtp.expiresAt < Date.now()) {
-			delete otpStore[phone];
-			return res.status(400).json({ message: "OTP expired" });
+		if (!storedOtp && !isPhoneVerified) {
+			return res.status(400).json({ message: "OTP not found" });
 		}
 
-		if (storedOtp.otp !== otp) {
-			storedOtp.attempts += 1;
-			return res.status(400).json({ message: "Invalid OTP" });
+		if (storedOtp && !isPhoneVerified) {
+			if (storedOtp.expiresAt < Date.now()) {
+				delete otpStore[normalizedPhone];
+				verifiedOtps.delete(normalizedPhone);
+				return res.status(400).json({ message: "OTP expired" });
+			}
+
+			if (storedOtp.otp !== otp) {
+				storedOtp.attempts += 1;
+				return res.status(400).json({ message: "Invalid OTP" });
+			}
+
+			verifiedOtps.add(normalizedPhone);
 		}
 
-		const existingUser = await User.findOne({ phone }).populate("roleId");
+		if (!isPhoneVerified && storedOtp) {
+			verifiedOtps.add(normalizedPhone);
+		}
+
+		const existingUser = await User.findOne({
+			$or: [
+				{ phone: normalizedPhone },
+				{ phone: `91${normalizedPhone}` },
+				{ phone: `+91${normalizedPhone}` },
+			],
+		}).populate("roleId");
 
 		if (existingUser) {
-			delete otpStore[phone];
+			delete otpStore[normalizedPhone];
+			verifiedOtps.delete(normalizedPhone);
 
 			const role = existingUser.roleId as any;
 			const token = jwt.sign(
@@ -233,14 +314,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
 				{ expiresIn: "7d" }
 			);
 
-			// Generate XSRF token for CSRF protection
-			const xsrfToken = jwt.sign(
-				{ type: 'csrf', timestamp: Date.now() },
-				JWT_SECRET,
-				{ expiresIn: "1h" }
-			);
+			const xsrfToken = jwt.sign({ type: 'csrf', timestamp: Date.now() }, JWT_SECRET, { expiresIn: "1h" });
 
-			// Set httpOnly cookie with token
 			res.cookie('token', token, {
 				httpOnly: true,
 				secure: process.env.NODE_ENV === 'production',
@@ -249,7 +324,6 @@ export const verifyOtp = async (req: Request, res: Response) => {
 				path: '/',
 			});
 
-			// Set XSRF token cookie
 			res.cookie('XSRF-TOKEN', xsrfToken, {
 				httpOnly: false,
 				secure: process.env.NODE_ENV === 'production',
@@ -262,6 +336,8 @@ export const verifyOtp = async (req: Request, res: Response) => {
 				message: "OTP verified. Login successful",
 				verified: true,
 				isExistingUser: true,
+				verificationToken: jwt.sign({ phone: normalizedPhone }, JWT_SECRET, { expiresIn: "15m" }),
+				token,
 				user: {
 					id: existingUser._id,
 					name: existingUser.name,
@@ -275,9 +351,10 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
 		return res.json({
 			message: "OTP verified successfully",
-			phone,
+			phone: normalizedPhone,
 			verified: true,
 			isExistingUser: false,
+			verificationToken: jwt.sign({ phone: normalizedPhone }, JWT_SECRET, { expiresIn: "15m" }),
 		});
 	} catch (err) {
 		return res.status(500).json({ message: "OTP verification failed" });

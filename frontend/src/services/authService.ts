@@ -15,7 +15,7 @@
 import { API_BASE_URL } from '@/config/api';
 import { tokenManager } from '@/utils/tokenManager';
 import { unregisterCurrentDeviceForPush } from '@/services/pushNotificationService';
-import { sanitizeFormInput, sanitizeEmail, sanitizePhone, sanitizePassword, sanitizeSearchQuery, sanitizeNumber } from '@/utils/sanitize';
+import { sanitizeFormInput, sanitizeEmail, sanitizePhone, sanitizePassword, sanitizeCoordinate } from '@/utils/sanitize';
 import {
   RegisterRequest,
   RegisterResponse,
@@ -163,7 +163,6 @@ class RequestValidator {
 class AuthService {
   private readonly baseURL: string = API_BASE_URL;
   private readonly timeout: number = 15000; // 15 seconds
-  private csrfToken: string | null = null;
 
   /**
    * SECURITY: Get CSRF token from cookies
@@ -209,8 +208,23 @@ class AuthService {
        */
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        ...options.headers,
       };
+
+      if (options.headers) {
+        if (options.headers instanceof Headers) {
+          options.headers.forEach((value, key) => {
+            headers[key] = value;
+          });
+        } else if (Array.isArray(options.headers)) {
+          options.headers.forEach(([key, value]) => {
+            headers[key] = String(value);
+          });
+        } else {
+          Object.entries(options.headers).forEach(([key, value]) => {
+            headers[key] = String(value);
+          });
+        }
+      }
 
       /**
        * SECURITY: Add CSRF token for state-changing requests
@@ -246,15 +260,6 @@ class AuthService {
       console.error(`❌ API Error:`, apiError);
       throw apiError;
     }
-  }
-
-  /**
-   * Build authorization header
-   * @deprecated - Token is now in httpOnly cookie, no need for manual header
-   */
-  private async getAuthHeader(): Promise<Record<string, string>> {
-    // Kept for backward compatibility, returns empty
-    return {};
   }
 
   // ========== PUBLIC METHODS ==========
@@ -492,14 +497,9 @@ class AuthService {
    * @deprecated - Token is now in httpOnly cookie, not available to JavaScript
    */
   async getToken(): Promise<string | null> {
-    try {
-      // In production, token is in httpOnly cookie and not accessible
-      // Kept for backward compatibility, always returns null
-      return null;
-    } catch (error) {
-      console.error('❌ Get token error:', error);
-      return null;
-    }
+    // In production, token is in httpOnly cookie and not accessible
+    // Kept for backward compatibility, always returns null
+    return null;
   }
 
   /**

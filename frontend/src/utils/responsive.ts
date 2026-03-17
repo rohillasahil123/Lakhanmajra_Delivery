@@ -15,7 +15,8 @@ export const getScreenPadding = (width: number): number => {
 };
 
 export const getResponsiveFont = (width: number, baseSize: number): number => {
-  const scaled = moderateScale(baseSize, 0.5);
+  const factor = width < 360 ? 0.45 : 0.5;
+  const scaled = moderateScale(baseSize, factor);
   return clamp(Math.round(scaled), baseSize - 2, baseSize + 4);
 };
 
