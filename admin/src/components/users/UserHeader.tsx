@@ -1,4 +1,3 @@
-import React from 'react';
 import { UserIcons } from './UserIcons';
 
 interface UserHeaderProps {

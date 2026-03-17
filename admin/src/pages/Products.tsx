@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useProducts, Product, Category, AUTO_REFRESH_MS } from '../hooks/useProducts';
 import CreateProductModal from '../components/products/CreateProductModal';
 import EditProductModal from '../components/products/EditProductModal';
@@ -88,7 +88,7 @@ function CategoryCard({
   onEdit,
   onDelete,
 }: Readonly<CategoryCardProps>) {
-  const c = COLORS[colorIdx % COLORS.length];
+  const c = COLORS[colorIdx % COLORS.length]!;
 
   return (
     <div

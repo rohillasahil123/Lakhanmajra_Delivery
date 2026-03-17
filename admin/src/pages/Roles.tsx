@@ -308,7 +308,7 @@ function RoleDetailModal({
   onUpdate,
   onDelete,
 }: Readonly<RoleDetailModalProps>) {
-  const c = ROLE_COLORS[colorIdx % ROLE_COLORS.length];
+  const c = ROLE_COLORS[colorIdx % ROLE_COLORS.length]!;
   const groups = groupPermissions(availablePermissions);
 
   const [editName, setEditName] = useState(role.name);
@@ -442,7 +442,7 @@ function RoleDetailModal({
               <div
                 className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${c.icon}`}
               >
-                {(role.name || '?')[0].toUpperCase()}
+                {role && role.name ? (role.name as string).charAt(0).toUpperCase() : '?'}
               </div>
               <div>
                 {isEditing ? (
@@ -676,7 +676,7 @@ function RoleDetailModal({
 // ─── Role Card ────────────────────────────────────────────────────════════════
 
 function RoleCard({ role, colorIdx, onClick }: Readonly<RoleCardProps>) {
-  const c = ROLE_COLORS[colorIdx % ROLE_COLORS.length];
+  const c = ROLE_COLORS[colorIdx % ROLE_COLORS.length]!;
   const groups = groupPermissions(role.permissions || []);
   const modules = Object.keys(groups);
 
@@ -690,7 +690,7 @@ function RoleCard({ role, colorIdx, onClick }: Readonly<RoleCardProps>) {
         <div
           className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl font-bold ${c.icon}`}
         >
-          {(role.name || '?')[0].toUpperCase()}
+          {role && role.name ? (role.name as string).charAt(0).toUpperCase() : '?'}
         </div>
         <span
           className={`text-xs font-semibold px-2.5 py-1 rounded-full ${c.icon} border ${c.border}`}

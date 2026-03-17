@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   ProductVariant,
   createEmptyVariant,
@@ -13,13 +12,17 @@ interface Props {
 export default function VariantEditor({ variants, onChange }: Props) {
   const addVariant = () => {
     const next = [...variants, createEmptyVariant()];
-    if (next.length === 1) next[0].isDefault = true;
+    if (next.length === 1 && next[0]) {
+      next[0].isDefault = true;
+    }
     onChange(next);
   };
 
   const removeVariant = (index: number) => {
     const next = variants.filter((_, i) => i !== index);
-    if (next.length > 0 && !next.some((v) => v.isDefault)) next[0].isDefault = true;
+    if (next.length > 0 && !next.some((v) => v.isDefault) && next[0]) {
+      next[0].isDefault = true;
+    }
     onChange(next);
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ROLE_TABS, STATUS_OPTIONS } from './UserConstants';
 import { UserIcons } from './UserIcons';
 

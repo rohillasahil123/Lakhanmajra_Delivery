@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
-import { logErrorSafely, sanitizeError } from '../utils/errorHandler';
+import { logErrorSafely } from '../utils/errorHandler';
 import {
   sanitizeFormInput,
   sanitizeNumber,
   sanitizeSearchQuery,
-  sanitizeObject,
 } from '../utils/sanitize';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -152,8 +151,6 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   const [importing, setImporting] = useState(false);
   // Track total count per category (fetched once)
   const [categoryTotalCounts, setCategoryTotalCounts] = useState<Record<string, number>>({});
-  // Track all products loaded for selected category
-  const [selectedCatAllProducts, setSelectedCatAllProducts] = useState<Product[]>([]);
 
   const LIMIT = 50;
 
@@ -207,7 +204,6 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         setCategoryTotalCounts(prev => ({ ...prev, [catId]: data.total }));
       }
     } catch (err) {
-      const sanitized = sanitizeError(err);
       logErrorSafely('loadProducts', err);
       setAllItems([]);
     }
@@ -322,7 +318,6 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         // Finally load products for display
         await load(1);
       } catch (err) {
-        const sanitized = sanitizeError(err);
         logErrorSafely('reloadCategories', err);
       }
     })();
@@ -401,9 +396,12 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   
   // Sort products within each subcategory alphabetically
   Object.keys(subCategoryGroups).forEach((key) => {
-    subCategoryGroups[key].sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-    );
+    const group = subCategoryGroups[key as keyof typeof subCategoryGroups];
+    if (group) {
+      group.sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      );
+    }
   });
 
   // ── CRUD ──────────────────────────────────────────────────────────────────
@@ -496,18 +494,17 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     if (!sanitizedPrice) throw new Error('Price is required');
 
     const norm = normalizeVariantsForPayload(payload.variants, payload.unit);
-    const defV = norm.find((v) => v.isDefault) || norm[0];
-    const price = sanitizedPrice || (defV ? String(defV.price) : '');
 
     setUpdating(true);
     try {
       if (payload.newFiles.length > 0) {
         const fd = new FormData();
         fd.append('name', sanitizedName);
-        fd.append('price', String(Number(price)));
-        if (payload.mrp.trim()) fd.append('mrp', String(Number(payload.mrp)));
-        if (payload.discount.trim()) fd.append('discount', String(Number(payload.discount)));
-        if (payload.stock.trim()) fd.append('stock', String(Number(payload.stock)));
+        fd.append('price', String(Number(sanitizedPrice)));
+        if (sanitizedMrp) fd.append('mrp', String(Number(sanitizedMrp)));
+        if (sanitizedDiscount) fd.append('discount', String(Number(sanitizedDiscount)));
+        if (sanitizedStock) fd.append('stock', String(Number(sanitizedStock)));
+        fd.append('unit', sanitizedUnit);
         fd.append('variants', JSON.stringify(norm));
         if (payload.catId) fd.append('categoryId', payload.catId);
         fd.append('subcategoryId', payload.subcategoryId || '');
@@ -518,14 +515,15 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         });
       } else {
         const body: any = {
-          name: payload.name.trim(),
-          price: Number(price),
+          name: sanitizedName,
+          price: Number(sanitizedPrice),
+          unit: sanitizedUnit,
           variants: norm,
           subcategoryId: payload.subcategoryId,
         };
-        if (payload.mrp.trim()) body.mrp = Number(payload.mrp);
-        if (payload.discount.trim()) body.discount = Number(payload.discount);
-        if (payload.stock.trim()) body.stock = Number(payload.stock);
+        if (sanitizedMrp) body.mrp = Number(sanitizedMrp);
+        if (sanitizedDiscount) body.discount = Number(sanitizedDiscount);
+        if (sanitizedStock) body.stock = Number(sanitizedStock);
         if (payload.catId) body.categoryId = payload.catId;
         await api.patch(`/products/${productId}`, body);
       }

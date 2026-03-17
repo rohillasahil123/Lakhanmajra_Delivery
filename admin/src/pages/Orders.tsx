@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   useOrders,
   getStatus,
@@ -344,7 +343,7 @@ export default function Orders() {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                            {(order.userId?.name || '?')[0].toUpperCase()}
+                            {order.userId && order.userId.name ? (order.userId.name as string).charAt(0).toUpperCase() : '?'}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-slate-800 leading-tight">
@@ -401,10 +400,10 @@ export default function Orders() {
 
                       {/* Rider */}
                       <td className="px-4 py-3.5">
-                        {rider ? (
+                        {rider && (
                           <div className="flex items-center gap-1.5">
                             <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-xs flex-shrink-0">
-                              {(rider.name || 'R')[0].toUpperCase()}
+                              {rider && rider.name ? (rider.name as string).charAt(0).toUpperCase() : 'R'}
                             </div>
                             <div>
                               <p className="text-xs font-medium text-slate-700 leading-tight">
@@ -415,7 +414,8 @@ export default function Orders() {
                               )}
                             </div>
                           </div>
-                        ) : (
+                        )}
+                        {!rider && (
                           <span className="text-xs text-slate-400 italic">Unassigned</span>
                         )}
                       </td>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { IUser } from '../../hooks/useUsers';
 import Avatar from './Avatar';
 import RoleBadge from './RoleBadge';
@@ -10,7 +10,6 @@ interface UserTableRowProps {
   user: IUser;
   onEdit: (user: IUser) => void;
   onDelete: (id: string) => void;
-  onToggleStatus: (id: string, isActive: boolean) => Promise<void>;
   hasPermission: (perm: string) => boolean;
 }
 
@@ -22,21 +21,9 @@ export function UserTableRow({
   user,
   onEdit,
   onDelete,
-  onToggleStatus,
   hasPermission,
 }: Readonly<UserTableRowProps>) {
   const [hovering, setHovering] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  const handleToggleStatus = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      setActionLoading(true);
-      await onToggleStatus(user._id, !user.isActive);
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   return (
     <tr
@@ -107,7 +94,7 @@ export function UserTableRow({
         >
           {/* Edit Button */}
           {hasPermission('users:update') && (
-            <ActionIconButton title="Edit" onClick={() => onEdit(user)} disabled={actionLoading}>
+            <ActionIconButton title="Edit" onClick={() => onEdit(user)}>
               <UserIcons.Edit />
             </ActionIconButton>
           )}
@@ -118,7 +105,6 @@ export function UserTableRow({
               title="Delete"
               onClick={() => onDelete(user._id)}
               danger
-              disabled={actionLoading}
             >
               <UserIcons.Trash />
             </ActionIconButton>

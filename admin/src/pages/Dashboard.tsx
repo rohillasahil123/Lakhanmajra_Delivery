@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { getPermissions } from '../auth';
@@ -222,8 +222,8 @@ export default function Dashboard() {
                   outerRadius={80}
                   label
                 >
-                  {(metrics?.statusBreakdown ?? []).map((entry: any, idx: number) => (
-                    <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                  {(metrics?.statusBreakdown ?? []).map((_entry: any, idx: number) => (
+                    <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]!} />
                   ))}
                 </Pie>
                 <Tooltip />

@@ -331,10 +331,10 @@ export default function OrderDetailModal({
             {/* ── Rider ── */}
             <Section title="Rider & Delivery" icon="🚴">
               {/* Current rider info */}
-              {detail.assignedRiderId ? (
+              {detail.assignedRiderId && detail.assignedRiderId.name && (
                 <div className="flex items-center gap-3 mb-3 p-3 bg-blue-50 rounded-xl border border-blue-100">
                   <div className="w-9 h-9 rounded-full bg-blue-200 flex items-center justify-center text-blue-800 font-bold text-sm flex-shrink-0">
-                    {(detail.assignedRiderId.name || 'R')[0].toUpperCase()}
+                    {(detail.assignedRiderId.name as string).charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1">
                     <p className="font-semibold text-slate-800 text-sm">
@@ -348,7 +348,8 @@ export default function OrderDetailModal({
                     Assigned
                   </span>
                 </div>
-              ) : (
+              )}
+              {!detail.assignedRiderId && (
                 <div className="mb-3 p-3 bg-amber-50 rounded-xl border border-amber-100 text-sm text-amber-700 flex items-center gap-2">
                   ⚠️ No rider assigned yet
                 </div>

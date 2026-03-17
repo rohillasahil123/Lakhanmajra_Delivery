@@ -2,7 +2,6 @@ import { useState, useCallback, useRef } from 'react';
 import { UseFormReturn, FieldValues } from 'react-hook-form';
 
 interface UseFormModalOptions<T extends FieldValues> {
-  initialForm: T;
   onSubmit: (form: T, editingId: string | null) => Promise<void>;
 }
 
@@ -55,7 +54,6 @@ interface UseFormModalReturn<T extends FieldValues> {
  * ```
  */
 export function useFormModal<T extends FieldValues>({
-  initialForm,
   onSubmit,
 }: UseFormModalOptions<T>): UseFormModalReturn<T> {
   const [modalOpen, setModalOpen] = useState(false);
@@ -105,7 +103,7 @@ export function useFormModal<T extends FieldValues>({
    * Returns a function that can be passed to form's onSubmit
    */
   const handleFormSubmit = useCallback(
-    (form: UseFormReturn<T, unknown, T>) => {
+    () => {
       return async (data: T) => {
         setSaving(true);
         setSubmitError(null);

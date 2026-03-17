@@ -1,4 +1,3 @@
-import React from 'react';
 import { Product, SortKey } from '../../hooks/useProducts';
 
 const compareByName = (first: string, second: string): number =>
@@ -274,12 +273,15 @@ export default function ProductsTable({
 
   // Single sub-category or no grouping needed — flat table
   if (subCatNames.length === 1) {
+    const products = subCategoryGroups[subCatNames[0]!];
+    if (!products) return <div>No products found</div>;
+    
     return (
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full text-left table-auto">
           {tableHead}
           <tbody>
-            {subCategoryGroups[subCatNames[0]].map((p) => (
+            {products.map((p: Product) => (
               <ProductRow
                 key={p._id}
                 p={p}
@@ -299,7 +301,8 @@ export default function ProductsTable({
   return (
     <div className="space-y-4">
       {subCatNames.map((subName) => {
-        const products = subCategoryGroups[subName];
+        const products = subCategoryGroups[subName as keyof typeof subCategoryGroups];
+        if (!products) return null;
         return (
           <div key={subName} className="bg-white rounded-lg shadow overflow-hidden">
             {/* Sub-category header */}
@@ -313,7 +316,7 @@ export default function ProductsTable({
             <table className="w-full text-left table-auto">
               {tableHead}
               <tbody>
-                {products.map((p) => (
+                {products.map((p: Product) => (
                   <ProductRow
                     key={p._id}
                     p={p}

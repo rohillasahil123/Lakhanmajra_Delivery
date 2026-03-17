@@ -12,7 +12,16 @@
     /* Type Safety */
     "strict": true,
     "noImplicitAny": true,
+    "noImplicitThis": true,
     "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
 
     /* Module Resolution */
     "moduleResolution": "node",
@@ -20,11 +29,13 @@
     "resolveJsonModule": true,
 
     /* Performance */
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "forceConsistentCasingInFileNames": true,
 
     /* Quality */
-    "noFallthroughCasesInSwitch": true
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
   },
 
   "exclude": ["node_modules", "dist", "scripts"]

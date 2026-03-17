@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import api from '../../api/client';
 
 type Category = { _id: string; name: string; parentCategory?: any };

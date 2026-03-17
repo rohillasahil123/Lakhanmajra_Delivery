@@ -271,7 +271,6 @@ export function useOrders() {
         setTotal(resolveTotal(payload, list.length));
         setPage(pageNum);
       } catch (err) {
-        const sanitized = sanitizeError(err);
         logErrorSafely('loadOrders', err);
         setItems([]);
       } finally {
@@ -294,7 +293,6 @@ export function useOrders() {
         setRiders(resolveRiders(rRes.data?.data ?? rRes.data));
         await load(1);
       } catch (err) {
-        const sanitized = sanitizeError(err);
         logErrorSafely('initializeOrders', err);
       }
     })();

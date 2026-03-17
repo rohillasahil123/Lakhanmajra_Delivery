@@ -1,4 +1,3 @@
-import React from 'react';
 import { IUser } from '../../hooks/useUsers';
 import { UserTableRow } from './UserTableRow';
 
@@ -8,7 +7,6 @@ interface UserTableProps {
   error: string | null;
   onEdit: (user: IUser) => void;
   onDelete: (id: string) => void;
-  onToggleStatus: (id: string, isActive: boolean) => Promise<void>;
   hasPermission: (perm: string) => boolean;
 }
 
@@ -22,7 +20,6 @@ export function UserTable({
   error,
   onEdit,
   onDelete,
-  onToggleStatus,
   hasPermission,
 }: Readonly<UserTableProps>) {
   return (
@@ -150,7 +147,6 @@ export function UserTable({
                 user={user}
                 onEdit={onEdit}
                 onDelete={onDelete}
-                onToggleStatus={onToggleStatus}
                 hasPermission={hasPermission}
               />
             ))

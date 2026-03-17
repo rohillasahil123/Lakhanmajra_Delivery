@@ -1,4 +1,3 @@
-import React from 'react';
 
 const COLORS = [
   'from-blue-400 to-blue-600',

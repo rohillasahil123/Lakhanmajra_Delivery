@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useUsers, IUser } from '../hooks/useUsers';
 import { useUserInit } from '../hooks/useUserInit';
 import { useUserFilters } from '../hooks/useUserFilters';
@@ -8,7 +8,7 @@ import { UserFilters } from '../components/users/UserFilters';
 import { UserTable } from '../components/users/UserTable';
 import { UserPagination } from '../components/users/UserPagination';
 import { UserForm } from '../components/users/UserForm';
-import { ITEMS_PER_PAGE, ROLE_TABS } from '../components/users/UserConstants';
+import { ITEMS_PER_PAGE } from '../components/users/UserConstants';
 import { getErrorMessage } from '../components/users/UserUtils';
 
 
@@ -33,7 +33,6 @@ export default function Users() {
     createUser,
     updateUser,
     deleteUser,
-    toggleStatus,
   } = useUsers();
 
   const { roles, summary, hasPermission, loading: initLoading } = useUserInit(fetchUsers);
@@ -122,18 +121,6 @@ export default function Users() {
     }
   };
 
-  const handleToggleStatus = async (userId: string, newStatus: boolean) => {
-    try {
-      await toggleStatus(userId, newStatus);
-      setToast({
-        message: `User ${newStatus ? 'activated' : 'deactivated'} successfully`,
-        type: 'success',
-      });
-    } catch (err) {
-      const message = getErrorMessage(err);
-      setToast({ message, type: 'error' });
-    }
-  };
 
   const handleNewUser = () => {
     setEditingUser(null);
@@ -222,7 +209,6 @@ export default function Users() {
           error={error}
           onEdit={handleEditUser}
           onDelete={handleDeleteUser}
-          onToggleStatus={handleToggleStatus}
           hasPermission={hasPermission}
         />
 
