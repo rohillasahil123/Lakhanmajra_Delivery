@@ -408,38 +408,18 @@ export default function HomeScreen() {
           },
         ]}
       >
-        {/* Location & Profile Row */}
+        {/* Location + Profile/Order row */}
         <View
           style={{
             flexDirection: "row",
-            gap: responsiveModerateScale(10),
+            justifyContent: "space-between",
             alignItems: "center",
+            width: "100%",
+            marginBottom: responsiveVerticalScale(6),
           }}
         >
           <TouchableOpacity
-            style={[
-              styles.iconBtn,
-              {
-                width: responsiveScale(44),
-                height: responsiveVerticalScale(44),
-              },
-            ]}
-            onPress={() => router.push("/profile")}
-          >
-            <ThemedText style={{ fontSize: responsiveModerateScale(20) }}>
-              👤
-            </ThemedText>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.locationPill,
-              {
-                flex: 1,
-                paddingHorizontal: responsiveScale(12),
-                paddingVertical: responsiveVerticalScale(8),
-              },
-            ]}
+            style={styles.locationChip}
             onPress={() =>
               router.push({
                 pathname: "/location",
@@ -454,27 +434,42 @@ export default function HomeScreen() {
             }
           >
             <ThemedText style={styles.locationPin}>📍</ThemedText>
-            <View style={styles.flexOne}>
-              <ThemedText
-                style={[
-                  styles.locText,
-                  { fontSize: responsiveModerateScale(12) },
-                ]}
-                numberOfLines={1}
-              >
-                {locationLines[0]}
-              </ThemedText>
-              <ThemedText
-                style={[
-                  styles.locSub,
-                  { fontSize: responsiveModerateScale(10) },
-                ]}
-                numberOfLines={1}
-              >
-                {locationLines[1]}
-              </ThemedText>
-            </View>
+            <ThemedText
+              style={[styles.locText, { fontSize: responsiveModerateScale(11), marginLeft: 4 }]}
+              numberOfLines={1}
+            >
+              {locationLines[0]}
+            </ThemedText>
           </TouchableOpacity>
+
+          <View style={{ flexDirection: "row", gap: responsiveModerateScale(8) }}>
+            <TouchableOpacity
+              style={[
+                styles.iconBtn,
+                {
+                  width: responsiveScale(38),
+                  height: responsiveVerticalScale(38),
+                },
+              ]}
+              onPress={() => router.push("/orders")}
+            >
+              <ThemedText style={{ fontSize: responsiveModerateScale(18) }}>🧾</ThemedText>
+              {latestOrder && <View style={styles.dotMini} />}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.iconBtn,
+                {
+                  width: responsiveScale(38),
+                  height: responsiveVerticalScale(38),
+                },
+              ]}
+              onPress={() => router.push("/profile")}
+            >
+              <ThemedText style={{ fontSize: responsiveModerateScale(18) }}>👤</ThemedText>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Search Bar & Actions Row */}
@@ -551,36 +546,6 @@ export default function HomeScreen() {
       </View>
 
       <ScrollView style={styles.main} showsVerticalScrollIndicator={false}>
-        {/* Active Order */}
-        {latestOrder ? (
-          <View style={styles.orderStatus}>
-            <View style={styles.orderDot} />
-            <View style={styles.orderStatusInfo}>
-              <ThemedText style={styles.orderStatusTitle}>
-                Order #{latestOrder._id?.slice(-8).toUpperCase()} is{" "}
-                {String(latestOrder.status || "placed").toLowerCase()}!
-              </ThemedText>
-              <ThemedText style={styles.orderStatusSub}>
-                {latestOrder.createdAt
-                  ? new Date(latestOrder.createdAt).toLocaleString()
-                  : "Recently placed"}{" "}
-                ·{" "}
-                {latestOrder.items?.reduce(
-                  (sum, item) => sum + Number(item.quantity || 0),
-                  0,
-                ) || 0}{" "}
-                items
-              </ThemedText>
-            </View>
-            <TouchableOpacity
-              style={styles.orderTrackBtn}
-              onPress={() => router.push("/orders")}
-            >
-              <ThemedText style={styles.orderTrackBtnText}>Track →</ThemedText>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-
         <View style={styles.sectionHead}>
           <ThemedText
             style={[
@@ -1153,13 +1118,27 @@ const styles = createResponsiveStyles({
     gap: 6,
     flexShrink: 1,
   },
-  locationPin: {
-    fontSize: 16,
-    color: COLORS.primaryDark,
+  locationChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.light,
+    borderRadius: 40,
+    minWidth: 90,
+    maxWidth: 180,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
   },
   locText: {
     fontWeight: "600",
     color: COLORS.text,
+    fontSize: 12,
+  },
+  locationPin: {
+    fontSize: 16,
+    color: COLORS.primaryDark,
   },
   locSub: {
     color: COLORS.muted,
@@ -1232,77 +1211,91 @@ const styles = createResponsiveStyles({
     paddingHorizontal: 14,
   },
   orderStatus: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 14,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.light,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 8,
+    marginBottom: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    alignSelf: "flex-start",
   },
   orderDot: {
-    width: 9,
-    height: 9,
+    width: 8,
+    height: 8,
     backgroundColor: COLORS.green,
-    borderRadius: 50,
-    shadowColor: COLORS.green,
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
+    borderRadius: 8,
+  },
+  dotMini: {
+    position: "absolute",
+    top: 3,
+    right: 3,
+    width: 6,
+    height: 6,
+    backgroundColor: COLORS.red,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: COLORS.white,
   },
   orderStatusInfo: {
     flex: 1,
+    minWidth: 80,
   },
   orderStatusTitle: {
-    fontWeight: "700",
-    color: COLORS.white,
+    fontWeight: "600",
+    color: COLORS.text,
+    fontSize: 11,
     marginBottom: 2,
   },
   orderStatusSub: {
-    color: "rgba(255,255,255,0.7)",
+    color: COLORS.muted,
+    fontSize: 10,
   },
   orderTrackBtn: {
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
   orderTrackBtnText: {
     fontWeight: "700",
     color: COLORS.accent,
-    fontSize: 12,
+    fontSize: 11,
   },
   offerSection: {
     marginBottom: 18,
   },
   offerCard: {
-    height: 145,
-    borderRadius: 16,
+    height: 110,
+    borderRadius: 14,
     overflow: "hidden",
     justifyContent: "flex-end",
     backgroundColor: COLORS.accent,
   },
   offerCardImage: {
     resizeMode: "cover",
-    borderRadius: 16,
+    borderRadius: 14,
   },
   offerOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(13,61,30,0.52)",
+    backgroundColor: "rgba(13,61,30,0.48)",
   },
   offerContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
   },
   offerTitle: {
     color: COLORS.white,
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: "800",
   },
   offerSubtitle: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 12,
+    fontSize: 10,
   },
   offerCta: {
     alignSelf: "flex-start",
@@ -1335,14 +1328,15 @@ const styles = createResponsiveStyles({
     backgroundColor: COLORS.accent,
   },
   hero: {
-    borderRadius: 18,
+    borderRadius: 14,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     overflow: "hidden",
-    marginBottom: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+    marginBottom: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    minHeight: 112,
   },
   heroLeft: {
     flex: 1,
@@ -1352,34 +1346,40 @@ const styles = createResponsiveStyles({
     backgroundColor: "rgba(248,194,0,0.2)",
     borderWidth: 1,
     borderColor: "rgba(248,194,0,0.4)",
-    borderRadius: 50,
-    marginBottom: 12,
+    borderRadius: 36,
+    marginBottom: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
   },
   heroBadgeText: {
     fontWeight: "700",
     color: COLORS.primary,
+    fontSize: 10,
   },
   heroTitle: {
-    fontWeight: "800",
+    fontWeight: "700",
     color: COLORS.white,
-    marginBottom: 8,
-    lineHeight: 34,
+    marginBottom: 6,
+    lineHeight: 28,
+    fontSize: 16,
   },
   heroTitleSpan: {
     color: COLORS.primary,
   },
   heroDesc: {
     color: "rgba(255,255,255,0.75)",
-    marginBottom: 12,
-    lineHeight: 20,
-  },  heroCta: {
+    marginBottom: 10,
+    lineHeight: 18,
+    fontSize: 10,
+  },
+  heroCta: {
     alignSelf: "flex-start",
     backgroundColor: COLORS.primary,
-    borderRadius: 12,
+    borderRadius: 10,
     flexDirection: "row",
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   heroCtaText: {
     fontWeight: "800",
