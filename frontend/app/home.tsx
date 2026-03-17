@@ -1,11 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
 import TopHeader from "@/components/TopHeader";
-import {
-  createResponsiveStyles,
-  responsiveModerateScale,
-  responsiveScale,
-  responsiveVerticalScale,
-} from "@/utils/responsive";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import useCart from "@/stores/cartStore";
 import useLocationStore from "@/stores/locationStore";
@@ -22,9 +16,10 @@ import {
   View,
   useWindowDimensions,
   FlatList,
-} from "react-native"; /*  */
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient as ExpoLinearGradient } from "expo-linear-gradient";
+import { moderateScale, scale, verticalScale } from "react-native-size-matters";
 import {
   fetchCategories,
   fetchProducts,
@@ -33,6 +28,7 @@ import {
 import { resolveImageUrl } from "@/config/api";
 import { getMyOrdersApi, OrderRow } from "@/services/orderService";
 import { getMyNotifications } from "@/services/notificationService";
+
 // Local offer images
 const shamImg = require("../assets/images/sham.png");
 const msaleImg = require("../assets/images/msale.png");
@@ -52,7 +48,6 @@ const CATEGORY_COLORS: { [key: string]: string } = {
   care: "#D1D5DB",
 };
 
-// Helper function to get color for category
 const getCategoryColor = (categoryName: string) => {
   const slug = (categoryName || "").toLowerCase().trim();
   return CATEGORY_COLORS[slug] || "#F3F4F6";
@@ -60,8 +55,7 @@ const getCategoryColor = (categoryName: string) => {
 
 const getParentCategoryId = (category: any): string => {
   if (!category?.parentCategory) return "";
-  if (typeof category.parentCategory === "string")
-    return category.parentCategory;
+  if (typeof category.parentCategory === "string") return category.parentCategory;
   return category.parentCategory?._id || "";
 };
 
@@ -77,26 +71,13 @@ const getCategoryIcon = (
   const n = String(categoryName || "").toLowerCase();
   if (n.includes("veg") || n.includes("fruit")) return "carrot";
   if (n.includes("bakery") || n.includes("bread")) return "bread-slice";
-  if (
-    n.includes("atta") ||
-    n.includes("rice") ||
-    n.includes("pulse") ||
-    n.includes("dal")
-  )
-    return "rice";
+  if (n.includes("atta") || n.includes("rice") || n.includes("pulse") || n.includes("dal")) return "rice";
   if (n.includes("dairy") || n.includes("milk")) return "cup";
   if (n.includes("masala") || n.includes("spice")) return "chili-mild";
   if (n.includes("snack") || n.includes("namkeen")) return "french-fries";
-  if (
-    n.includes("personal") ||
-    n.includes("care") ||
-    n.includes("soap") ||
-    n.includes("perfume")
-  )
-    return "spray-bottle";
+  if (n.includes("personal") || n.includes("care") || n.includes("soap") || n.includes("perfume")) return "spray-bottle";
   if (n.includes("oil") || n.includes("ghee")) return "bottle-tonic";
-  if (n.includes("instant") || n.includes("ready"))
-    return "silverware-fork-knife";
+  if (n.includes("instant") || n.includes("ready")) return "silverware-fork-knife";
   if (n.includes("beverage") || n.includes("drink")) return "coffee";
   if (n.includes("household") || n.includes("clean")) return "broom";
   if (n.includes("dry") || n.includes("nut")) return "peanut";
@@ -105,7 +86,6 @@ const getCategoryIcon = (
   return "shape-outline";
 };
 
-// Color Scheme
 const COLORS = {
   primary: "#F8C200",
   primaryDark: "#E5B000",
@@ -117,15 +97,6 @@ const COLORS = {
   light: "#EFEFEA",
   green: "#22C55E",
   red: "#EF4444",
-};
-
-// Helper function to get responsive values
-const getResponsiveValue = (
-  smallScreen: number,
-  largeScreen: number,
-  width: number,
-) => {
-  return width < 380 ? smallScreen : largeScreen;
 };
 
 export default function HomeScreen() {
@@ -144,6 +115,12 @@ export default function HomeScreen() {
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [showOrderToast, setShowOrderToast] = useState(false);
   const toastAnim = useRef(new Animated.Value(0)).current;
+  const offerFlatListRef = useRef<FlatList>(null);
+  const [activeOfferIdx, setActiveOfferIdx] = useState(0);
+
+  // Tablet check
+  const isTablet = width >= 600;
+  const isSmallScreen = width < 380;
 
   const getParamText = (value: unknown) => {
     if (typeof value === "string") return value;
@@ -156,20 +133,12 @@ export default function HomeScreen() {
     const instructionsParam = getParamText(params.deliveryInstructions).trim();
     const latitudeParam = Number(getParamText(params.latitude));
     const longitudeParam = Number(getParamText(params.longitude));
-
-    if (!addressParam) {
-      return;
-    }
-
+    if (!addressParam) return;
     setSelectedLocation({
       address: addressParam,
       deliveryInstructions: instructionsParam,
-      latitude: Number.isFinite(latitudeParam)
-        ? latitudeParam
-        : selectedLocation.latitude,
-      longitude: Number.isFinite(longitudeParam)
-        ? longitudeParam
-        : selectedLocation.longitude,
+      latitude: Number.isFinite(latitudeParam) ? latitudeParam : selectedLocation.latitude,
+      longitude: Number.isFinite(longitudeParam) ? longitudeParam : selectedLocation.longitude,
     });
   }, [
     params.address,
@@ -181,7 +150,6 @@ export default function HomeScreen() {
     setSelectedLocation,
   ]);
 
-  // Load remote catalog data
   useEffect(() => {
     let mounted = true;
     async function loadCatalog() {
@@ -192,50 +160,32 @@ export default function HomeScreen() {
           fetchOffers(),
         ]);
         if (!mounted) return;
-        const mainCategories = (cats || []).filter(
-          (category: any) => !getParentCategoryId(category),
-        );
+        const mainCategories = (cats || []).filter((c: any) => !getParentCategoryId(c));
         setCategories(mainCategories);
         setProducts(prods || []);
-        // Attach local images as fallbacks for offers. Prefer remote offers if available.
         const localImgs = [shamImg, msaleImg, teaImg, oneImg];
         let finalOffers: any[] = [];
         if (offs && offs.length > 0) {
           finalOffers = offs.map((o: any, i: number) => ({
             ...o,
             id: o?._id || o?.id || `offer-${i}`,
-            image:
-              typeof o?.image === "string" && o.image.trim().length > 0
-                ? resolveImageUrl(o.image)
-                : localImgs[i % localImgs.length],
+            image: typeof o?.image === "string" && o.image.trim().length > 0
+              ? resolveImageUrl(o.image)
+              : localImgs[i % localImgs.length],
           }));
         } else {
-          finalOffers = localImgs.map((img, i) => ({
-            id: `local-${i}`,
-            title: "",
-            subtitle: "",
-            image: img,
-          }));
+          finalOffers = localImgs.map((img, i) => ({ id: `local-${i}`, title: "", subtitle: "", image: img }));
         }
         setOffers(finalOffers);
-        // Set first category as selected
-        if (mainCategories.length > 0) {
-          setSelectedCategory(mainCategories[0]._id);
-        }
-      } finally {
-        // no-op: screen renders independently without explicit loading spinner
-      }
+        if (mainCategories.length > 0) setSelectedCategory(mainCategories[0]._id);
+      } finally {}
     }
-
     loadCatalog();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
     let mounted = true;
-
     const loadUnreadCount = async () => {
       try {
         const result = await getMyNotifications("unread");
@@ -245,154 +195,92 @@ export default function HomeScreen() {
         if (mounted) setUnreadNotificationCount(0);
       }
     };
-
     loadUnreadCount().catch(() => {});
-    const intervalId = setInterval(() => {
-      loadUnreadCount().catch(() => {});
-    }, 25000);
-
-    return () => {
-      mounted = false;
-      clearInterval(intervalId);
-    };
+    const intervalId = setInterval(() => { loadUnreadCount().catch(() => {}); }, 25000);
+    return () => { mounted = false; clearInterval(intervalId); };
   }, []);
 
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       try {
         const rows = await getMyOrdersApi();
         if (!mounted) return;
-
-        if (!rows || rows.length === 0) {
-          setLatestOrder(null);
-          return;
-        }
-
-        const sortedOrders = [...rows].sort((a, b) => {
-          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return timeB - timeA;
+        if (!rows || rows.length === 0) { setLatestOrder(null); return; }
+        const sorted = [...rows].sort((a, b) => {
+          const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return tB - tA;
         });
-
-        setLatestOrder(sortedOrders[0] ?? null);
+        setLatestOrder(sorted[0] ?? null);
       } catch {
         if (mounted) setLatestOrder(null);
       }
     })();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
-    if (!latestOrder) {
-      setShowOrderToast(false);
-      return;
-    }
-
+    if (!latestOrder) { setShowOrderToast(false); return; }
     setShowOrderToast(true);
-    Animated.timing(toastAnim, {
-      toValue: 1,
-      duration: 260,
-      useNativeDriver: true,
-    }).start();
-
+    Animated.timing(toastAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
     const hideTimeout = setTimeout(() => {
-      Animated.timing(toastAnim, {
-        toValue: 0,
-        duration: 260,
-        useNativeDriver: true,
-      }).start(({ finished }) => finished && setShowOrderToast(false));
+      Animated.timing(toastAnim, { toValue: 0, duration: 260, useNativeDriver: true })
+        .start(({ finished }) => finished && setShowOrderToast(false));
     }, 4200);
-
-    return () => {
-      clearTimeout(hideTimeout);
-    };
+    return () => { clearTimeout(hideTimeout); };
   }, [latestOrder, toastAnim]);
 
-  const getOfferImageSource = (
-    imageValue: unknown,
-  ): ImageSourcePropType | null => {
-    if (typeof imageValue === "number") {
-      return imageValue;
-    }
-
-    if (typeof imageValue === "string" && imageValue.trim().length > 0) {
-      return { uri: imageValue };
-    }
-
+  const getOfferImageSource = (imageValue: unknown): ImageSourcePropType | null => {
+    if (typeof imageValue === "number") return imageValue;
+    if (typeof imageValue === "string" && imageValue.trim().length > 0) return { uri: imageValue };
     return null;
   };
 
-  // Filter products by selected category
-  const categoryFilteredProducts = selectedCategory
-    ? products.filter(
-        (p: any) => getEntityId(p.categoryId) === selectedCategory,
-      )
+  const filteredProducts = selectedCategory
+    ? products.filter((p: any) => getEntityId(p.categoryId) === selectedCategory)
     : products;
-  const filteredProducts = categoryFilteredProducts;
 
   const getDiscountPercent = (product: any): number => {
     const discount = Number(product?.discount ?? 0);
     if (Number.isFinite(discount) && discount > 0) return Math.round(discount);
-
     const mrp = Number(product?.mrp ?? 0);
     const price = Number(product?.price ?? 0);
-    if (mrp > 0 && price >= 0 && price < mrp) {
-      return Math.round(((mrp - price) / mrp) * 100);
-    }
+    if (mrp > 0 && price >= 0 && price < mrp) return Math.round(((mrp - price) / mrp) * 100);
     return 0;
   };
 
   const locationLines = useMemo(() => {
     const fallback = ["Select your location", "Tap to choose delivery address"];
-    if (
-      !selectedLocation.address ||
-      selectedLocation.address === "Select your delivery location"
-    ) {
-      return fallback;
-    }
-
-    const pieces = selectedLocation.address
-      .split(",")
-      .map((part) => part.trim())
-      .filter(Boolean);
-
-    if (pieces.length <= 1) {
-      return [pieces[0], "Tap to update location"];
-    }
-
-    return [
-      pieces.slice(0, 2).join(", "),
-      pieces.slice(2).join(", ") || "Tap to update location",
-    ];
+    if (!selectedLocation.address || selectedLocation.address === "Select your delivery location") return fallback;
+    const pieces = selectedLocation.address.split(",").map((p) => p.trim()).filter(Boolean);
+    if (pieces.length <= 1) return [pieces[0], "Tap to update location"];
+    return [pieces.slice(0, 2).join(", "), pieces.slice(2).join(", ") || "Tap to update location"];
   }, [selectedLocation.address]);
 
-  // Responsive values
-  const isSmallScreen = width < 380;
-  const headerPadding = getResponsiveValue(12, 16, width);
-  const horizontalPadding = getResponsiveValue(12, 16, width);
-  const heroFontSize = getResponsiveValue(28, 36, width);
-  const offerCardWidth = (width - horizontalPadding * 2 - 8) / 2;
+  useEffect(() => {
+    if (offers.length <= 1) return;
+    const timer = setInterval(() => {
+      setActiveOfferIdx((prev) => {
+        const next = (prev + 1) % offers.length;
+        offerFlatListRef.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [offers.length]);
 
-  // `offers` grid does not use horizontal carousel indexes or scroll refs now.
+  // Responsive category card size
+  const visibleOnScreen = isSmallScreen ? 4 : isTablet ? 7 : 5;
+  const catGap = scale(10);
+  const catHPadding = scale(32);
+  const cardSize = Math.floor((width - catHPadding - (visibleOnScreen - 1) * catGap) / visibleOnScreen);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.bg }]}>
-      {/* Header */}
-      <View
-        style={[
-          styles.header,
-          {
-            paddingHorizontal: headerPadding,
-            paddingVertical: responsiveVerticalScale(10),
-            gap: responsiveModerateScale(12),
-          },
-        ]}
-      >
+
+      {/* ───── HEADER ───── */}
+      <View style={styles.header}>
         <TopHeader
           location={locationLines[0] ?? "Select your location"}
           onLocationPress={() =>
@@ -412,93 +300,45 @@ export default function HomeScreen() {
           hasOrder={!!latestOrder}
         />
 
-        {/* Search Bar & Actions Row */}
-        <View
-          style={{
-            flexDirection: "row",
-            gap: responsiveModerateScale(10),
-            alignItems: "center",
-          }}
-        >
-          {/* Header Actions */}
+        {/* Search + Icons Row */}
+        <View style={styles.headerRow}>
           <TouchableOpacity
-            style={[
-              styles.iconBtn,
-              {
-                width: responsiveScale(44),
-                height: responsiveVerticalScale(44),
-              },
-            ]}
+            style={styles.iconBtn}
             onPress={() => {
               setUnreadNotificationCount(0);
               router.push("/notifications");
             }}
           >
-            <ThemedText style={{ fontSize: responsiveModerateScale(22) }}>
-              🔔
-            </ThemedText>
+            <ThemedText style={styles.iconEmoji}>🔔</ThemedText>
             {unreadNotificationCount > 0 && <View style={styles.dot} />}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.cartBtn,
-              {
-                paddingHorizontal: responsiveScale(14),
-                paddingVertical: responsiveVerticalScale(10),
-                height: responsiveVerticalScale(44),
-                justifyContent: "center",
-              },
-            ]}
-            onPress={() => router.push("/cart")}
-          >
-            <ThemedText style={{ fontSize: responsiveModerateScale(22) }}>
-              🛒
-            </ThemedText>
+          <TouchableOpacity style={styles.cartBtn} onPress={() => router.push("/cart")}>
+            <ThemedText style={styles.iconEmoji}>🛒</ThemedText>
             {cartCount > 0 && (
-              <ThemedText
-                style={[
-                  styles.cartCount,
-                  { fontSize: responsiveModerateScale(12) },
-                ]}
-              >
-                {cartCount}
-              </ThemedText>
+              <ThemedText style={styles.cartCount}>{cartCount}</ThemedText>
             )}
           </TouchableOpacity>
 
-          {/* Search Bar */}
-          <TouchableOpacity
-            style={[styles.searchBar, { flex: 1 }]}
-            onPress={() => router.push("/search")}
-          >
+          <TouchableOpacity style={styles.searchBar} onPress={() => router.push("/search")}>
             <ThemedText style={styles.searchIcon}>🔍</ThemedText>
-            <ThemedText
-              style={[
-                styles.searchInput,
-                { fontSize: responsiveModerateScale(13), color: COLORS.muted },
-              ]}
-            >
+            <ThemedText numberOfLines={1} style={styles.searchInput}>
               {isSmallScreen ? "Search..." : 'Search "eggs", "milk"…'}
             </ThemedText>
           </TouchableOpacity>
         </View>
       </View>
 
+      {/* ───── ORDER TOAST ───── */}
       {showOrderToast && latestOrder && (
         <Animated.View
           style={[
             styles.orderToast,
             {
               opacity: toastAnim,
-              transform: [
-                {
-                  translateY: toastAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-18, 0],
-                  }),
-                },
-              ],
+              transform: [{
+                translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }),
+              }],
             },
           ]}
         >
@@ -508,56 +348,72 @@ export default function HomeScreen() {
         </Animated.View>
       )}
 
+      {/* ───── MAIN SCROLL ───── */}
       <ScrollView style={styles.main} showsVerticalScrollIndicator={false}>
+
+        {/* Offers heading */}
         <View style={styles.sectionHead}>
-          <ThemedText
-            style={[
-              styles.sectionTitle,
-              { fontSize: responsiveModerateScale(20) },
-            ]}
-          >
-            🎁 Offers For You
-          </ThemedText>
+          <ThemedText style={styles.sectionTitle}>🎁 Offers For You</ThemedText>
         </View>
 
-        <View style={[styles.offerSection, { paddingHorizontal: horizontalPadding }]}> 
-          <View style={styles.offerGrid}>
-            {offers.map((offer, idx) => (
-              <View key={offer.id ?? idx} style={[styles.offerGridItem, { width: offerCardWidth }]}> 
-                {getOfferImageSource(offer.image) ? (
+        {/* Offers Slider */}
+        <View style={styles.offerSection}>
+          <FlatList
+            ref={offerFlatListRef}
+            data={offers}
+            keyExtractor={(item, idx) => String(item.id ?? idx)}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            nestedScrollEnabled
+            onMomentumScrollEnd={(e) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+              setActiveOfferIdx(Math.max(0, Math.min(idx, offers.length - 1)));
+            }}
+            getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
+            renderItem={({ item }) => (
+              <View style={{ width }}>
+                {getOfferImageSource(item.image) ? (
                   <ImageBackground
-                    source={getOfferImageSource(offer.image) as ImageSourcePropType}
-                    style={styles.offerCard}
+                    source={getOfferImageSource(item.image) as ImageSourcePropType}
+                    style={[styles.offerCard, { width }]}
                     imageStyle={styles.offerCardImage}
                   >
                     <View style={styles.offerOverlay} />
                     <View style={styles.offerContent}>
-                      <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
-                      <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
-                      {offer.cta && (
+                      <ThemedText style={styles.offerTitle}>{item.title}</ThemedText>
+                      <ThemedText style={styles.offerSubtitle}>{item.subtitle}</ThemedText>
+                      {item.cta && (
                         <TouchableOpacity style={styles.offerCta}>
-                          <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
+                          <ThemedText style={styles.offerCtaText}>{item.cta}</ThemedText>
                         </TouchableOpacity>
                       )}
                     </View>
                   </ImageBackground>
                 ) : (
-                  <View style={[styles.offerCard, { backgroundColor: COLORS.accent }]}>
+                  <View style={[styles.offerCard, { width, backgroundColor: COLORS.accent }]}>
                     <View style={styles.offerOverlay} />
                     <View style={styles.offerContent}>
-                      <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
-                      <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
-                      {offer.cta && (
+                      <ThemedText style={styles.offerTitle}>{item.title}</ThemedText>
+                      <ThemedText style={styles.offerSubtitle}>{item.subtitle}</ThemedText>
+                      {item.cta && (
                         <TouchableOpacity style={styles.offerCta}>
-                          <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
+                          <ThemedText style={styles.offerCtaText}>{item.cta}</ThemedText>
                         </TouchableOpacity>
                       )}
                     </View>
                   </View>
                 )}
               </View>
-            ))}
-          </View>
+            )}
+          />
+          {offers.length > 1 && (
+            <View style={styles.offerDots}>
+              {offers.map((_, idx) => (
+                <View key={idx} style={[styles.offerDot, idx === activeOfferIdx && styles.offerDotActive]} />
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Hero Banner */}
@@ -569,186 +425,90 @@ export default function HomeScreen() {
         >
           <View style={styles.heroLeft}>
             <View style={styles.heroBadge}>
-              <ThemedText style={styles.heroBadgeText}>
-                ⚡ Fastest Delivery
-              </ThemedText>
+              <ThemedText style={styles.heroBadgeText}>⚡ Fastest Delivery</ThemedText>
             </View>
-            <ThemedText style={[styles.heroTitle, { fontSize: heroFontSize }]}>
+            <ThemedText style={styles.heroTitle}>
               Groceries at{"\n"}
-              <ThemedText style={styles.heroTitleSpan}>
-                Lightning Speed
-              </ThemedText>
+              <ThemedText style={styles.heroTitleSpan}>Lightning Speed</ThemedText>
             </ThemedText>
-            <ThemedText style={styles.heroDesc}>
-              Fresh fruits & dairy — delivered in 10 mins
-            </ThemedText>
+            <ThemedText style={styles.heroDesc}>Fresh fruits & dairy — delivered in 10 mins</ThemedText>
             <TouchableOpacity style={styles.heroCta}>
               <ThemedText style={styles.heroCtaText}>Shop Now →</ThemedText>
             </TouchableOpacity>
           </View>
           <View style={styles.heroRight}>
-            <ThemedText style={{ fontSize: responsiveModerateScale(35) }}>
-              🛒
-            </ThemedText>
+            <ThemedText style={styles.heroEmoji}>🛒</ThemedText>
           </View>
         </ExpoLinearGradient>
 
         {/* Delivery Info Cards */}
         <View style={styles.deliveryStrip}>
-          <View style={styles.deliveryCard}>
-            <View
-              style={[
-                styles.dcIcon,
-                {
-                  backgroundColor: "#FFF8D0",
-                  width: responsiveScale(44),
-                  height: responsiveVerticalScale(44),
-                },
-              ]}
-            >
-              <ThemedText style={{ fontSize: responsiveModerateScale(22) }}>
-                ⚡
-              </ThemedText>
+          {[
+            { bg: "#FFF8D0", emoji: "⚡", badge: "10 MIN", badgeBg: COLORS.accent, title: "Lightning Fast", desc: "Average delivery" },
+            { bg: "#DCFCE7", emoji: "🌿", badge: "100% FRESH", badgeBg: "#22C55E", title: "Farm Fresh", desc: "Sourced daily" },
+            { bg: "#DBEAFE", emoji: "🏷️", badge: "BEST PRICE", badgeBg: "#8B5CF6", title: "Zero Fees", desc: "Free delivery" },
+          ].map((card) => (
+            <View key={card.title} style={styles.deliveryCard}>
+              <View style={[styles.dcIcon, { backgroundColor: card.bg }]}>
+                <ThemedText style={styles.dcEmoji}>{card.emoji}</ThemedText>
+              </View>
+              <View style={styles.flexOne}>
+                <ThemedText style={[styles.deliveryTime, { backgroundColor: card.badgeBg }]}>
+                  {card.badge}
+                </ThemedText>
+                <ThemedText style={styles.dcTitle}>{card.title}</ThemedText>
+                <ThemedText style={styles.dcDesc}>{card.desc}</ThemedText>
+              </View>
             </View>
-            <View style={styles.flexOne}>
-              <ThemedText style={styles.deliveryTime}>10 MIN</ThemedText>
-              <ThemedText style={styles.dcTitle}>Lightning Fast</ThemedText>
-              <ThemedText style={styles.dcDesc}>Average delivery</ThemedText>
-            </View>
-          </View>
-
-          <View style={styles.deliveryCard}>
-            <View
-              style={[
-                styles.dcIcon,
-                {
-                  backgroundColor: "#DCFCE7",
-                  width: responsiveScale(44),
-                  height: responsiveVerticalScale(44),
-                },
-              ]}
-            >
-              <ThemedText style={{ fontSize: responsiveModerateScale(22) }}>
-                🌿
-              </ThemedText>
-            </View>
-            <View style={styles.flexOne}>
-              <ThemedText
-                style={[styles.deliveryTime, { backgroundColor: "#22C55E" }]}
-              >
-                100% FRESH
-              </ThemedText>
-              <ThemedText style={styles.dcTitle}>Farm Fresh</ThemedText>
-              <ThemedText style={styles.dcDesc}>Sourced daily</ThemedText>
-            </View>
-          </View>
-
-          <View style={styles.deliveryCard}>
-            <View
-              style={[
-                styles.dcIcon,
-                {
-                  backgroundColor: "#DBEAFE",
-                  width: responsiveScale(44),
-                  height: responsiveVerticalScale(44),
-                },
-              ]}
-            >
-              <ThemedText style={{ fontSize: responsiveModerateScale(22) }}>
-                🏷️
-              </ThemedText>
-            </View>
-            <View style={styles.flexOne}>
-              <ThemedText
-                style={[styles.deliveryTime, { backgroundColor: "#8B5CF6" }]}
-              >
-                BEST PRICE
-              </ThemedText>
-              <ThemedText style={styles.dcTitle}>Zero Fees</ThemedText>
-              <ThemedText style={styles.dcDesc}>Free delivery</ThemedText>
-            </View>
-          </View>
+          ))}
         </View>
 
         {/* Categories */}
         <View style={styles.sectionHead}>
-          <ThemedText
-            style={[
-              styles.sectionTitle,
-              { fontSize: responsiveModerateScale(20) },
-            ]}
-          >
-            Shop by Category
-          </ThemedText>
+          <ThemedText style={styles.sectionTitle}>Shop by Category</ThemedText>
           <TouchableOpacity onPress={() => router.push("/categories")}>
             <ThemedText style={styles.seeAll}>View All →</ThemedText>
           </TouchableOpacity>
         </View>
 
-        {/* Categories — horizontal FlatList single-row */}
-        <View>
-          {(() => {
-            const visibleOnScreen = width < 380 ? 4 : 5; // how many cards fit before scrolling
-            const gap = responsiveScale(12);
-            const horizontalPadding = responsiveScale(32); // 16 left + 16 right
-            const winW = width;
-            const cardSize = Math.floor(
-              (winW - horizontalPadding - (visibleOnScreen - 1) * gap) /
-                visibleOnScreen,
-            );
-
-            return (
-              <FlatList
-                key="categories-horizontal"
-                data={categories}
-                keyExtractor={(item, idx) => item._id ?? String(idx)}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingHorizontal: responsiveScale(16),
-                  paddingBottom: responsiveVerticalScale(8),
-                }}
-                scrollEnabled={true}
-                nestedScrollEnabled={true}
-                renderItem={({ item }) => (
-                  <Pressable
-                    onPress={() => setSelectedCategory(item._id)}
-                    style={({ pressed }) => [
-                      styles.categoryCard,
-                      {
-                        backgroundColor: getCategoryColor(item.name),
-                        width: cardSize,
-                        height: cardSize,
-                        marginRight: gap,
-                        transform: [{ scale: pressed ? 0.96 : 1 }],
-                      },
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={getCategoryIcon(item?.name)}
-                      size={responsiveModerateScale(30)}
-                      color="#0E7A3D"
-                    />
-                  </Pressable>
-                )}
-                ListEmptyComponent={
-                  <View style={{ height: responsiveVerticalScale(8) }} />
-                }
+        <FlatList
+          key="categories-horizontal"
+          data={categories}
+          keyExtractor={(item, idx) => item._id ?? String(idx)}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingHorizontal: scale(16),
+            paddingBottom: verticalScale(8),
+          }}
+          nestedScrollEnabled
+          renderItem={({ item }) => (
+            <Pressable
+              onPress={() => setSelectedCategory(item._id)}
+              style={({ pressed }) => [
+                styles.categoryCard,
+                {
+                  backgroundColor: getCategoryColor(item.name),
+                  width: cardSize,
+                  height: cardSize,
+                  marginRight: catGap,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={getCategoryIcon(item?.name)}
+                size={moderateScale(28)}
+                color="#0E7A3D"
               />
-            );
-          })()}
-        </View>
+            </Pressable>
+          )}
+          ListEmptyComponent={<View style={{ height: verticalScale(8) }} />}
+        />
 
         {/* Products */}
-        <View style={styles.sectionHead}>
-          <ThemedText
-            style={[
-              styles.sectionTitle,
-              { fontSize: responsiveModerateScale(20) },
-            ]}
-          >
-            🔥 Trending Now
-          </ThemedText>
+        <View style={[styles.sectionHead, { marginTop: verticalScale(16) }]}>
+          <ThemedText style={styles.sectionTitle}>🔥 Trending Now</ThemedText>
           <TouchableOpacity onPress={() => router.push("/products")}>
             <ThemedText style={styles.seeAll}>See All →</ThemedText>
           </TouchableOpacity>
@@ -757,218 +517,127 @@ export default function HomeScreen() {
         <View style={styles.productGrid}>
           {filteredProducts.length === 0 ? (
             <View style={styles.noResultsWrap}>
-              <ThemedText style={styles.noResultsTitle}>
-                No products available
-              </ThemedText>
-              <ThemedText style={styles.noResultsSubtext}>
-                Try another category or check again later
-              </ThemedText>
+              <ThemedText style={styles.noResultsTitle}>No products available</ThemedText>
+              <ThemedText style={styles.noResultsSubtext}>Try another category or check again later</ThemedText>
             </View>
           ) : (
-            filteredProducts.map((product) =>
-              (() => {
-                const variants = Array.isArray(product?.variants)
-                  ? product.variants
-                  : [];
-                const defaultVariant =
-                  variants.find((variant: any) => variant?.isDefault) ||
-                  variants[0] ||
-                  null;
-                const activePrice = Number(
-                  defaultVariant?.price ?? product?.price ?? 0,
-                );
-                const activeMrp = Number(
-                  defaultVariant?.mrp ?? product?.mrp ?? 0,
-                );
-                const activeStock = Number(
-                  defaultVariant?.stock ?? product?.stock ?? 0,
-                );
-                const activeUnitLabel = String(
-                  defaultVariant?.label ||
-                    defaultVariant?.unitType ||
-                    product?.unit ||
-                    "piece",
-                );
-                const isOutOfStock = activeStock <= 0;
-                const discountPercent = defaultVariant
-                  ? getDiscountPercent(defaultVariant)
-                  : getDiscountPercent(product);
-                const previewVariants = variants.slice(0, 3);
-                const extraVariantCount = Math.max(
-                  0,
-                  variants.length - previewVariants.length,
-                );
+            filteredProducts.map((product) => {
+              const variants = Array.isArray(product?.variants) ? product.variants : [];
+              const defaultVariant = variants.find((v: any) => v?.isDefault) || variants[0] || null;
+              const activePrice = Number(defaultVariant?.price ?? product?.price ?? 0);
+              const activeMrp = Number(defaultVariant?.mrp ?? product?.mrp ?? 0);
+              const activeStock = Number(defaultVariant?.stock ?? product?.stock ?? 0);
+              const activeUnitLabel = String(defaultVariant?.label || defaultVariant?.unitType || product?.unit || "piece");
+              const isOutOfStock = activeStock <= 0;
+              const discountPercent = defaultVariant ? getDiscountPercent(defaultVariant) : getDiscountPercent(product);
+              const previewVariants = variants.slice(0, 3);
+              const extraVariantCount = Math.max(0, variants.length - previewVariants.length);
 
-                return (
-                  <TouchableOpacity
-                    key={product.id || product._id}
-                    style={styles.productCard}
-                    onPress={() => {
-                      const id = product._id || product.id;
-                      router.push({
-                        pathname: "/product/[productId]",
-                        params: { productId: id },
-                      });
-                    }}
-                  >
-                    <View style={styles.productImg}>
-                      {/* Show MinIO image if available, else fallback to emoji or placeholder */}
-                      {Array.isArray(product.images) && product.images[0] ? (
-                        <ImageBackground
-                          source={{ uri: resolveImageUrl(product.images[0]) }}
-                          style={{
-                            width: responsiveScale(80),
-                            height: responsiveVerticalScale(80),
-                            justifyContent: "center",
-                            alignItems: "center",
-                          }}
-                          imageStyle={{
-                            resizeMode: "contain",
-                            borderRadius: responsiveModerateScale(12),
-                          }}
-                        >
-                          {/* Optionally overlay discount or wishlist here if needed */}
-                        </ImageBackground>
-                      ) : (
-                        <ThemedText
-                          style={{ fontSize: responsiveModerateScale(28) }}
-                        >
-                          {product.emoji || product.image || "🛍️"}
-                        </ThemedText>
-                      )}
-                      {discountPercent > 0 && (
-                        <View style={styles.discountTag}>
-                          <ThemedText style={styles.discountText}>
-                            {discountPercent}% OFF
-                          </ThemedText>
-                        </View>
-                      )}
-                      <TouchableOpacity style={styles.wishlistBtn}>
-                        <ThemedText
-                          style={{ fontSize: responsiveModerateScale(16) }}
-                        >
-                          ♡
+              return (
+                <TouchableOpacity
+                  key={product.id || product._id}
+                  style={styles.productCard}
+                  onPress={() => {
+                    const id = product._id || product.id;
+                    router.push({ pathname: "/product/[productId]", params: { productId: id } });
+                  }}
+                >
+                  <View style={styles.productImg}>
+                    {Array.isArray(product.images) && product.images[0] ? (
+                      <ImageBackground
+                        source={{ uri: resolveImageUrl(product.images[0]) }}
+                        style={styles.productImgBg}
+                        imageStyle={styles.productImgStyle}
+                      />
+                    ) : (
+                      <ThemedText style={styles.productEmoji}>
+                        {product.emoji || product.image || "🛍️"}
+                      </ThemedText>
+                    )}
+                    {discountPercent > 0 && (
+                      <View style={styles.discountTag}>
+                        <ThemedText style={styles.discountText}>{discountPercent}% OFF</ThemedText>
+                      </View>
+                    )}
+                    <TouchableOpacity style={styles.wishlistBtn}>
+                      <ThemedText style={styles.wishlistIcon}>♡</ThemedText>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.productBody}>
+                    <ThemedText style={styles.productMeta}>
+                      {product.category || product.meta || product.type}
+                    </ThemedText>
+                    {product.rating && (
+                      <View style={styles.rating}>
+                        <ThemedText style={styles.ratingText}>⭐ {product.rating}</ThemedText>
+                      </View>
+                    )}
+                    <ThemedText style={styles.productName} numberOfLines={2}>{product.name}</ThemedText>
+                    <ThemedText style={styles.productWeight}>Per {activeUnitLabel}</ThemedText>
+
+                    {previewVariants.length > 0 && (
+                      <View style={styles.productVariantStrip}>
+                        {previewVariants.map((variant: any) => {
+                          const label = String(variant?.label || variant?.unitType || "Variant");
+                          return (
+                            <View key={String(variant?._id || label)} style={styles.productVariantChip}>
+                              <ThemedText style={styles.productVariantChipText}>{label}</ThemedText>
+                            </View>
+                          );
+                        })}
+                        {extraVariantCount > 0 && (
+                          <View style={styles.productVariantChip}>
+                            <ThemedText style={styles.productVariantChipText}>+{extraVariantCount}</ThemedText>
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    <View style={styles.productFooter}>
+                      <View>
+                        <ThemedText style={styles.price}>₹{activePrice}</ThemedText>
+                        {activeMrp > activePrice && (
+                          <ThemedText style={styles.priceOld}>₹{activeMrp}</ThemedText>
+                        )}
+                        {isOutOfStock && <ThemedText style={styles.stockWarning}>Out of stock</ThemedText>}
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.addBtn, isOutOfStock && styles.addBtnDisabled]}
+                        onPress={() =>
+                          addItem({
+                            id: defaultVariant?._id
+                              ? `${product._id || product.id}:${String(defaultVariant._id)}`
+                              : product._id || product.id,
+                            productId: product._id || product.id,
+                            variantId: defaultVariant?._id ? String(defaultVariant._id) : undefined,
+                            variantLabel: defaultVariant?.label || defaultVariant?.unitType || undefined,
+                            name: product.name,
+                            price: activePrice,
+                            unit: activeUnitLabel,
+                            image: Array.isArray(product.images) && product.images[0]
+                              ? resolveImageUrl(product.images[0])
+                              : product.emoji || product.image || "🛍️",
+                            stock: activeStock,
+                          }, 1)
+                        }
+                        disabled={isOutOfStock}
+                      >
+                        <ThemedText style={[styles.addBtnText, isOutOfStock && { color: "#9CA3AF" }]}>
+                          {isOutOfStock ? "OUT" : "ADD"}
                         </ThemedText>
                       </TouchableOpacity>
                     </View>
-                    <View style={styles.productBody}>
-                      <ThemedText style={styles.productMeta}>
-                        {product.category || product.meta || product.type}
-                      </ThemedText>
-                      {product.rating && (
-                        <View style={styles.rating}>
-                          <ThemedText style={styles.ratingText}>
-                            ⭐ {product.rating}
-                          </ThemedText>
-                        </View>
-                      )}
-                      <ThemedText style={styles.productName} numberOfLines={2}>
-                        {product.name}
-                      </ThemedText>
-                      <ThemedText style={styles.productWeight}>
-                        Per {activeUnitLabel}
-                      </ThemedText>
-                      {previewVariants.length > 0 && (
-                        <View style={styles.productVariantStrip}>
-                          {previewVariants.map((variant: any) => {
-                            const label = String(
-                              variant?.label || variant?.unitType || "Variant",
-                            );
-                            return (
-                              <View
-                                key={String(variant?._id || label)}
-                                style={styles.productVariantChip}
-                              >
-                                <ThemedText
-                                  style={styles.productVariantChipText}
-                                >
-                                  {label}
-                                </ThemedText>
-                              </View>
-                            );
-                          })}
-                          {extraVariantCount > 0 && (
-                            <View style={styles.productVariantChip}>
-                              <ThemedText style={styles.productVariantChipText}>
-                                +{extraVariantCount}
-                              </ThemedText>
-                            </View>
-                          )}
-                        </View>
-                      )}
-                      <View style={styles.productFooter}>
-                        <View>
-                          <ThemedText style={styles.price}>
-                            ₹{activePrice}
-                          </ThemedText>
-                          {activeMrp > activePrice && (
-                            <ThemedText style={styles.priceOld}>
-                              ₹{activeMrp}
-                            </ThemedText>
-                          )}
-                          {isOutOfStock && (
-                            <ThemedText style={styles.stockWarning}>
-                              Out of stock
-                            </ThemedText>
-                          )}
-                        </View>
-                        <TouchableOpacity
-                          style={[
-                            styles.addBtn,
-                            isOutOfStock && styles.addBtnDisabled,
-                          ]}
-                          onPress={() =>
-                            addItem(
-                              {
-                                id: defaultVariant?._id
-                                  ? `${product._id || product.id}:${String(defaultVariant._id)}`
-                                  : product._id || product.id,
-                                productId: product._id || product.id,
-                                variantId: defaultVariant?._id
-                                  ? String(defaultVariant._id)
-                                  : undefined,
-                                variantLabel:
-                                  defaultVariant?.label ||
-                                  defaultVariant?.unitType ||
-                                  undefined,
-                                name: product.name,
-                                price: activePrice,
-                                unit: activeUnitLabel,
-                                image:
-                                  Array.isArray(product.images) &&
-                                  product.images[0]
-                                    ? resolveImageUrl(product.images[0])
-                                    : product.emoji || product.image || "🛍️",
-                                stock: activeStock,
-                              },
-                              1,
-                            )
-                          }
-                          disabled={isOutOfStock}
-                        >
-                          <ThemedText style={styles.addBtnText}>
-                            {isOutOfStock ? "OUT" : "ADD"}
-                          </ThemedText>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })(),
-            )
+                  </View>
+                </TouchableOpacity>
+              );
+            })
           )}
         </View>
 
-        {/* Deals Section */}
+        {/* Hot Deals */}
         <View style={styles.sectionHead}>
-          <ThemedText
-            style={[
-              styles.sectionTitle,
-              { fontSize: responsiveModerateScale(20) },
-            ]}
-          >
-            🏷️ Hot Deals
-          </ThemedText>
+          <ThemedText style={styles.sectionTitle}>🏷️ Hot Deals</ThemedText>
         </View>
 
         <View style={styles.dealsRow}>
@@ -979,19 +648,15 @@ export default function HomeScreen() {
             style={styles.dealCard}
           >
             <View style={styles.dealInfo}>
-              <ThemedText style={styles.dealTitle}>
-                Weekend Sale!{"\n"}Up to 40%
-              </ThemedText>
-              <ThemedText style={styles.dealDesc}>
-                Fresh fruits & veggies
-              </ThemedText>
+              <ThemedText style={styles.dealTitle} numberOfLines={2}>Weekend Sale!{"\n"}Up to 40%</ThemedText>
+              <ThemedText style={styles.dealDesc} numberOfLines={1}>Fresh fruits & veggies</ThemedText>
               <TouchableOpacity style={styles.dealBtn}>
                 <ThemedText style={styles.dealBtnText}>Shop →</ThemedText>
               </TouchableOpacity>
             </View>
-            <ThemedText style={{ fontSize: responsiveModerateScale(40) }}>
-              🍉
-            </ThemedText>
+            <View style={styles.dealEmoji}>
+              <ThemedText style={styles.dealEmojiText}>🍉</ThemedText>
+            </View>
           </ExpoLinearGradient>
 
           <ExpoLinearGradient
@@ -1001,106 +666,53 @@ export default function HomeScreen() {
             style={styles.dealCard}
           >
             <View style={styles.dealInfo}>
-              <ThemedText style={styles.dealTitle}>
-                Buy 2 Get 1{"\n"}FREE
-              </ThemedText>
-              <ThemedText style={styles.dealDesc}>On dairy products</ThemedText>
+              <ThemedText style={styles.dealTitle} numberOfLines={2}>Buy 2 Get 1{"\n"}FREE</ThemedText>
+              <ThemedText style={styles.dealDesc} numberOfLines={1}>On dairy products</ThemedText>
               <TouchableOpacity style={styles.dealBtn}>
                 <ThemedText style={styles.dealBtnText}>Shop →</ThemedText>
               </TouchableOpacity>
             </View>
-            <ThemedText style={{ fontSize: responsiveModerateScale(40) }}>
-              🥛
-            </ThemedText>
+            <View style={styles.dealEmoji}>
+              <ThemedText style={styles.dealEmojiText}>🥛</ThemedText>
+            </View>
           </ExpoLinearGradient>
         </View>
 
-        <View style={{ height: responsiveVerticalScale(40) }} />
+        <View style={{ height: verticalScale(40) }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = createResponsiveStyles({
+// ─────────────────────────────────────────────────────────
+//  STYLES — react-native-size-matters
+//  scale()         → width, horizontal padding/margin
+//  verticalScale() → height, vertical padding/margin
+//  moderateScale() → font sizes, border radius
+// ─────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: COLORS.bg,
   },
+
+  // ── Header ──
   header: {
     backgroundColor: COLORS.white,
     borderBottomColor: "rgba(0,0,0,0.06)",
-    flexDirection: "column",
+    borderBottomWidth: 1,
+    paddingHorizontal: scale(16),
+    paddingVertical: verticalScale(10),
+    gap: moderateScale(10),
   },
-  locationPill: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.bg,
-    borderWidth: 1.2,
-    borderColor: COLORS.light,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 44,
-    gap: 6,
-    flexShrink: 1,
-  },
-  locationChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: COLORS.light,
-    borderRadius: 40,
-    minWidth: 90,
-    maxWidth: 180,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    gap: 6,
-  },
-  locText: {
-    fontWeight: "600",
-    color: COLORS.text,
-    fontSize: 12,
-  },
-  locationPin: {
-    fontSize: 16,
-    color: COLORS.primaryDark,
-  },
-  locSub: {
-    color: COLORS.muted,
-  },
-  dropdownArrow: {
-    fontSize: 12,
-    color: COLORS.muted,
-  },
-  flexOne: {
-    flex: 1,
-  },
-  searchBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: COLORS.bg,
-    borderWidth: 1.2,
-    borderColor: COLORS.light,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 44,
-    gap: 6,
-  },
-  searchIcon: {
-    fontSize: 16,
-    color: COLORS.muted,
-  },
-  searchInput: {
-    flex: 1,
-    color: COLORS.text,
-    fontFamily: "DM Sans",
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
+    gap: scale(10),
   },
   iconBtn: {
-    borderRadius: 12,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: moderateScale(12),
     backgroundColor: COLORS.bg,
     borderWidth: 1.5,
     borderColor: COLORS.light,
@@ -1108,12 +720,15 @@ const styles = createResponsiveStyles({
     alignItems: "center",
     position: "relative",
   },
+  iconEmoji: {
+    fontSize: moderateScale(20),
+  },
   dot: {
     position: "absolute",
     top: 4,
     right: 4,
-    width: 8,
-    height: 8,
+    width: scale(8),
+    height: scale(8),
     backgroundColor: COLORS.red,
     borderRadius: 50,
     borderWidth: 1.5,
@@ -1122,457 +737,417 @@ const styles = createResponsiveStyles({
   cartBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: scale(6),
     backgroundColor: COLORS.accent,
-    borderRadius: 12,
+    borderRadius: moderateScale(12),
+    paddingHorizontal: scale(14),
+    height: scale(44),
+    justifyContent: "center",
   },
   cartCount: {
     fontWeight: "700",
     color: COLORS.white,
+    fontSize: moderateScale(12),
   },
-  main: {
+  searchBar: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  orderStatus: {
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.light,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    alignSelf: "flex-start",
+    backgroundColor: COLORS.bg,
+    borderWidth: 1.2,
+    borderColor: COLORS.light,
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(8),
+    borderRadius: moderateScale(44),
+    gap: scale(6),
   },
-  orderDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: COLORS.green,
-    borderRadius: 8,
-  },
-  dotMini: {
-    position: "absolute",
-    top: 3,
-    right: 3,
-    width: 6,
-    height: 6,
-    backgroundColor: COLORS.red,
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: COLORS.white,
-  },
-  orderStatusInfo: {
-    flex: 1,
-    minWidth: 80,
-  },
-  orderStatusTitle: {
-    fontWeight: "600",
-    color: COLORS.text,
-    fontSize: 11,
-    marginBottom: 2,
-  },
-  orderStatusSub: {
+  searchIcon: {
+    fontSize: moderateScale(15),
     color: COLORS.muted,
-    fontSize: 10,
   },
-  orderTrackBtn: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+  searchInput: {
+    flex: 1,
+    fontSize: moderateScale(13),
+    color: COLORS.muted,
   },
-  orderTrackBtnText: {
-    fontWeight: "700",
-    color: COLORS.accent,
-    fontSize: 11,
-  },
+
+  // ── Toast ──
   orderToast: {
     position: "absolute",
-    top: 76,
-    left: 16,
-    right: 16,
+    top: verticalScale(76),
+    left: scale(16),
+    right: scale(16),
     zIndex: 99,
     backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.28,
-    shadowRadius: 4,
+    borderRadius: moderateScale(12),
+    paddingVertical: verticalScale(10),
+    paddingHorizontal: scale(14),
     elevation: 6,
   },
   orderToastText: {
     color: COLORS.white,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: moderateScale(12),
     textAlign: "center",
   },
-  offerSection: {
-    marginBottom: 18,
+
+  // ── Main scroll ──
+  main: {
+    flex: 1,
+    paddingHorizontal: scale(14),
+    paddingTop: verticalScale(12),
   },
-  offerGrid: {
+
+  // ── Section head ──
+  sectionHead: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
     justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: verticalScale(12),
   },
-  offerGridItem: {
-    borderRadius: 14,
-    marginBottom: 8,
+  sectionTitle: {
+    fontWeight: "800",
+    color: COLORS.text,
+    fontSize: moderateScale(18),
+  },
+  seeAll: {
+    fontWeight: "600",
+    color: COLORS.accent,
+    fontSize: moderateScale(13),
+  },
+
+  // ── Offers ──
+  offerSection: {
+    marginBottom: verticalScale(20),
+    marginHorizontal: -scale(14),
+    overflow: "hidden",
   },
   offerCard: {
-    height: 110,
-    borderRadius: 14,
+    height: verticalScale(155),
     overflow: "hidden",
     justifyContent: "flex-end",
     backgroundColor: COLORS.accent,
   },
   offerCardImage: {
     resizeMode: "cover",
-    borderRadius: 14,
   },
   offerOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(13,61,30,0.48)",
   },
   offerContent: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(10),
+    gap: verticalScale(4),
   },
   offerTitle: {
     color: COLORS.white,
-    fontSize: 16,
+    fontSize: moderateScale(16),
     fontWeight: "800",
   },
   offerSubtitle: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: 10,
+    fontSize: moderateScale(10),
   },
   offerCta: {
     alignSelf: "flex-start",
-    marginTop: 2,
+    marginTop: verticalScale(2),
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    borderRadius: moderateScale(10),
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(7),
   },
   offerCtaText: {
     color: COLORS.accent,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: moderateScale(12),
   },
   offerDots: {
-    marginTop: 10,
+    marginTop: verticalScale(10),
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: scale(8),
   },
   offerDot: {
-    width: 8,
-    height: 8,
+    width: scale(8),
+    height: scale(8),
     borderRadius: 999,
     backgroundColor: "#D1D5DB",
   },
   offerDotActive: {
-    width: 22,
+    width: scale(22),
     backgroundColor: COLORS.accent,
   },
+
+  // ── Hero ──
   hero: {
-    borderRadius: 14,
+    borderRadius: moderateScale(14),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     overflow: "hidden",
-    marginBottom: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    minHeight: 112,
+    marginBottom: verticalScale(16),
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(14),
+    minHeight: verticalScale(110),
   },
-  heroLeft: {
-    flex: 1,
-  },
+  heroLeft: { flex: 1 },
   heroBadge: {
     alignSelf: "flex-start",
     backgroundColor: "rgba(248,194,0,0.2)",
     borderWidth: 1,
     borderColor: "rgba(248,194,0,0.4)",
-    borderRadius: 36,
-    marginBottom: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+    borderRadius: moderateScale(36),
+    marginBottom: verticalScale(8),
+    paddingHorizontal: scale(7),
+    paddingVertical: verticalScale(4),
   },
   heroBadgeText: {
     fontWeight: "700",
     color: COLORS.primary,
-    fontSize: 10,
+    fontSize: moderateScale(10),
   },
   heroTitle: {
     fontWeight: "700",
     color: COLORS.white,
-    marginBottom: 6,
-    lineHeight: 28,
-    fontSize: 16,
+    marginBottom: verticalScale(5),
+    lineHeight: moderateScale(26),
+    fontSize: moderateScale(22),
   },
   heroTitleSpan: {
     color: COLORS.primary,
   },
   heroDesc: {
     color: "rgba(255,255,255,0.75)",
-    marginBottom: 10,
-    lineHeight: 18,
-    fontSize: 10,
+    marginBottom: verticalScale(10),
+    lineHeight: moderateScale(17),
+    fontSize: moderateScale(11),
   },
   heroCta: {
     alignSelf: "flex-start",
     backgroundColor: COLORS.primary,
-    borderRadius: 10,
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    borderRadius: moderateScale(10),
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(8),
   },
   heroCtaText: {
     fontWeight: "800",
     color: COLORS.accent,
+    fontSize: moderateScale(13),
   },
   heroRight: {
-    marginRight: -8,
     justifyContent: "center",
     alignItems: "center",
-    width: 78,
-    height: 78,
-  },  deliveryStrip: {
-    marginBottom: 20,
-    gap: 10,
+    width: scale(70),
+    height: scale(70),
+  },
+  heroEmoji: {
+    fontSize: moderateScale(34),
+  },
+
+  // ── Delivery Strip ──
+  deliveryStrip: {
+    marginBottom: verticalScale(18),
+    gap: verticalScale(10),
   },
   deliveryCard: {
     backgroundColor: COLORS.white,
-    borderRadius: 12,
+    borderRadius: moderateScale(12),
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: scale(12),
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(10),
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
   dcIcon: {
-    borderRadius: 12,
+    width: scale(44),
+    height: scale(44),
+    borderRadius: moderateScale(12),
     justifyContent: "center",
     alignItems: "center",
     flexShrink: 0,
   },
+  dcEmoji: {
+    fontSize: moderateScale(20),
+  },
+  flexOne: { flex: 1 },
   deliveryTime: {
     color: COLORS.white,
     fontWeight: "800",
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginBottom: 2,
+    fontSize: moderateScale(10),
+    borderRadius: moderateScale(4),
+    paddingHorizontal: scale(6),
+    paddingVertical: verticalScale(2),
+    marginBottom: verticalScale(2),
     alignSelf: "flex-start",
   },
   dcTitle: {
     fontWeight: "700",
     color: COLORS.text,
-    marginBottom: 2,
+    fontSize: moderateScale(13),
+    marginBottom: verticalScale(2),
   },
   dcDesc: {
     color: COLORS.muted,
+    fontSize: moderateScale(11),
   },
-  sectionHead: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-  sectionTitle: {
-    fontWeight: "800",
-    color: COLORS.text,
-  },
-  seeAll: {
-    fontWeight: "600",
-    color: COLORS.accent,
-  },
-  categoriesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "flex-start",
-    marginBottom: 18,
-    gap: 10,
-  },
-  columnWrapper: {
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
+
+  // ── Category Card ──
   categoryCard: {
-    borderRadius: 16,
+    borderRadius: moderateScale(14),
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
-    marginBottom: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 6,
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 7,
-    elevation: 4,
-    borderWidth: 0,
+    elevation: 3,
   },
-  categoryCardActive: {
-    borderWidth: 1,
-    borderColor: "rgba(0,0,0,0.06)",
-  },
-  categoryIcon: {
-    fontSize: 38,
-    width: 38,
-    height: 38,
-    textAlign: "center",
-    marginBottom: 6,
-    color: COLORS.text,
-  },
-  categoryImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginBottom: 6,
-  },
-  categoryTitle: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: COLORS.text,
-    textAlign: "center",
-  },
+
+  // ── Product Grid ──
   productGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    marginBottom: 22,
-    gap: 8,
+    marginBottom: verticalScale(20),
+    gap: scale(8),
   },
   noResultsWrap: {
     width: "100%",
     backgroundColor: COLORS.white,
-    borderRadius: 12,
+    borderRadius: moderateScale(12),
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    paddingHorizontal: 14,
-    paddingVertical: 18,
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(18),
     alignItems: "center",
     justifyContent: "center",
   },
   noResultsTitle: {
-    fontSize: 16,
+    fontSize: moderateScale(15),
     fontWeight: "700",
     color: COLORS.text,
-    marginBottom: 6,
+    marginBottom: verticalScale(6),
   },
   noResultsSubtext: {
-    fontSize: 13,
+    fontSize: moderateScale(12),
     color: COLORS.muted,
     textAlign: "center",
   },
   productCard: {
     width: "48%",
     backgroundColor: COLORS.white,
-    borderRadius: 12,
+    borderRadius: moderateScale(12),
     overflow: "hidden",
     shadowColor: "#000",
     shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowRadius: 14,
+    elevation: 4,
   },
   productImg: {
     backgroundColor: COLORS.light,
-    height: 120,
+    height: verticalScale(115),
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
     overflow: "visible",
   },
+  productImgBg: {
+    width: scale(80),
+    height: verticalScale(80),
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  productImgStyle: {
+    resizeMode: "contain",
+    borderRadius: moderateScale(12),
+  },
+  productEmoji: {
+    fontSize: moderateScale(28),
+  },
   discountTag: {
     position: "absolute",
-    top: 6,
-    left: 6,
+    top: verticalScale(6),
+    left: scale(6),
     backgroundColor: COLORS.green,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: scale(6),
+    paddingVertical: verticalScale(2),
+    borderRadius: moderateScale(4),
   },
   discountText: {
     fontWeight: "800",
     color: COLORS.white,
-    fontSize: 9,
+    fontSize: moderateScale(9),
   },
   wishlistBtn: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    width: 32,
-    height: 32,
+    top: verticalScale(6),
+    right: scale(6),
+    width: scale(30),
+    height: scale(30),
     backgroundColor: COLORS.white,
     borderRadius: 50,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
+  },
+  wishlistIcon: {
+    fontSize: moderateScale(15),
   },
   productBody: {
     borderTopWidth: 1,
     borderTopColor: "#F0F0F0",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(8),
   },
   productMeta: {
     color: COLORS.muted,
     fontWeight: "500",
-    marginBottom: 2,
-    fontSize: 10,
+    marginBottom: verticalScale(2),
+    fontSize: moderateScale(10),
   },
   rating: {
     backgroundColor: "#F0FDF4",
-    borderRadius: 4,
-    marginBottom: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    borderRadius: moderateScale(4),
+    marginBottom: verticalScale(3),
+    paddingHorizontal: scale(6),
+    paddingVertical: verticalScale(2),
     alignSelf: "flex-start",
   },
   ratingText: {
     fontWeight: "700",
     color: "#166534",
-    fontSize: 10,
+    fontSize: moderateScale(10),
   },
   productName: {
     fontWeight: "700",
     color: COLORS.text,
-    marginBottom: 2,
-    fontSize: 13,
-    lineHeight: 16,
+    marginBottom: verticalScale(2),
+    fontSize: moderateScale(12),
+    lineHeight: moderateScale(16),
   },
   productWeight: {
     color: COLORS.muted,
-    marginBottom: 8,
-    fontSize: 11,
+    marginBottom: verticalScale(6),
+    fontSize: moderateScale(10),
   },
   productVariantStrip: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 8,
+    gap: scale(5),
+    marginBottom: verticalScale(6),
   },
   productVariantChip: {
     backgroundColor: COLORS.light,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: moderateScale(8),
+    paddingHorizontal: scale(7),
+    paddingVertical: verticalScale(3),
   },
   productVariantChipText: {
-    fontSize: 10,
+    fontSize: moderateScale(9),
     color: COLORS.muted,
     fontWeight: "700",
   },
@@ -1580,26 +1155,31 @@ const styles = createResponsiveStyles({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
-    gap: 8,
+    gap: scale(6),
   },
   price: {
     fontWeight: "800",
     color: COLORS.text,
-    fontSize: 15,
+    fontSize: moderateScale(14),
   },
   priceOld: {
     color: COLORS.muted,
     textDecorationLine: "line-through",
     fontWeight: "400",
-    fontSize: 11,
+    fontSize: moderateScale(10),
+  },
+  stockWarning: {
+    color: "#EF4444",
+    fontSize: moderateScale(10),
+    fontWeight: "600",
   },
   addBtn: {
     backgroundColor: COLORS.white,
     borderWidth: 2,
     borderColor: COLORS.accent,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: moderateScale(8),
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(5),
   },
   addBtnDisabled: {
     borderColor: "#9CA3AF",
@@ -1608,56 +1188,57 @@ const styles = createResponsiveStyles({
   addBtnText: {
     fontWeight: "800",
     color: COLORS.accent,
-    fontSize: 11,
+    fontSize: moderateScale(11),
   },
-  stockWarning: {
-    color: "#EF4444",
-    fontSize: 11,
-    fontWeight: "600",
-  },
+
+  // ── Deals ──
   dealsRow: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 28,
+    gap: scale(12),
+    marginBottom: verticalScale(24),
   },
   dealCard: {
     flex: 1,
-    borderRadius: 16,
+    borderRadius: moderateScale(16),
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     overflow: "hidden",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: scale(14),
+    paddingVertical: verticalScale(14),
   },
-  dealInfo: {
-    flex: 1,
-  },
+  dealInfo: { flex: 1 },
   dealTitle: {
     fontWeight: "800",
     color: COLORS.white,
-    fontSize: 16,
-    marginBottom: 4,
-    lineHeight: 20,
+    fontSize: moderateScale(13),
+    marginBottom: verticalScale(4),
+    lineHeight: moderateScale(18),
   },
   dealDesc: {
     color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-    marginBottom: 10,
+    fontSize: moderateScale(11),
+    marginBottom: verticalScale(10),
   },
   dealBtn: {
     backgroundColor: COLORS.white,
-    borderRadius: 8,
+    borderRadius: moderateScale(8),
     alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(6),
   },
   dealBtnText: {
     fontWeight: "700",
     color: COLORS.text,
-    fontSize: 11,
+    fontSize: moderateScale(11),
   },
   dealEmoji: {
-    marginRight: -8,
+    width: scale(36),
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  dealEmojiText: {
+    fontSize: moderateScale(28),
   },
 });

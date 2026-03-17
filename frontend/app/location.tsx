@@ -14,19 +14,18 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Dimensions,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-const { height } = Dimensions.get("window");
-
 export default function LocationScreen() {
   const router = useRouter();
+  const { height } = useWindowDimensions();
   const params = useLocalSearchParams();
   const getParamText = (value: unknown) => {
     if (typeof value === "string") return value;
@@ -253,7 +252,7 @@ export default function LocationScreen() {
         </View>
 
         {/* Map */}
-        <View style={styles.mapContainer}>
+        <View style={[styles.mapContainer, { height: height * 0.5 }]}>
           <MapView
             ref={mapRef}
             style={styles.map}
@@ -382,7 +381,7 @@ const styles = createResponsiveStyles({
     textAlign: "center",
   },
   placeholder: { width: 40 },
-  mapContainer: { height: height * 0.5, position: "relative" },
+  mapContainer: { position: "relative" },
   map: { ...StyleSheet.absoluteFillObject },
   locationBadge: {
     position: "absolute",

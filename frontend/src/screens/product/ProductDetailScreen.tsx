@@ -275,7 +275,7 @@ export default function ProductDetailDynamic() {
             {shouldShowDiscount && (
               <View style={styles.savingsContainer}>
                 <ThemedText style={styles.savingsText}>
-                  Save ₹{activeMrp - activePrice}
+                  Save ₹{Number((activeMrp - activePrice).toFixed(2))}
                 </ThemedText>
               </View>
             )}
