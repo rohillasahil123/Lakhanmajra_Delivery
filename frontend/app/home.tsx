@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import TopHeader from "@/components/TopHeader";
 import {
   createResponsiveStyles,
   responsiveModerateScale,
@@ -11,10 +12,9 @@ import useLocationStore from "@/stores/locationStore";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   ImageSourcePropType,
   ImageBackground,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
@@ -137,12 +137,13 @@ export default function HomeScreen() {
   const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
   const cartCount = useCart((s) => s.items.length);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [activeOfferIndex, setActiveOfferIndex] = useState(0);
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [offers, setOffers] = useState<any[]>([]);
   const [latestOrder, setLatestOrder] = useState<OrderRow | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
+  const [showOrderToast, setShowOrderToast] = useState(false);
+  const toastAnim = useRef(new Animated.Value(0)).current;
 
   const getParamText = (value: unknown) => {
     if (typeof value === "string") return value;
@@ -286,6 +287,32 @@ export default function HomeScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!latestOrder) {
+      setShowOrderToast(false);
+      return;
+    }
+
+    setShowOrderToast(true);
+    Animated.timing(toastAnim, {
+      toValue: 1,
+      duration: 260,
+      useNativeDriver: true,
+    }).start();
+
+    const hideTimeout = setTimeout(() => {
+      Animated.timing(toastAnim, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }).start(({ finished }) => finished && setShowOrderToast(false));
+    }, 4200);
+
+    return () => {
+      clearTimeout(hideTimeout);
+    };
+  }, [latestOrder, toastAnim]);
+
   const getOfferImageSource = (
     imageValue: unknown,
   ): ImageSourcePropType | null => {
@@ -349,51 +376,9 @@ export default function HomeScreen() {
   const headerPadding = getResponsiveValue(12, 16, width);
   const horizontalPadding = getResponsiveValue(12, 16, width);
   const heroFontSize = getResponsiveValue(28, 36, width);
-  const offerCardWidth = width - horizontalPadding * 2;
+  const offerCardWidth = (width - horizontalPadding * 2 - 8) / 2;
 
-  const handleOfferScroll = (
-    event: NativeSyntheticEvent<NativeScrollEvent>,
-  ) => {
-    const nextIndex = Math.round(
-      event.nativeEvent.contentOffset.x / offerCardWidth,
-    );
-    if (nextIndex !== activeOfferIndex) {
-      setActiveOfferIndex(nextIndex);
-    }
-  };
-
-  // Refs to control offer auto-scroll and keep current index in sync
-  const offerScrollRef = useRef<any>(null);
-  const offerIndexRef = useRef<number>(0);
-
-  useEffect(() => {
-    offerIndexRef.current = activeOfferIndex;
-  }, [activeOfferIndex]);
-
-  useEffect(() => {
-    if (!offers || offers.length <= 1) return;
-    let mounted = true;
-    const interval = setInterval(() => {
-      if (!mounted) return;
-      const next = (offerIndexRef.current + 1) % offers.length;
-      try {
-        offerScrollRef.current?.scrollTo({
-          x: next * offerCardWidth,
-          animated: true,
-        });
-      } catch {
-        // ref may not be mounted during initial render
-      }
-      offerIndexRef.current = next;
-      // update visible index state
-      setActiveOfferIndex(next);
-    }, 4000);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [offers, offerCardWidth]);
+  // `offers` grid does not use horizontal carousel indexes or scroll refs now.
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: COLORS.bg }]}>
@@ -408,69 +393,24 @@ export default function HomeScreen() {
           },
         ]}
       >
-        {/* Location + Profile/Order row */}
-        <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            width: "100%",
-            marginBottom: responsiveVerticalScale(6),
-          }}
-        >
-          <TouchableOpacity
-            style={styles.locationChip}
-            onPress={() =>
-              router.push({
-                pathname: "/location",
-                params: {
-                  returnTo: "/home",
-                  address: selectedLocation.address,
-                  deliveryInstructions: selectedLocation.deliveryInstructions,
-                  latitude: selectedLocation.latitude.toString(),
-                  longitude: selectedLocation.longitude.toString(),
-                },
-              })
-            }
-          >
-            <ThemedText style={styles.locationPin}>📍</ThemedText>
-            <ThemedText
-              style={[styles.locText, { fontSize: responsiveModerateScale(11), marginLeft: 4 }]}
-              numberOfLines={1}
-            >
-              {locationLines[0]}
-            </ThemedText>
-          </TouchableOpacity>
-
-          <View style={{ flexDirection: "row", gap: responsiveModerateScale(8) }}>
-            <TouchableOpacity
-              style={[
-                styles.iconBtn,
-                {
-                  width: responsiveScale(38),
-                  height: responsiveVerticalScale(38),
-                },
-              ]}
-              onPress={() => router.push("/orders")}
-            >
-              <ThemedText style={{ fontSize: responsiveModerateScale(18) }}>🧾</ThemedText>
-              {latestOrder && <View style={styles.dotMini} />}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.iconBtn,
-                {
-                  width: responsiveScale(38),
-                  height: responsiveVerticalScale(38),
-                },
-              ]}
-              onPress={() => router.push("/profile")}
-            >
-              <ThemedText style={{ fontSize: responsiveModerateScale(18) }}>👤</ThemedText>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <TopHeader
+          location={locationLines[0] ?? "Select your location"}
+          onLocationPress={() =>
+            router.push({
+              pathname: "/location",
+              params: {
+                returnTo: "/home",
+                address: selectedLocation.address,
+                deliveryInstructions: selectedLocation.deliveryInstructions,
+                latitude: selectedLocation.latitude.toString(),
+                longitude: selectedLocation.longitude.toString(),
+              },
+            })
+          }
+          onProfilePress={() => router.push("/profile")}
+          onOrdersPress={() => router.push("/orders")}
+          hasOrder={!!latestOrder}
+        />
 
         {/* Search Bar & Actions Row */}
         <View
@@ -545,6 +485,29 @@ export default function HomeScreen() {
         </View>
       </View>
 
+      {showOrderToast && latestOrder && (
+        <Animated.View
+          style={[
+            styles.orderToast,
+            {
+              opacity: toastAnim,
+              transform: [
+                {
+                  translateY: toastAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-18, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <ThemedText style={styles.orderToastText}>
+            🚚 Tracking order {latestOrder?._id || "your latest order"} in progress
+          </ThemedText>
+        </Animated.View>
+      )}
+
       <ScrollView style={styles.main} showsVerticalScrollIndicator={false}>
         <View style={styles.sectionHead}>
           <ThemedText
@@ -557,80 +520,42 @@ export default function HomeScreen() {
           </ThemedText>
         </View>
 
-        <View style={styles.offerSection}>
-          <ScrollView
-            ref={offerScrollRef}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={handleOfferScroll}
-            decelerationRate="fast"
-          >
+        <View style={[styles.offerSection, { paddingHorizontal: horizontalPadding }]}> 
+          <View style={styles.offerGrid}>
             {offers.map((offer, idx) => (
-              <View key={offer.id ?? idx} style={{ width: offerCardWidth }}>
+              <View key={offer.id ?? idx} style={[styles.offerGridItem, { width: offerCardWidth }]}> 
                 {getOfferImageSource(offer.image) ? (
                   <ImageBackground
-                    source={
-                      getOfferImageSource(offer.image) as ImageSourcePropType
-                    }
+                    source={getOfferImageSource(offer.image) as ImageSourcePropType}
                     style={styles.offerCard}
                     imageStyle={styles.offerCardImage}
                   >
                     <View style={styles.offerOverlay} />
                     <View style={styles.offerContent}>
-                      <ThemedText style={styles.offerTitle}>
-                        {offer.title}
-                      </ThemedText>
-                      <ThemedText style={styles.offerSubtitle}>
-                        {offer.subtitle}
-                      </ThemedText>
+                      <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
+                      <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
                       {offer.cta && (
                         <TouchableOpacity style={styles.offerCta}>
-                          <ThemedText style={styles.offerCtaText}>
-                            {offer.cta}
-                          </ThemedText>
+                          <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
                         </TouchableOpacity>
                       )}
                     </View>
                   </ImageBackground>
                 ) : (
-                  <View
-                    style={[
-                      styles.offerCard,
-                      { backgroundColor: COLORS.accent },
-                    ]}
-                  >
+                  <View style={[styles.offerCard, { backgroundColor: COLORS.accent }]}>
                     <View style={styles.offerOverlay} />
                     <View style={styles.offerContent}>
-                      <ThemedText style={styles.offerTitle}>
-                        {offer.title}
-                      </ThemedText>
-                      <ThemedText style={styles.offerSubtitle}>
-                        {offer.subtitle}
-                      </ThemedText>
+                      <ThemedText style={styles.offerTitle}>{offer.title}</ThemedText>
+                      <ThemedText style={styles.offerSubtitle}>{offer.subtitle}</ThemedText>
                       {offer.cta && (
                         <TouchableOpacity style={styles.offerCta}>
-                          <ThemedText style={styles.offerCtaText}>
-                            {offer.cta}
-                          </ThemedText>
+                          <ThemedText style={styles.offerCtaText}>{offer.cta}</ThemedText>
                         </TouchableOpacity>
                       )}
                     </View>
                   </View>
                 )}
               </View>
-            ))}
-          </ScrollView>
-
-          <View style={styles.offerDots}>
-            {offers.map((offer, index) => (
-              <View
-                key={offer.id ?? index}
-                style={[
-                  styles.offerDot,
-                  index === activeOfferIndex && styles.offerDotActive,
-                ]}
-              />
             ))}
           </View>
         </View>
@@ -1265,8 +1190,40 @@ const styles = createResponsiveStyles({
     color: COLORS.accent,
     fontSize: 11,
   },
+  orderToast: {
+    position: "absolute",
+    top: 76,
+    left: 16,
+    right: 16,
+    zIndex: 99,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.28,
+    shadowRadius: 4,
+    elevation: 6,
+  },
+  orderToastText: {
+    color: COLORS.white,
+    fontWeight: "700",
+    fontSize: 12,
+    textAlign: "center",
+  },
   offerSection: {
     marginBottom: 18,
+  },
+  offerGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    justifyContent: "space-between",
+  },
+  offerGridItem: {
+    borderRadius: 14,
+    marginBottom: 8,
   },
   offerCard: {
     height: 110,
