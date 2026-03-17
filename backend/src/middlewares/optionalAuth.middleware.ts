@@ -6,7 +6,7 @@ interface JwtPayload {
   id: string;
 }
 
-export const optionalAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const optionalAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   try {
     let token: string | undefined;
     let sessionId: string | undefined;

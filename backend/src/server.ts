@@ -4,7 +4,6 @@ dotenv.config();
 import app from "./app";
 import { createServer } from "http";
 import net from "net";
-import { exec } from "child_process";
 import { initRealtime } from "./services/realtime.service";
 
 const PORT = Number(process.env.PORT || 5000);

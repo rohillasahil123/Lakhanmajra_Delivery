@@ -428,11 +428,6 @@ const getProfileCompletion = (payload: RiderProfilePayload): number => {
   return Math.round((completed / riderProfileFields.length) * 100);
 };
 
-const isKycComplete = (profile: unknown): boolean => {
-  const payload = toProfilePayload(profile);
-  return getProfileCompletion(payload) === 100;
-};
-
 const toProfileResponse = (profile: unknown) => {
   const payload = toProfilePayload(profile);
   return {
@@ -1209,7 +1204,7 @@ export const updateRiderLocation = async (req: Request, res: Response): Promise<
  * Clears authentication and XSRF cookies
  * Same pattern as admin logout for consistency
  */
-export const riderLogout = async (req: Request, res: Response): Promise<void> => {
+export const riderLogout = async (_req: Request, res: Response): Promise<void> => {
   try {
     /**
      * SECURITY: Clear authentication cookies

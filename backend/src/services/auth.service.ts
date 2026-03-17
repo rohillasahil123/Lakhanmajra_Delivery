@@ -520,7 +520,7 @@ export const assignRole = async (req: Request, res: Response) => {
 }
 
 /* ================= LOGOUT ================= */
-export const logout = async (req: Request, res: Response) => {
+export const logout = async (_req: Request, res: Response) => {
 	try {
 		/**
 		 * SECURITY: Clear authentication cookies

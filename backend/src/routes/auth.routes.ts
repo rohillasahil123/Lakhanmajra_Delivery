@@ -11,7 +11,7 @@ import {
   verifyOtp,
   verifyOtpAndRegister,
 } from "../controllers/auth.controller";
-import { protect, requireRole } from "../middlewares/auth.middleware";
+import { protect } from "../middlewares/auth.middleware";
 import { requirePermission } from "../middlewares/permission.middleware";
 import { authLimiter } from "../middlewares/rateLimiter.middleware";
 

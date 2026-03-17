@@ -28,7 +28,7 @@ const isRiderKycProfileComplete = (profile: any): boolean =>
   riderKycRequiredFields.every((field) => typeof profile?.[field] === 'string' && profile[field].trim().length > 0);
 
 // Get all roles
-export const getAllRoles = async (req: Request, res: Response) => {
+export const getAllRoles = async (_req: Request, res: Response) => {
   try {
     const roles = await Role.find({ isActive: true }).populate("permissions");
     return success(res, roles, "Roles fetched");
@@ -51,7 +51,7 @@ export const getRoleById = async (req: Request, res: Response) => {
 };
 
 // Get all permissions
-export const getAllPermissions = async (req: Request, res: Response) => {
+export const getAllPermissions = async (_req: Request, res: Response) => {
   try {
     const permissions = await Permission.find();
     return success(res, permissions, "Permissions fetched");
@@ -359,7 +359,7 @@ export const updateUserStatus = async (req: Request, res: Response) => {
 };
 
 // Superadmin: summary counts by role
-export const getUserSummary = async (req: Request, res: Response) => {
+export const getUserSummary = async (_req: Request, res: Response) => {
   try {
     const roles = await Role.find({ isActive: true });
     const summary: any = {};

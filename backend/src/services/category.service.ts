@@ -154,7 +154,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
 };
 
 // USER → Get all active categories
-export const getCategories = async (req: Request, res: Response) => {
+export const getCategories = async (_req: Request, res: Response) => {
   try {
     const categories = await Category.find({ isActive: true }).sort({
       priority: 1,
