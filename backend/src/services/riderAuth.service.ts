@@ -10,7 +10,7 @@ import {Audit} from '../models/audit.model';
 import { emitOrderRealtime } from '../services/realtime.service';
 import { uploadToMinio } from '../services/minio.service';
 import {createWorker} from 'tesseract.js';
-import { AuthRequest } from '../middlewares/auth.middleware';
+
 
 type RiderFlowStatus = 'Assigned' | 'Accepted' | 'Picked' | 'OutForDelivery' | 'Delivered' | 'Rejected';
 

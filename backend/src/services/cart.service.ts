@@ -1,12 +1,5 @@
-﻿import { Request, Response, NextFunction } from 'express';
+﻿import { Response, NextFunction } from 'express';
 import Cart from '../models/Cart.model';
-
-// Extended request type for controllers that rely on `user`, `isAuthenticated`, and `sessionId`
-type AuthRequest = Request & {
-  user?: { _id?: any } | null;
-  isAuthenticated?: boolean;
-  sessionId?: string;
-};
 import { Product } from '../models/product.model';
 import Coupon from '../models/Coupon.model';
 import { asyncHandler } from '../middlewares/async.middleware';
