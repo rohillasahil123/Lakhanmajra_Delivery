@@ -230,6 +230,7 @@ export function useOrders() {
   const [filters, setFilters] = useState<FilterState>(() => readFilterParams(searchParams));
   const [riders, setRiders] = useState<Rider[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [editStatus, setEditStatus] = useState('');
@@ -263,6 +264,7 @@ export function useOrders() {
   const load = useCallback(
     async (pageNum = 1) => {
       setLoading(true);
+      setError(null);
       try {
         const res = await api.get(`/admin/orders?${buildQuery(pageNum)}`);
         const payload = res.data?.data ?? res.data;
@@ -271,7 +273,9 @@ export function useOrders() {
         setTotal(resolveTotal(payload, list.length));
         setPage(pageNum);
       } catch (err) {
+        const sanitized = sanitizeError(err);
         logErrorSafely('loadOrders', err);
+        setError(sanitized.userMessage);
         setItems([]);
       } finally {
         setLoading(false);
@@ -291,9 +295,12 @@ export function useOrders() {
         if (cancelled) return;
         setPermissions(perms);
         setRiders(resolveRiders(rRes.data?.data ?? rRes.data));
+        setError(null);
         await load(1);
       } catch (err) {
+        const sanitized = sanitizeError(err);
         logErrorSafely('initializeOrders', err);
+        setError(sanitized.userMessage);
       }
     })();
     return () => {
@@ -362,14 +369,17 @@ export function useOrders() {
   const openDetail = async (orderId: string) => {
     setDetailLoading(true);
     setDetail(null);
+    setError(null);
     try {
       const res = await api.get(`/admin/orders/${orderId}`);
       const order = res.data?.data ?? res.data;
       setDetail(order);
       setEditStatus(order.status || '');
       setEditRider(order.assignedRiderId?._id || '');
-    } catch {
-      alert('Failed to load order detail');
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('openOrderDetail', err);
+      setError(sanitized.userMessage);
     } finally {
       setDetailLoading(false);
     }
@@ -384,11 +394,12 @@ export function useOrders() {
      */
     const sanitizedStatus = sanitizeFormInput(editStatus, 50);
     if (!sanitizedStatus) {
-      alert('Invalid status');
+      setError('Invalid status');
       return;
     }
 
     setUpdating(true);
+    setError(null);
     try {
       await api.patch(`/admin/orders/${detail._id}/status`, { status: sanitizedStatus });
       await load(page);
@@ -396,7 +407,7 @@ export function useOrders() {
     } catch (err) {
       const sanitized = sanitizeError(err);
       logErrorSafely('updateOrderStatus', err);
-      alert(sanitized.userMessage);
+      setError(sanitized.userMessage);
     } finally {
       setUpdating(false);
     }
@@ -405,6 +416,7 @@ export function useOrders() {
   const assignRider = async () => {
     if (!detail || !editRider) return;
     setUpdating(true);
+    setError(null);
     try {
       await api.patch(`/admin/orders/${detail._id}/assign`, { riderId: editRider });
       await load(page);
@@ -413,7 +425,7 @@ export function useOrders() {
     } catch (err) {
       const sanitized = sanitizeError(err);
       logErrorSafely('assignOrderRider', err);
-      alert(sanitized.userMessage);
+      setError(sanitized.userMessage);
     } finally {
       setUpdating(false);
     }
@@ -436,6 +448,7 @@ export function useOrders() {
     total,
     page,
     loading,
+    error,
     search,
     setSearch,
     filters,

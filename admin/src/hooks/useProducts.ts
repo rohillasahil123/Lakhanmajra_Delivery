@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
-import { logErrorSafely } from '../utils/errorHandler';
+import { logErrorSafely, sanitizeError } from '../utils/errorHandler';
 import {
   sanitizeFormInput,
   sanitizeNumber,
@@ -149,6 +149,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   // Track total count per category (fetched once)
   const [categoryTotalCounts, setCategoryTotalCounts] = useState<Record<string, number>>({});
 
@@ -182,6 +183,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   // Load paginated products for general view OR all products for selected category
   const load = async (pageNum = 1, catId: string | null = null) => {
     try {
+      setError(null);
       const q = new URLSearchParams();
       q.set('page', String(pageNum));
       q.set('limit', String(LIMIT));
@@ -204,7 +206,9 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         setCategoryTotalCounts(prev => ({ ...prev, [catId]: data.total }));
       }
     } catch (err) {
+      const sanitized = sanitizeError(err);
       logErrorSafely('loadProducts', err);
+      setError(sanitized.userMessage);
       setAllItems([]);
     }
   };
@@ -243,6 +247,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
 
   const reloadCategories = useCallback(async () => {
     try {
+      setError(null);
       const res = await api.get('/categories');
       const data = res.data?.data ?? res.data ?? [];
       const catData = Array.isArray(data) ? data : [];
@@ -268,8 +273,10 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         );
         setCategoryTotalCounts(counts);
       }
-    } catch {
-      /* silent */
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('reloadCategories', err);
+      setError(sanitized.userMessage);
     }
   }, []);
 
@@ -287,6 +294,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   useEffect(() => {
     (async () => {
       try {
+        setError(null);
         setPermissions(await getPermissions());
         // Load categories first
         const res = await api.get('/categories');
@@ -318,7 +326,9 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         // Finally load products for display
         await load(1);
       } catch (err) {
-        logErrorSafely('reloadCategories', err);
+        const sanitized = sanitizeError(err);
+        logErrorSafely('initProducts', err);
+        setError(sanitized.userMessage);
       }
     })();
   }, []);
@@ -443,6 +453,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
 
     setCreating(true);
     try {
+      setError(null);
       const fd = new FormData();
       fd.append('name', sanitizedName);
       fd.append('price', price);
@@ -459,6 +470,11 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
       payload.files.forEach((f) => fd.append('images', f));
       await api.post('/products', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       await load(1);
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('createProduct', err);
+      setError(sanitized.userMessage);
+      throw new Error(sanitized.userMessage);
     } finally {
       setCreating(false);
     }
@@ -497,6 +513,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
 
     setUpdating(true);
     try {
+      setError(null);
       if (payload.newFiles.length > 0) {
         const fd = new FormData();
         fd.append('name', sanitizedName);
@@ -528,26 +545,48 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         await api.patch(`/products/${productId}`, body);
       }
       await load(page);
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('updateProduct', err);
+      setError(sanitized.userMessage);
+      throw new Error(sanitized.userMessage);
     } finally {
       setUpdating(false);
     }
   };
 
   const deleteProduct = async (id: string): Promise<string> => {
-    const res = await api.delete(`/products/${id}`);
-    await load(page);
-    const payload = res?.data?.data;
-    return String(payload?.deletedId || payload?.deleted?._id || id);
+    try {
+      setError(null);
+      const res = await api.delete(`/products/${id}`);
+      await load(page);
+      const payload = res?.data?.data;
+      return String(payload?.deletedId || payload?.deleted?._id || id);
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('deleteProduct', err);
+      setError(sanitized.userMessage);
+      throw new Error(sanitized.userMessage);
+    }
   };
 
   const removeProductImage = async (productId: string, imageUrl: string) => {
-    await api.delete(`/products/${productId}/image`, { data: { imageUrl } });
-    await load(page);
+    try {
+      setError(null);
+      await api.delete(`/products/${productId}/image`, { data: { imageUrl } });
+      await load(page);
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('removeProductImage', err);
+      setError(sanitized.userMessage);
+      throw new Error(sanitized.userMessage);
+    }
   };
 
   const importCSV = async (csvText: string): Promise<number> => {
     setImporting(true);
     try {
+      setError(null);
       const lines = csvText.trim().split('\n');
       const importItems = lines
         .map((l) => {
@@ -565,6 +604,11 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
       const res = await api.post('/products/import', { items: importItems });
       await load(1);
       return res.data?.data?.imported ?? 0;
+    } catch (err) {
+      const sanitized = sanitizeError(err);
+      logErrorSafely('importCSV', err);
+      setError(sanitized.userMessage);
+      throw new Error(sanitized.userMessage);
     } finally {
       setImporting(false);
     }
@@ -573,6 +617,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
   const hasPerm = (p: string) => permissions.includes(p);
 
   return {
+    error,
     allItems,
     sortedItems,
     subCategoryGroups,
