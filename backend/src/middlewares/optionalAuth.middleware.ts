@@ -1,12 +1,13 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
+import { AuthRequest } from './auth.middleware';
 
 interface JwtPayload {
   id: string;
 }
 
-export const optionalAuth = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+export const optionalAuth = async (req: any, _res: Response, next: NextFunction): Promise<void> => {
   try {
     let token: string | undefined;
     let sessionId: string | undefined;

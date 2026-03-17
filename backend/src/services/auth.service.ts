@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model";
-import { AuthRequest } from "../middlewares/auth.middleware";
 import { getRoleByName, assignRoleToUser, getUserWithRole, getUserPermissions } from "./role.service";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
@@ -398,7 +397,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 /* ================= GET LOGGED IN USER ================= */
-export const getUsers = async (req: AuthRequest, res: Response) => {
+export const getUsers = async (req: any, res: Response) => {
 	try {
 		const userId = req.user?.id || req.user?._id;
 		const user = await getUserWithRole(userId);
@@ -411,7 +410,7 @@ export const getUsers = async (req: AuthRequest, res: Response) => {
 };
 
 /* ================= GET CURRENT USER PERMISSIONS ================= */
-export const getPermissions = async (req: AuthRequest, res: Response) => {
+export const getPermissions = async (req: any, res: Response) => {
 	try {
 		const perms = await getUserPermissions(req.user!.id);
 		return res.json({ permissions: perms });
@@ -421,7 +420,7 @@ export const getPermissions = async (req: AuthRequest, res: Response) => {
 };
 
 /* ================= UPDATE USER ================= */
-export const updateUser = async (req: AuthRequest, res: Response) => {
+export const updateUser = async (req: any, res: Response) => {
 	try {
 		const { id } = req.params;
 		const { name, email, phone, address, deliveryInstructions, latitude, longitude } = req.body;

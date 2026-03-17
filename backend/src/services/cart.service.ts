@@ -25,7 +25,7 @@ import {
 // @desc    Get user cart
 // @route   GET /api/cart
 // @access  Public (Guest + Authenticated)
-export const getCart = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const getCart = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   let cart;
 
   if (req.isAuthenticated && req.user) {
@@ -65,7 +65,7 @@ export const getCart = asyncHandler(async (req: AuthRequest, res: Response, next
 // @desc    Add item to cart
 // @route   POST /api/cart/add
 // @access  Public (Guest + Authenticated)
-export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const addToCart = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   const { productId, variantId, quantity = 1, variant }: AddToCartRequest = req.body;
 
   if (!productId) {
@@ -186,7 +186,7 @@ export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, ne
 // @desc    Update item quantity
 // @route   PUT /api/cart/update/:itemId
 // @access  Public (Guest + Authenticated)
-export const updateQuantity = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const updateQuantity = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   let { itemId } = req.params;
   if (Array.isArray(itemId)) itemId = itemId[0];
   
@@ -275,7 +275,7 @@ export const updateQuantity = asyncHandler(async (req: AuthRequest, res: Respons
 // @desc    Remove item from cart
 // @route   DELETE /api/cart/remove/:itemId
 // @access  Public (Guest + Authenticated)
-export const removeItem = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const removeItem = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   let { itemId } = req.params;
   if (Array.isArray(itemId)) itemId = itemId[0];
   
@@ -323,7 +323,7 @@ export const removeItem = asyncHandler(async (req: AuthRequest, res: Response, n
 // @desc    Clear cart
 // @route   DELETE /api/cart/clear
 // @access  Public (Guest + Authenticated)
-export const clearCart = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const clearCart = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   let cart;
 
   if (req.isAuthenticated && req.user) {
@@ -358,7 +358,7 @@ export const clearCart = asyncHandler(async (req: AuthRequest, res: Response, ne
 // @desc    Merge guest cart with user cart
 // @route   POST /api/cart/merge
 // @access  Private (Authenticated only)
-export const mergeGuestCart = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const mergeGuestCart = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   const { guestSessionId }: MergeCartRequest = req.body;
 
   if (!guestSessionId) {
@@ -400,7 +400,7 @@ export const mergeGuestCart = asyncHandler(async (req: AuthRequest, res: Respons
 // @desc    Apply coupon
 // @route   POST /api/cart/coupon/apply
 // @access  Private
-export const applyCoupon = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const applyCoupon = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   const { couponCode }: ApplyCouponRequest = req.body;
 
   if (!couponCode) {
@@ -485,7 +485,7 @@ export const applyCoupon = asyncHandler(async (req: AuthRequest, res: Response, 
 // @desc    Remove coupon
 // @route   DELETE /api/cart/coupon/remove
 // @access  Private
-export const removeCoupon = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const removeCoupon = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   if (!req.user) {
     return next(new ErrorResponse('User not authenticated', 401));
   }
@@ -512,7 +512,7 @@ export const removeCoupon = asyncHandler(async (req: AuthRequest, res: Response,
 // @desc    Get cart summary
 // @route   GET /api/cart/summary
 // @access  Private
-export const getCartSummary = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const getCartSummary = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   if (!req.user) {
     return next(new ErrorResponse('User not authenticated', 401));
   }
@@ -552,7 +552,7 @@ export const getCartSummary = asyncHandler(async (req: AuthRequest, res: Respons
 // @desc    Validate cart before checkout
 // @route   POST /api/cart/validate
 // @access  Private
-export const validateCart = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const validateCart = asyncHandler(async (req: any, res: Response, next: NextFunction): Promise<void> => {
   if (!req.user) {
     return next(new ErrorResponse('User not authenticated', 401));
   }

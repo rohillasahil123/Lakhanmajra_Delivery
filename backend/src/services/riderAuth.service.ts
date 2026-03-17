@@ -1,4 +1,4 @@
-import {Request, Response} from 'express';
+import {Response} from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {randomInt} from 'crypto';
@@ -10,6 +10,7 @@ import {Audit} from '../models/audit.model';
 import { emitOrderRealtime } from '../services/realtime.service';
 import { uploadToMinio } from '../services/minio.service';
 import {createWorker} from 'tesseract.js';
+import { AuthRequest } from '../middlewares/auth.middleware';
 
 type RiderFlowStatus = 'Assigned' | 'Accepted' | 'Picked' | 'OutForDelivery' | 'Delivered' | 'Rejected';
 
@@ -444,7 +445,7 @@ const riderToBackendStatus = (status: RiderFlowStatus): 'processing' | 'confirme
   return 'processing';
 };
 
-export const riderLogin = async (req: Request, res: Response): Promise<void> => {
+export const riderLogin = async (req: any, res: Response): Promise<void> => {
   try {
     const {email, password} = req.body as {email?: string; password?: string};
 
@@ -538,7 +539,7 @@ export const riderLogin = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const getRiderMe = async (req: Request, res: Response): Promise<void> => {
+export const getRiderMe = async (req: any, res: Response): Promise<void> => {
   try {
     const user = req.user;
 
@@ -570,7 +571,7 @@ export const getRiderMe = async (req: Request, res: Response): Promise<void> => 
   }
 };
 
-export const getRiderProfile = async (req: Request, res: Response): Promise<void> => {
+export const getRiderProfile = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -600,7 +601,7 @@ export const getRiderProfile = async (req: Request, res: Response): Promise<void
   }
 };
 
-export const updateRiderProfile = async (req: Request, res: Response): Promise<void> => {
+export const updateRiderProfile = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -706,7 +707,7 @@ export const updateRiderProfile = async (req: Request, res: Response): Promise<v
   }
 };
 
-export const requestRiderProfileOtp = async (req: Request, res: Response): Promise<void> => {
+export const requestRiderProfileOtp = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -749,7 +750,7 @@ export const requestRiderProfileOtp = async (req: Request, res: Response): Promi
   }
 };
 
-export const ocrRiderDocumentPrefill = async (req: Request, res: Response): Promise<void> => {
+export const ocrRiderDocumentPrefill = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -809,7 +810,7 @@ const riderDocumentFields = new Set<RiderProfileField>([
   'insuranceImage',
 ]);
 
-export const uploadRiderDocument = async (req: Request, res: Response): Promise<void> => {
+export const uploadRiderDocument = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -866,7 +867,7 @@ export const uploadRiderDocument = async (req: Request, res: Response): Promise<
   }
 };
 
-export const getRiderOrders = async (req: Request, res: Response): Promise<void> => {
+export const getRiderOrders = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
 
@@ -899,7 +900,7 @@ export const getRiderOrders = async (req: Request, res: Response): Promise<void>
   }
 };
 
-export const getRiderOrderById = async (req: Request, res: Response): Promise<void> => {
+export const getRiderOrderById = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -937,7 +938,7 @@ export const getRiderOrderById = async (req: Request, res: Response): Promise<vo
   }
 };
 
-export const updateRiderOrderStatus = async (req: Request, res: Response): Promise<void> => {
+export const updateRiderOrderStatus = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -1085,7 +1086,7 @@ export const updateRiderOrderStatus = async (req: Request, res: Response): Promi
   }
 };
 
-export const updateRiderOnlineStatus = async (req: Request, res: Response): Promise<void> => {
+export const updateRiderOnlineStatus = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -1125,7 +1126,7 @@ export const updateRiderOnlineStatus = async (req: Request, res: Response): Prom
   }
 };
 
-export const updateRiderLocation = async (req: Request, res: Response): Promise<void> => {
+export const updateRiderLocation = async (req: any, res: Response): Promise<void> => {
   try {
     const riderId = String(req.user?._id || req.user?.id || '');
     if (!riderId) {
@@ -1204,7 +1205,7 @@ export const updateRiderLocation = async (req: Request, res: Response): Promise<
  * Clears authentication and XSRF cookies
  * Same pattern as admin logout for consistency
  */
-export const riderLogout = async (_req: Request, res: Response): Promise<void> => {
+export const riderLogout = async (_req: any, res: Response): Promise<void> => {
   try {
     /**
      * SECURITY: Clear authentication cookies

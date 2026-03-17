@@ -6,6 +6,8 @@ const JWT_SECRET = process.env.JWT_SECRET || '';
 
 export interface AuthRequest extends Request {
   user?: any;
+  isAuthenticated?: boolean;
+  sessionId?: string;
 }
 
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
