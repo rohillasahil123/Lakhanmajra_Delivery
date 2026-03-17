@@ -40,6 +40,8 @@ const countBatchResults = (
 
   for (let i = 0; i < tokenBatch.length; i += 1) {
     const token = tokenBatch[i];
+    if (!token) continue;
+    
     const row = results[i];
 
     if (row?.status === 'ok') {

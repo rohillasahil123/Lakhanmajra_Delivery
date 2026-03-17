@@ -189,6 +189,11 @@ export const addToCart = asyncHandler(async (req: AuthRequest, res: Response, ne
 export const updateQuantity = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   let { itemId } = req.params;
   if (Array.isArray(itemId)) itemId = itemId[0];
+  
+  if (!itemId || typeof itemId !== 'string') {
+    return next(new ErrorResponse('Valid item ID is required', 400));
+  }
+  
   const { quantity }: UpdateQuantityRequest = req.body;
 
   if (!quantity || quantity < 1) {
@@ -273,6 +278,10 @@ export const updateQuantity = asyncHandler(async (req: AuthRequest, res: Respons
 export const removeItem = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   let { itemId } = req.params;
   if (Array.isArray(itemId)) itemId = itemId[0];
+  
+  if (!itemId || typeof itemId !== 'string') {
+    return next(new ErrorResponse('Valid item ID is required', 400));
+  }
 
   let cart;
 
@@ -560,7 +569,7 @@ export const validateCart = asyncHandler(async (req: AuthRequest, res: Response,
 
   // Validate each item
   for (let i = cart.items.length - 1; i >= 0; i--) {
-    const item = cart.items[i];
+    const item = cart.items[i]!;
     const product = item.product as any;
 
     // Check if product exists and is active

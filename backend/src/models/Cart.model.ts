@@ -331,7 +331,7 @@ cartSchema.methods.addItem = async function (
 
   if (existingItemIndex > -1) {
     // Update existing item
-    const newQuantity = this.items[existingItemIndex].quantity + quantity;
+    const newQuantity = this.items[existingItemIndex]!.quantity + quantity;
 
     // Check stock
     if (newQuantity > productData.stock) {
@@ -344,10 +344,10 @@ cartSchema.methods.addItem = async function (
       throw new Error(`Maximum ${maxQty} items can be added`);
     }
 
-    this.items[existingItemIndex].quantity = newQuantity;
-    this.items[existingItemIndex].itemTotal = this.items[existingItemIndex].price * newQuantity;
-    this.items[existingItemIndex].savings =
-      (this.items[existingItemIndex].mrp - this.items[existingItemIndex].price) * newQuantity;
+    this.items[existingItemIndex]!.quantity = newQuantity;
+    this.items[existingItemIndex]!.itemTotal = this.items[existingItemIndex]!.price * newQuantity;
+    this.items[existingItemIndex]!.savings =
+      (this.items[existingItemIndex]!.mrp - this.items[existingItemIndex]!.price) * newQuantity;
   } else {
     // Add new item
     if (quantity > productData.stock) {
@@ -507,13 +507,13 @@ cartSchema.methods.removeCoupon = function (this: ICart): ICart {
     );
 
     if (existingItemIndex > -1) {
-      const newQty = userCart.items[existingItemIndex].quantity + guestItem.quantity;
-      userCart.items[existingItemIndex].quantity = Math.min(newQty, guestItem.maxQuantity);
-      userCart.items[existingItemIndex].itemTotal =
-        userCart.items[existingItemIndex].price * userCart.items[existingItemIndex].quantity;
-      userCart.items[existingItemIndex].savings =
-        (userCart.items[existingItemIndex].mrp - userCart.items[existingItemIndex].price) *
-        userCart.items[existingItemIndex].quantity;
+      const newQty = userCart.items[existingItemIndex]!.quantity + guestItem.quantity;
+      userCart.items[existingItemIndex]!.quantity = Math.min(newQty, guestItem.maxQuantity);
+      userCart.items[existingItemIndex]!.itemTotal =
+        userCart.items[existingItemIndex]!.price * userCart.items[existingItemIndex]!.quantity;
+      userCart.items[existingItemIndex]!.savings =
+        (userCart.items[existingItemIndex]!.mrp - userCart.items[existingItemIndex]!.price) *
+        userCart.items[existingItemIndex]!.quantity;
     } else {
       userCart.items.push(guestItem);
     }

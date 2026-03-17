@@ -65,5 +65,5 @@ export const handleUploadError = (err: any, _req: Request, res: Response, next: 
   if (err?.message?.includes("PDF files are allowed")) {
     return res.status(400).json({ success: false, message: err.message });
   }
-  next(err);
+  return next(err);
 };

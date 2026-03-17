@@ -1,16 +1,15 @@
 declare global {
-  interface AuthenticatedUser {
-    _id: string;
-    id?: string;
-    email?: string;
-    role?: string;
-    roleId?: string;
-    roleName?: string;
-  }
-
   namespace Express {
     interface Request {
-      user?: AuthenticatedUser | null;
+      user?: {
+        _id?: string | undefined;
+        id?: string | undefined;
+        email?: string | undefined;
+        role?: string | undefined;
+        roleId?: string | any;
+        roleName?: string;
+        [key: string]: any;
+      } | null;
       isAuthenticated?: boolean;
       sessionId?: string;
     }

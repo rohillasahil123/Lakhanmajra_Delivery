@@ -273,6 +273,9 @@ export const getProductById = async (req: Request, res: Response) => {
   try {
     let { productId } = req.params;
     if (Array.isArray(productId)) productId = productId[0];
+    if (!productId || typeof productId !== 'string') {
+      return fail(res, "Valid product ID is required", 400);
+    }
     const doc = await service.getProductById(productId);
     if (!doc) return fail(res, "Product not found", 404);
     return success(res, doc, "Product fetched");
@@ -286,6 +289,9 @@ export const updateProduct = async (req: Request, res: Response) => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
+    if (!id || typeof id !== 'string') {
+      return fail(res, "Valid product ID is required", 400);
+    }
 
     const bodyData = {
       ...req.body,
@@ -343,8 +349,10 @@ export const updateProduct = async (req: Request, res: Response) => {
     // Convert categoryId and subcategoryId strings to ObjectIds for MongoDB
     const { Types } = require("mongoose");
     const dataToUpdate = { ...syncedValue } as any;
-    if (dataToUpdate.categoryId) dataToUpdate.categoryId = new Types.ObjectId(dataToUpdate.categoryId);
-    if (dataToUpdate.subcategoryId && dataToUpdate.subcategoryId.trim()) {
+    if (dataToUpdate.categoryId && typeof dataToUpdate.categoryId === 'string') {
+      dataToUpdate.categoryId = new Types.ObjectId(dataToUpdate.categoryId);
+    }
+    if (dataToUpdate.subcategoryId && typeof dataToUpdate.subcategoryId === 'string' && dataToUpdate.subcategoryId.trim()) {
       dataToUpdate.subcategoryId = new Types.ObjectId(dataToUpdate.subcategoryId);
     } else {
       dataToUpdate.subcategoryId = null;
@@ -374,6 +382,9 @@ export const deleteProductImage = async (req: Request, res: Response) => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
+    if (!id || typeof id !== 'string') {
+      return fail(res, "Valid product ID is required", 400);
+    }
     const { imageUrl } = req.body;
     if (!imageUrl) return fail(res, "imageUrl required", 400);
 
@@ -398,6 +409,9 @@ export const updateProductStatus = async (req: Request, res: Response) => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
+    if (!id || typeof id !== 'string') {
+      return fail(res, "Valid product ID is required", 400);
+    }
     const { isActive } = req.body;
     const doc = await service.updateProduct(id, { isActive } as any);
     if (!doc) return fail(res, "Product not found", 404);
@@ -412,6 +426,9 @@ export const deleteProduct = async (req: Request, res: Response) => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
+    if (!id || typeof id !== 'string') {
+      return fail(res, "Valid product ID is required", 400);
+    }
 
     const existing = await service.getProductByIdForDelete(id);
     if (!existing) return fail(res, "Product not found", 404);
@@ -476,6 +493,9 @@ export const changeStock = async (req: Request, res: Response) => {
   try {
     let { id } = req.params;
     if (Array.isArray(id)) id = id[0];
+    if (!id || typeof id !== 'string') {
+      return fail(res, "Valid product ID is required", 400);
+    }
     const { delta } = req.body;
     if (typeof delta !== "number") return fail(res, "delta must be number", 400);
     const doc = await service.changeStock(id, Number(delta));

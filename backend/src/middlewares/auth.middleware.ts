@@ -23,8 +23,11 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
   // Fallback to Authorization header
   const authHeader = req.headers.authorization;
-  if (!token && authHeader?.startsWith('Bearer ')) {
-    token = authHeader.split(' ')[1];
+  if (!token && authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    const tokenParts = authHeader.split(' ');
+    if (tokenParts.length > 1) {
+      token = tokenParts[1] || null;
+    }
   }
 
   if (!token) {
@@ -44,7 +47,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     (user as any).role = (user as any).roleName || undefined;
 
     req.user = user;
-    next();
+    return next();
   } catch (err) {
     console.error('JWT verify failed', err);
     return res.status(401).json({ message: 'Invalid token' });

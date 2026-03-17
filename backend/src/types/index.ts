@@ -86,21 +86,4 @@ export interface EmailQueueMessage {
   type: 'order_confirmation' | 'order_shipped' | 'order_delivered';
 }
 
-// Express Request Extension
-declare global {
-  namespace Express {
-    interface Request {
-      // Keep compatible with `express.d.ts`'s `AuthenticatedUser`
-      user?: {
-        _id?: string;
-        id?: string;
-        email?: string;
-        role?: string;
-      } | null;
-      isAuthenticated?: boolean;
-      sessionId?: string;
-    }
-  }
-}
-
 export {};
