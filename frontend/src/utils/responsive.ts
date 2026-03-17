@@ -9,15 +9,27 @@ export const isSmallScreen = (width: number): boolean => width < 360;
 export const isLargeScreen = (width: number): boolean => width >= 420;
 
 export const getScreenPadding = (width: number): number => {
-  if (isSmallScreen(width)) return Math.round(scale(12));
-  if (isLargeScreen(width)) return Math.round(scale(18));
-  return Math.round(scale(16));
+  if (width <= 360) return Math.round(scale(10));
+  if (width <= 420) return Math.round(scale(14));
+  if (width <= 768) return Math.round(scale(16));
+  return Math.round(scale(20));
 };
 
 export const getResponsiveFont = (width: number, baseSize: number): number => {
-  const factor = width < 360 ? 0.45 : 0.5;
-  const scaled = moderateScale(baseSize, factor);
-  return clamp(Math.round(scaled), baseSize - 2, baseSize + 4);
+  if (width <= 360) {
+    return clamp(Math.round(moderateScale(baseSize, 0.38)), baseSize - 3, baseSize + 2);
+  }
+
+  if (width <= 420) {
+    return clamp(Math.round(moderateScale(baseSize, 0.45)), baseSize - 2, baseSize + 3);
+  }
+
+  if (width <= 768) {
+    return clamp(Math.round(moderateScale(baseSize, 0.52)), baseSize - 1, baseSize + 4);
+  }
+
+  // Tablet and large screens: keep from growing too much
+  return clamp(Math.round(moderateScale(baseSize, 0.5)), baseSize - 1, baseSize + 4);
 };
 
 export const getResponsiveImageHeight = (
@@ -123,6 +135,15 @@ export const createResponsiveStyles = <
   return StyleSheet.create(mapped as T);
 };
 
-export const responsiveScale = scale;
-export const responsiveVerticalScale = verticalScale;
-export const responsiveModerateScale = moderateScale;
+const clampScale = (value: number, base: number) => {
+  const min = Math.round(base * 0.8);
+  const max = Math.round(base * 1.25);
+  return clamp(Math.round(value), min, max);
+};
+
+export const responsiveScale = (value: number) => clampScale(scale(value), value);
+export const responsiveVerticalScale = (value: number) => clampScale(verticalScale(value), value);
+export const responsiveModerateScale = (value: number, factor = 0.5) => {
+  const scaled = moderateScale(value, factor);
+  return clampScale(scaled, value);
+};
