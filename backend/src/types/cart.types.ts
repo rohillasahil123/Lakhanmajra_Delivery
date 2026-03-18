@@ -25,7 +25,7 @@ export interface ICartItem {
   mrp: number;
   discount: number;
   quantity: number;
-  unit: 'kg' | 'g' | 'l' | 'ml' | 'piece' | 'pack';
+  unit: string;
   weight: string;
   stock: number;
   maxQuantity: number;

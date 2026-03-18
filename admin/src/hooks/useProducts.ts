@@ -12,6 +12,7 @@ import {
 
 export type ProductVariant = {
   _id?: string;
+  clientKey?: string;
   label: string;
   price: string;
   mrp: string;
@@ -66,11 +67,13 @@ export const AUTO_REFRESH_EDITING_MS = 30_000;
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
 export const createEmptyVariant = (): ProductVariant => ({
+  clientKey: crypto.randomUUID(),
   label: '',
   price: '',
   mrp: '',
   discount: '',
   stock: '',
+  unit: '',
   isDefault: false,
 });
 
@@ -120,7 +123,7 @@ export const normalizeVariantsForPayload = (raw: ProductVariant[], selectedUnit?
         discount: Number(calculateDiscountPercent(String(rm), String(pv)) || 0),
         stock: Math.max(0, Math.floor(sv)),
         unit: String(v.unit || selectedUnit || 'piece').toLowerCase(),
-        unitType: label,
+        unitType: String(v.unitType || label).trim(),
         isDefault: Boolean(v.isDefault),
       };
     })
@@ -494,6 +497,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
       newFiles: File[];
       variants: ProductVariant[];
       unit: string;
+      unitType: string;
     }
   ) => {
     /**
@@ -505,6 +509,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     const sanitizedDiscount = payload.discount ? String(sanitizeNumber(parseFloat(payload.discount) || 0, 0, 100)) : '';
     const sanitizedStock = payload.stock ? String(sanitizeNumber(parseFloat(payload.stock) || 0, 0, 999999)) : '';
     const sanitizedUnit = sanitizeFormInput(payload.unit?.trim() || '', 50);
+    const sanitizedUnitType = sanitizeFormInput(payload.unitType?.trim() || '', 50);
 
     if (!sanitizedName) throw new Error('Product name is required');
     if (!sanitizedPrice) throw new Error('Price is required');
@@ -522,6 +527,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         if (sanitizedDiscount) fd.append('discount', String(Number(sanitizedDiscount)));
         if (sanitizedStock) fd.append('stock', String(Number(sanitizedStock)));
         fd.append('unit', sanitizedUnit);
+        if (sanitizedUnitType) fd.append('unitType', sanitizedUnitType);
         fd.append('variants', JSON.stringify(norm));
         if (payload.catId) fd.append('categoryId', payload.catId);
         fd.append('subcategoryId', payload.subcategoryId || '');
@@ -541,6 +547,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
         if (sanitizedMrp) body.mrp = Number(sanitizedMrp);
         if (sanitizedDiscount) body.discount = Number(sanitizedDiscount);
         if (sanitizedStock) body.stock = Number(sanitizedStock);
+        if (sanitizedUnitType) body.unitType = sanitizedUnitType;
         if (payload.catId) body.categoryId = payload.catId;
         await api.patch(`/products/${productId}`, body);
       }

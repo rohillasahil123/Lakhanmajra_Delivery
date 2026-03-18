@@ -3,10 +3,20 @@ import {
   Product,
   ProductVariant,
   Category,
+  UNIT_VARIANTS,
   calculateDiscountPercent,
   getRefId,
 } from '../../hooks/useProducts';
 import VariantEditor from './VariantEditor';
+
+const COMMON_UNITS = [
+  { value: 'piece', label: 'Piece' },
+  { value: 'kg', label: 'KG' },
+  { value: 'g', label: 'Gram (g)' },
+  { value: 'l', label: 'Liter (L)' },
+  { value: 'ml', label: 'Milliliter (ml)' },
+  { value: 'pack', label: 'Pack' },
+];
 
 interface Props {
   product: Product;
@@ -28,6 +38,7 @@ interface Props {
       newFiles: File[];
       variants: ProductVariant[];
       unit: string;
+      unitType: string;
     }
   ) => Promise<void>;
 }
@@ -39,12 +50,14 @@ export default function EditProductModal({
   updating,
   onClose,
   onSave,
-}: Props) {
+}: Readonly<Props>) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [mrp, setMrp] = useState('');
   const [discount, setDiscount] = useState('');
   const [stock, setStock] = useState('');
+  const [unit, setUnit] = useState('piece');
+  const [unitType, setUnitType] = useState('1 pc');
   const [catId, setCatId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState('');
   const [variants, setVariants] = useState<ProductVariant[]>([]);
@@ -60,6 +73,8 @@ export default function EditProductModal({
     setMrp(String(product.mrp ?? ''));
     setDiscount(calculateDiscountPercent(String(product.mrp ?? ''), String(product.price ?? '')));
     setStock(String(product.stock ?? ''));
+    setUnit(String(product.unit || 'piece'));
+    setUnitType(String(product.unitType || product.unit || ''));
     setCatId(getRefId(product.categoryId));
     setSubcategoryId(getRefId(product.subcategoryId));
     setExistingImages(Array.isArray(product.images) ? product.images : []);
@@ -71,6 +86,7 @@ export default function EditProductModal({
     setVariants(
       srcVariants.map((v: any, i: number) => ({
         _id: v?._id ? String(v._id) : undefined,
+        clientKey: String(v?._id || crypto.randomUUID()),
         label: String(v?.label || v?.unitType || ''),
         price: String(v?.price ?? ''),
         mrp: String(v?.mrp ?? ''),
@@ -86,6 +102,11 @@ export default function EditProductModal({
   }, [product]);
 
   const subCategories = subCategoriesOf(catId);
+  const normalizedUnit = unit.trim().toLowerCase();
+  const unitTypeSuggestions = UNIT_VARIANTS[normalizedUnit] || [];
+  const selectedUnitOption =
+    COMMON_UNITS.some((option) => option.value === normalizedUnit) ? normalizedUnit : '__custom__';
+  const selectedUnitTypeOption = unitTypeSuggestions.includes(unitType) ? unitType : '__custom__';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
@@ -110,7 +131,8 @@ export default function EditProductModal({
         existingImages,
         newFiles,
         variants,
-        unit: product.unit || 'piece',
+        unit,
+        unitType,
       });
       onClose();
     } catch (err: any) {
@@ -222,6 +244,68 @@ export default function EditProductModal({
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <select
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={selectedUnitOption}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  if (nextValue !== '__custom__') {
+                    setUnit(nextValue);
+                  }
+                }}
+              >
+                {COMMON_UNITS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                <option value="__custom__">Custom unit</option>
+              </select>
+            </div>
+            <div>
+              <input
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="Type unit manually, e.g. liter, bottle"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <select
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={selectedUnitTypeOption}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  if (nextValue !== '__custom__') {
+                    setUnitType(nextValue);
+                  }
+                }}
+              >
+                {unitTypeSuggestions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+                <option value="__custom__">Custom display unit</option>
+              </select>
+            </div>
+            <div>
+              <input
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={unitType}
+                onChange={(e) => setUnitType(e.target.value)}
+                placeholder="Type display unit, e.g. 500 g, 1 liter"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 -mt-2">
+            Left side se common unit choose karo, ya right side me apna custom unit likho.
+          </p>
+
           {/* Variants */}
           <VariantEditor variants={variants} onChange={setVariants} />
 
@@ -233,7 +317,7 @@ export default function EditProductModal({
             {existingImages.length > 0 && (
               <div className="flex gap-2 flex-wrap mb-2">
                 {existingImages.map((img, i) => (
-                  <div key={i} className="relative group">
+                  <div key={img} className="relative group">
                     <img
                       src={img}
                       alt={`existing-${i}`}
@@ -275,7 +359,7 @@ export default function EditProductModal({
               <div className="flex gap-2 mt-2 flex-wrap">
                 {newPreviews.map((url, i) => (
                   <img
-                    key={i}
+                    key={url}
                     src={url}
                     alt={`new-preview-${i}`}
                     className="w-16 h-16 object-cover rounded-lg border-2 border-emerald-300"

@@ -9,6 +9,8 @@ const objectId = Joi.string().custom((value, helpers) => {
   return value;
 }, "ObjectId validation");
 
+const unitField = Joi.string().trim().min(1).max(50);
+
 const variantSchema = Joi.object({
   _id: objectId.optional(),
   label: Joi.string().trim().min(1).max(80).required(),
@@ -16,7 +18,7 @@ const variantSchema = Joi.object({
   mrp: Joi.number().min(0).optional(),
   discount: Joi.number().min(0).max(100).optional(),
   stock: Joi.number().integer().min(0).required(),
-  unit: Joi.string().valid('kg', 'g', 'l', 'ml', 'piece', 'pack').optional(),
+  unit: unitField.optional(),
   unitType: Joi.string().allow('').max(50).optional(),
   isDefault: Joi.boolean().optional(),
 });
@@ -35,7 +37,7 @@ export const createProductSchema = Joi.object({
   mrp: Joi.number().min(0).optional(),
   discount: Joi.number().min(0).max(100).optional(),
   stock: Joi.number().integer().min(0).optional(),
-  unit: Joi.string().valid('kg', 'g', 'l', 'ml', 'piece', 'pack').optional(),
+  unit: unitField.optional(),
   unitType: Joi.string().allow('').max(50).optional(),
   variants: Joi.array().items(variantSchema).optional(),
   tags: Joi.alternatives().try(
@@ -57,7 +59,7 @@ export const updateProductSchema = Joi.object({
   mrp: Joi.number().min(0).optional(),
   discount: Joi.number().min(0).max(100).optional(),
   stock: Joi.number().integer().min(0).optional(),
-  unit: Joi.string().valid('kg', 'g', 'l', 'ml', 'piece', 'pack').optional(),
+  unit: unitField.optional(),
   unitType: Joi.string().allow('').max(50).optional(),
   variants: Joi.array().items(variantSchema).optional(),
   tags: Joi.alternatives().try(

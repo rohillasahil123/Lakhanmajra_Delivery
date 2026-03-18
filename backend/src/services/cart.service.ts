@@ -116,8 +116,7 @@ export const addToCart = asyncHandler(async (req: any, res: Response, next: Next
 
   // Prepare product data with safe defaults expected by Cart schema
   const productObj = product.toObject() as any;
-  const allowedUnits = ['kg', 'g', 'l', 'ml', 'piece', 'pack'];
-  const unitValue = String(productObj.unit || 'piece').toLowerCase();
+  const unitValue = String(productObj.unit || 'piece').trim().toLowerCase() || 'piece';
 
   const productData = {
     ...productObj,
@@ -136,9 +135,7 @@ export const addToCart = asyncHandler(async (req: any, res: Response, next: Next
     stock: availableStock,
     unit: selectedVariant
       ? String(selectedVariant.unit || productObj.unit || 'piece').toLowerCase()
-      : allowedUnits.includes(unitValue)
-      ? unitValue
-      : 'piece',
+      : unitValue,
     weight: String(selectedVariant?.label || selectedVariant?.unitType || productObj.weight || productObj.unitType || '1 piece'),
     category:
       productObj.category ||

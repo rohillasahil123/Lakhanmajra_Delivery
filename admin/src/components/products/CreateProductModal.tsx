@@ -30,6 +30,21 @@ interface Props {
   }) => Promise<void>;
 }
 
+const getSubcategoryPlaceholder = (hasCategory: boolean, count: number) => {
+  if (!hasCategory) return 'Select sub-category';
+  if (count === 0) return 'No sub-categories';
+  return 'Sub-category (optional)';
+};
+
+const COMMON_UNITS = [
+  { value: 'piece', label: 'Piece' },
+  { value: 'kg', label: 'KG' },
+  { value: 'g', label: 'Gram (g)' },
+  { value: 'l', label: 'Liter (L)' },
+  { value: 'ml', label: 'Milliliter (ml)' },
+  { value: 'pack', label: 'Pack' },
+];
+
 export default function CreateProductModal({
   parentCategories,
   subCategoriesOf,
@@ -37,7 +52,7 @@ export default function CreateProductModal({
   defaultCategoryId = '',
   onClose,
   onCreate,
-}: Props) {
+}: Readonly<Props>) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState('');
@@ -45,7 +60,7 @@ export default function CreateProductModal({
   const [mrp, setMrp] = useState('');
   const [discount, setDiscount] = useState('');
   const [stock, setStock] = useState('');
-  const [unit, setUnit] = useState<'piece' | 'kg' | 'g' | 'l' | 'ml' | 'pack'>('piece');
+  const [unit, setUnit] = useState('piece');
   const [unitType, setUnitType] = useState('1 pc');
   const [catId, setCatId] = useState(defaultCategoryId);
   const [subcategoryId, setSubcategoryId] = useState('');
@@ -63,6 +78,11 @@ export default function CreateProductModal({
   }, [defaultCategoryId]);
 
   const subCategories = subCategoriesOf(catId);
+  const normalizedUnit = unit.trim().toLowerCase();
+  const unitTypeSuggestions = UNIT_VARIANTS[normalizedUnit] || [];
+  const selectedUnitOption =
+    COMMON_UNITS.some((option) => option.value === normalizedUnit) ? normalizedUnit : '__custom__';
+  const selectedUnitTypeOption = unitTypeSuggestions.includes(unitType) ? unitType : '__custom__';
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files || []);
@@ -187,13 +207,7 @@ export default function CreateProductModal({
               onChange={(e) => setSubcategoryId(e.target.value)}
               disabled={!catId || subCategories.length === 0}
             >
-              <option value="">
-                {!catId
-                  ? 'Select sub-category'
-                  : subCategories.length === 0
-                    ? 'No sub-categories'
-                    : 'Sub-category (optional)'}
-              </option>
+              <option value="">{getSubcategoryPlaceholder(Boolean(catId), subCategories.length)}</option>
               {subCategories.map((s) => (
                 <option key={s._id} value={s._id}>
                   {s.name}
@@ -243,34 +257,66 @@ export default function CreateProductModal({
 
           {/* Unit row */}
           <div className="grid grid-cols-2 gap-3">
-            <select
-              className="border px-3 py-2 rounded text-sm"
-              value={unit}
-              onChange={(e) => {
-                const u = e.target.value as typeof unit;
-                setUnit(u);
-                setUnitType((UNIT_VARIANTS[u] || [])[0] || '');
-              }}
-            >
-              <option value="piece">Piece</option>
-              <option value="kg">KG</option>
-              <option value="g">Gram (g)</option>
-              <option value="l">Liter (L)</option>
-              <option value="ml">Milliliter (ml)</option>
-              <option value="pack">Pack</option>
-            </select>
-            <select
-              className="border px-3 py-2 rounded text-sm"
-              value={unitType}
-              onChange={(e) => setUnitType(e.target.value)}
-            >
-              {(UNIT_VARIANTS[unit] || []).map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
+            <div>
+              <select
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={selectedUnitOption}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  if (nextValue !== '__custom__') {
+                    setUnit(nextValue);
+                  }
+                }}
+              >
+                {COMMON_UNITS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                <option value="__custom__">Custom unit</option>
+              </select>
+            </div>
+            <div>
+              <input
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                placeholder="Type unit manually, e.g. liter, bottle"
+              />
+            </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <select
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={selectedUnitTypeOption}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  if (nextValue !== '__custom__') {
+                    setUnitType(nextValue);
+                  }
+                }}
+              >
+                {unitTypeSuggestions.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+                <option value="__custom__">Custom display unit</option>
+              </select>
+            </div>
+            <div>
+              <input
+                className="border px-3 py-2 rounded text-sm w-full"
+                value={unitType}
+                onChange={(e) => setUnitType(e.target.value)}
+                placeholder="Type display unit, e.g. 500 g, 1 liter"
+              />
+            </div>
+          </div>
+          <p className="text-xs text-slate-400 -mt-2">
+            Dropdown se common options select kar sakte ho, ya right side me custom unit manually type kar sakte ho.
+          </p>
 
           <input
             className="border px-3 py-2 rounded w-full text-sm"
@@ -312,7 +358,7 @@ export default function CreateProductModal({
             {previews.length > 0 && (
               <div className="flex gap-2 mt-2 flex-wrap">
                 {previews.map((url, i) => (
-                  <div key={i} className="relative group">
+                  <div key={url} className="relative group">
                     <img
                       src={url}
                       alt={`p${i}`}

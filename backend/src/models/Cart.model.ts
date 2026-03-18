@@ -59,10 +59,8 @@ const cartItemSchema = new Schema<ICartItem>(
     unit: {
       type: String,
       required: [true, 'Unit is required'],
-      enum: {
-        values: ['kg', 'g', 'l', 'ml', 'piece', 'pack'],
-        message: '{VALUE} is not a valid unit',
-      },
+      trim: true,
+      lowercase: true,
     },
     weight: {
       type: String,
