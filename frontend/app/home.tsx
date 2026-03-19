@@ -28,6 +28,11 @@ import {
 import { resolveImageUrl } from "@/config/api";
 import { getMyOrdersApi, OrderRow } from "@/services/orderService";
 import { getMyNotifications } from "@/services/notificationService";
+import {
+  AddonDeliveryWindow,
+  getAddonDeliveryRemainingMs,
+  getAddonDeliveryWindow,
+} from "@/services/addonWindowService";
 
 // Local offer images
 const shamImg = require("../assets/images/sham.png");
@@ -114,6 +119,10 @@ export default function HomeScreen() {
   const [latestOrder, setLatestOrder] = useState<OrderRow | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [showOrderToast, setShowOrderToast] = useState(false);
+  const [addonWindow, setAddonWindow] = useState<AddonDeliveryWindow | null>(
+    null,
+  );
+  const [addonRemainingMs, setAddonRemainingMs] = useState(0);
   const toastAnim = useRef(new Animated.Value(0)).current;
   const offerFlatListRef = useRef<FlatList>(null);
   const [activeOfferIdx, setActiveOfferIdx] = useState(0);
@@ -231,6 +240,34 @@ export default function HomeScreen() {
     return () => { clearTimeout(hideTimeout); };
   }, [latestOrder, toastAnim]);
 
+  useEffect(() => {
+    let mounted = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const refreshAddonWindow = async () => {
+      const [active, remaining] = await Promise.all([
+        getAddonDeliveryWindow(),
+        getAddonDeliveryRemainingMs(),
+      ]);
+      if (!mounted) return;
+      setAddonWindow(active);
+      setAddonRemainingMs(remaining);
+    };
+
+    void refreshAddonWindow();
+    timer = setInterval(() => {
+      void refreshAddonWindow();
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      if (timer) clearInterval(timer);
+    };
+  }, []);
+
+  const hasAddonWindow = !!addonWindow && addonRemainingMs > 0;
+  const addonSecondsLeft = Math.ceil(addonRemainingMs / 1000);
+
   const getOfferImageSource = (imageValue: unknown): ImageSourcePropType | null => {
     if (typeof imageValue === "number") return imageValue;
     if (typeof imageValue === "string" && imageValue.trim().length > 0) return { uri: imageValue };
@@ -346,6 +383,25 @@ export default function HomeScreen() {
             🚚 Tracking order {latestOrder?._id || "your latest order"} in progress
           </ThemedText>
         </Animated.View>
+      )}
+
+      {hasAddonWindow && (
+        <View style={styles.addonTimerBanner}>
+          <View style={styles.addonTimerContent}>
+            <ThemedText style={styles.addonTimerTitle}>
+              Same delivery charge active
+            </ThemedText>
+            <ThemedText style={styles.addonTimerText}>
+              {`Agle ${addonSecondsLeft}s tak extra order par delivery fee 0 rahegi.`}
+            </ThemedText>
+          </View>
+          <TouchableOpacity
+            style={styles.addonTimerBtn}
+            onPress={() => router.push("/cart")}
+          >
+            <ThemedText style={styles.addonTimerBtnText}>Add Items</ThemedText>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* ───── MAIN SCROLL ───── */}
@@ -789,6 +845,45 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: moderateScale(12),
     textAlign: "center",
+  },
+  addonTimerBanner: {
+    marginHorizontal: scale(16),
+    marginTop: verticalScale(8),
+    marginBottom: verticalScale(4),
+    backgroundColor: "#ECFDF3",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: moderateScale(12),
+    paddingVertical: verticalScale(10),
+    paddingHorizontal: scale(12),
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: scale(10),
+  },
+  addonTimerContent: {
+    flex: 1,
+  },
+  addonTimerTitle: {
+    fontSize: moderateScale(12),
+    fontWeight: "800",
+    color: "#166534",
+  },
+  addonTimerText: {
+    marginTop: verticalScale(2),
+    fontSize: moderateScale(11),
+    color: "#166534",
+  },
+  addonTimerBtn: {
+    backgroundColor: "#0E7A3D",
+    paddingHorizontal: scale(10),
+    paddingVertical: verticalScale(8),
+    borderRadius: moderateScale(8),
+  },
+  addonTimerBtnText: {
+    color: COLORS.white,
+    fontSize: moderateScale(11),
+    fontWeight: "700",
   },
 
   // ── Main scroll ──

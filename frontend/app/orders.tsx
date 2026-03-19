@@ -25,6 +25,11 @@ import {
   getMyOrdersApi,
   OrderRow,
 } from "@/services/orderService";
+import {
+  AddonDeliveryWindow,
+  getAddonDeliveryRemainingMs,
+  getAddonDeliveryWindow,
+} from "@/services/addonWindowService";
 
 const getStatusTone = (status: string) => {
   const normalized = String(status || "").toLowerCase();
@@ -92,6 +97,10 @@ export default function OrdersScreen() {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(
     null,
   );
+  const [addonWindow, setAddonWindow] = useState<AddonDeliveryWindow | null>(
+    null,
+  );
+  const [addonRemainingMs, setAddonRemainingMs] = useState(0);
   const statusByOrderRef = useRef<Record<string, string>>({});
   const filter = String(params.filter || "all").toLowerCase();
 
@@ -240,6 +249,31 @@ export default function OrdersScreen() {
     };
   }, [handleOrderUpdated]);
 
+  useEffect(() => {
+    let mounted = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const refreshAddonWindow = async () => {
+      const [active, remaining] = await Promise.all([
+        getAddonDeliveryWindow(),
+        getAddonDeliveryRemainingMs(),
+      ]);
+      if (!mounted) return;
+      setAddonWindow(active);
+      setAddonRemainingMs(remaining);
+    };
+
+    void refreshAddonWindow();
+    timer = setInterval(() => {
+      void refreshAddonWindow();
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      if (timer) clearInterval(timer);
+    };
+  }, []);
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -278,6 +312,8 @@ export default function OrdersScreen() {
     (sum, order) => sum + Number(order.totalAmount || 0),
     0,
   );
+  const hasAddonWindow = !!addonWindow && addonRemainingMs > 0;
+  const addonSecondsLeft = Math.ceil(addonRemainingMs / 1000);
 
   if (visibleOrders.length === 0) {
     return (
@@ -329,6 +365,24 @@ export default function OrdersScreen() {
           <ThemedText style={styles.subtitle}>
             Track your order history and purchased products
           </ThemedText>
+
+          {hasAddonWindow && (
+            <TouchableOpacity
+              style={styles.addonAddBtn}
+              activeOpacity={0.85}
+              onPress={() => router.push("/cart")}
+            >
+              <View style={styles.addonAddBtnLeft}>
+                <ThemedText style={styles.addonAddBtnTitle}>
+                  + Add More Items
+                </ThemedText>
+                <ThemedText style={styles.addonAddBtnSub}>
+                  {`Same delivery charge — ${addonSecondsLeft}s baaki`}
+                </ThemedText>
+              </View>
+              <ThemedText style={styles.addonAddBtnArrow}>→</ThemedText>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.summaryRow}>
             <View style={styles.summaryChip}>
@@ -655,6 +709,55 @@ const styles = createResponsiveStyles({
   title: { fontSize: 22, fontWeight: "800", color: "#FFFFFF", marginBottom: 4 },
   subtitle: { fontSize: 13, color: "#D1FAE5", marginBottom: 12 },
   summaryRow: { flexDirection: "row", gap: 8 },
+  addonAddBtn: {
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1.5,
+    borderColor: "#4ADE80",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  addonAddBtnLeft: { flex: 1 },
+  addonAddBtnTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#166534",
+  },
+  addonAddBtnSub: {
+    fontSize: 11,
+    color: "#166534",
+    marginTop: 2,
+    opacity: 0.8,
+  },
+  addonAddBtnArrow: {
+    fontSize: 20,
+    color: "#16A34A",
+    fontWeight: "bold",
+    marginLeft: 8,
+  },
+  addonSummaryBanner: {
+    backgroundColor: "rgba(236,253,243,0.14)",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  addonSummaryTitle: {
+    fontSize: 12,
+    color: "#D1FAE5",
+    fontWeight: "800",
+  },
+  addonSummaryText: {
+    fontSize: 12,
+    color: "#ECFDF5",
+    marginTop: 2,
+  },
   summaryChip: {
     flex: 1,
     backgroundColor: "rgba(255,255,255,0.14)",

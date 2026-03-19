@@ -27,6 +27,8 @@ export type OrderRow = {
   _id: string;
   totalAmount: number;
   deliveryFee?: number;
+  addonWindowExpiresAt?: string | null;
+  addonDeliveryFeeApplied?: boolean;
   paymentMethod?: 'cod' | 'online';
   paymentStatus?: 'pending' | 'paid' | 'failed';
   status: string;
@@ -75,12 +77,23 @@ export async function createOrderApi(payload: {
   shippingAddress: ShippingAddress;
   paymentMethod?: 'cod' | 'online';
   advancePaid?: boolean;
+  addonSourceOrderId?: string;
 }): Promise<OrderRow> {
-  const result = await request<{ order?: OrderRow; data?: OrderRow }>('/api/orders', {
+  const result = await request<{
+    order?: OrderRow;
+    data?: OrderRow;
+    addonWindowExpiresAt?: string | null;
+    addonDeliveryFeeApplied?: boolean;
+  }>('/api/orders', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return (result.order || result.data) as OrderRow;
+  const order = (result.order || result.data) as OrderRow;
+  if (order) {
+    order.addonWindowExpiresAt = result.addonWindowExpiresAt ?? null;
+    order.addonDeliveryFeeApplied = !!result.addonDeliveryFeeApplied;
+  }
+  return order;
 }
 
 export async function getOrderEligibilityApi(): Promise<OrderEligibility> {
@@ -90,7 +103,7 @@ export async function getOrderEligibilityApi(): Promise<OrderEligibility> {
       cancelledOrdersCount: 0,
       requiresAdvancePayment: false,
       codAllowed: true,
-      advanceAmount: 20,
+      advanceAmount: 0,
     }
   );
 }

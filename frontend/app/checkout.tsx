@@ -27,6 +27,12 @@ import {
   getOrderEligibilityApi,
   OrderEligibility,
 } from "@/services/orderService";
+import {
+  AddonDeliveryWindow,
+  getAddonDeliveryRemainingMs,
+  getAddonDeliveryWindow,
+  startAddonDeliveryWindow,
+} from "@/services/addonWindowService";
 
 export default function CheckoutScreen() {
   // NOSONAR
@@ -43,11 +49,14 @@ export default function CheckoutScreen() {
   const selectedLocation = useLocationStore((s) => s.selectedLocation);
   const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
   const [eligibility, setEligibility] = useState<OrderEligibility | null>(null);
-  const [payAdvance, setPayAdvance] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
   const [qrNonce, setQrNonce] = useState(() =>
     Math.floor(Math.random() * 1000000),
   );
+  const [addonWindow, setAddonWindow] = useState<AddonDeliveryWindow | null>(
+    null,
+  );
+  const [addonRemainingMs, setAddonRemainingMs] = useState(0);
 
   const getParamText = (value: unknown) => {
     if (typeof value === "string") return value;
@@ -78,14 +87,18 @@ export default function CheckoutScreen() {
     (sum, item) => sum + item.price * item.quantity,
     0,
   );
+  const hasAddonWindow = !!addonWindow && addonRemainingMs > 0;
+  const codBlocked = eligibility ? !eligibility.codAllowed : false;
   const effectivePaymentMethod: "cod" | "online" =
-    eligibility?.requiresAdvancePayment ? "online" : paymentMethod;
-  const deliveryFee = effectivePaymentMethod === "online" ? 8 : 10;
-  const advanceCharge = eligibility?.requiresAdvancePayment
-    ? Number(eligibility?.advanceAmount || 20)
-    : 0;
-  const totalPayable =
-    billTotal + deliveryFee + (payAdvance ? advanceCharge : 0);
+    codBlocked ? "online" : paymentMethod;
+  let deliveryFee = 10;
+  if (effectivePaymentMethod === "online") {
+    deliveryFee = 8;
+  }
+  if (hasAddonWindow) {
+    deliveryFee = 0;
+  }
+  const totalPayable = billTotal + deliveryFee;
 
   const qrPaymentData = useMemo(() => {
     const handles = ["okaxis", "ybl", "ibl", "okicici"];
@@ -142,10 +155,42 @@ export default function CheckoutScreen() {
   }, []);
 
   useEffect(() => {
-    if (eligibility?.requiresAdvancePayment) {
+    if (eligibility && !eligibility.codAllowed) {
       setPaymentMethod("online");
     }
-  }, [eligibility?.requiresAdvancePayment]);
+  }, [eligibility]);
+
+  useEffect(() => {
+    let mounted = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const refreshAddonWindow = async () => {
+      const [active, remaining] = await Promise.all([
+        getAddonDeliveryWindow(),
+        getAddonDeliveryRemainingMs(),
+      ]);
+      if (!mounted) return;
+      setAddonWindow(active);
+      setAddonRemainingMs(remaining);
+    };
+
+    void refreshAddonWindow();
+    timer = setInterval(() => {
+      void refreshAddonWindow();
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      if (timer) clearInterval(timer);
+    };
+  }, []);
+
+  const addonSecondsLeft = Math.ceil(addonRemainingMs / 1000);
+  const paymentModeLabel =
+    effectivePaymentMethod === "online" ? "Online" : "COD";
+  const deliveryFeeText = hasAddonWindow
+    ? "+ ₹0 (Same delivery window)"
+    : `+ ₹${deliveryFee} (${paymentModeLabel})`;
 
   const handlePlaceOrder = async () => {
     if (cartItems.length === 0) {
@@ -158,15 +203,7 @@ export default function CheckoutScreen() {
       const street = rawAddress || "Lakhanmajra";
       const pinMatch = /\b\d{6}\b/.exec(rawAddress);
 
-      if (eligibility?.requiresAdvancePayment && !payAdvance) {
-        Alert.alert(
-          "Advance Required",
-          `Aapne ${eligibility.cancelledOrdersCount} orders cancel kiye hain. Next order ke liye ₹${eligibility.advanceAmount} advance dena zaroori hai.`,
-        );
-        return;
-      }
-
-      await createOrderApi({
+      const createdOrder = await createOrderApi({
         shippingAddress: {
           street,
           city: "Rohtak",
@@ -180,13 +217,32 @@ export default function CheckoutScreen() {
             : {}),
         },
         paymentMethod: effectivePaymentMethod,
-        advancePaid: eligibility?.requiresAdvancePayment ? payAdvance : false,
+        advancePaid: false,
+        addonSourceOrderId: hasAddonWindow
+          ? addonWindow?.sourceOrderId
+          : undefined,
       });
+
+      if (createdOrder._id) {
+        await startAddonDeliveryWindow(
+          createdOrder._id,
+          createdOrder.addonWindowExpiresAt || undefined,
+        );
+      }
+
+      const [active, remaining] = await Promise.all([
+        getAddonDeliveryWindow(),
+        getAddonDeliveryRemainingMs(),
+      ]);
+      setAddonWindow(active);
+      setAddonRemainingMs(remaining);
 
       await clearCart();
       Alert.alert(
         "Order Placed! 🎉",
-        `Your order of ₹${totalPayable} has been placed successfully!`,
+        remaining > 0
+          ? `Order placed! Agle ${Math.ceil(remaining / 1000)} second tak aap same delivery charge me aur items add kar sakte hain.`
+          : `Your order of ₹${totalPayable} has been placed successfully!`,
         [
           {
             text: "View Orders",
@@ -314,17 +370,16 @@ export default function CheckoutScreen() {
               style={[
                 styles.paymentOption,
                 effectivePaymentMethod === "cod" && styles.paymentOptionActive,
-                eligibility?.requiresAdvancePayment &&
-                  styles.paymentOptionDisabled,
+                codBlocked && styles.paymentOptionDisabled,
               ]}
               onPress={() => setPaymentMethod("cod")}
-              disabled={!!eligibility?.requiresAdvancePayment}
+              disabled={codBlocked}
             >
               <ThemedText style={styles.paymentOptionTitle}>
                 Cash on Delivery
               </ThemedText>
               <ThemedText style={styles.paymentOptionSub}>
-                {eligibility?.requiresAdvancePayment
+                {codBlocked
                   ? "Temporarily unavailable"
                   : "Pay when order arrives · Delivery ₹10"}
               </ThemedText>
@@ -382,6 +437,17 @@ export default function CheckoutScreen() {
         <View
           style={[styles.billSection, { paddingHorizontal: screenPadding }]}
         >
+          {hasAddonWindow && (
+            <View style={styles.addonBanner}>
+              <ThemedText style={styles.addonBannerTitle}>
+                Same Delivery Charge Active
+              </ThemedText>
+              <ThemedText style={styles.addonBannerText}>
+                {`Next ${addonSecondsLeft}s tak extra order par delivery fee nahi lagegi.`}
+              </ThemedText>
+            </View>
+          )}
+
           <View style={styles.billRow}>
             <ThemedText style={styles.billLabel}>Bill Total</ThemedText>
             <ThemedText style={styles.billValue}>₹ {billTotal}</ThemedText>
@@ -389,53 +455,18 @@ export default function CheckoutScreen() {
 
           <View style={styles.billRow}>
             <ThemedText style={styles.billLabel}>Delivery Fee</ThemedText>
-            <ThemedText style={styles.deliveryFee}>
-              + ₹{deliveryFee} (
-              {effectivePaymentMethod === "online" ? "Online" : "COD"})
-            </ThemedText>
+            <ThemedText style={styles.deliveryFee}>{deliveryFeeText}</ThemedText>
           </View>
 
-          {eligibility?.requiresAdvancePayment && (
-            <>
-              <View style={styles.ruleAlert}>
-                <ThemedText style={styles.ruleAlertText}>
-                  {`Aapke ${eligibility.cancelledOrdersCount} cancelled orders hain. Is next order par COD disabled hai.`}
-                </ThemedText>
-                <ThemedText
-                  style={styles.ruleAlertSubText}
-                >{`₹${eligibility.advanceAmount} advance pay karke order place karein.`}</ThemedText>
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.advanceToggle,
-                  payAdvance && styles.advanceToggleActive,
-                ]}
-                onPress={() => setPayAdvance((prev) => !prev)}
-              >
-                <ThemedText
-                  style={[
-                    styles.advanceToggleText,
-                    payAdvance && styles.advanceToggleTextActive,
-                  ]}
-                >
-                  {payAdvance
-                    ? `✓ ₹${eligibility.advanceAmount} Advance Added`
-                    : `Add ₹${eligibility.advanceAmount} Advance`}
-                </ThemedText>
-              </TouchableOpacity>
-
-              {payAdvance && (
-                <View style={styles.billRow}>
-                  <ThemedText style={styles.billLabel}>
-                    Advance Charge
-                  </ThemedText>
-                  <ThemedText style={styles.billValue}>
-                    + ₹ {eligibility.advanceAmount}
-                  </ThemedText>
-                </View>
-              )}
-            </>
+          {codBlocked && (
+            <View style={styles.ruleAlert}>
+              <ThemedText style={styles.ruleAlertText}>
+                COD temporarily disabled hai.
+              </ThemedText>
+              <ThemedText style={styles.ruleAlertSubText}>
+                Latest cancellation ke baad 1 online order complete karte hi COD phir se enable ho jayega.
+              </ThemedText>
+            </View>
           )}
 
           <View style={styles.divider} />
@@ -704,6 +735,25 @@ const styles = createResponsiveStyles({
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
+  addonBanner: {
+    backgroundColor: "#ECFDF3",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  addonBannerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  addonBannerText: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#166534",
+  },
   billRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -742,27 +792,6 @@ const styles = createResponsiveStyles({
     fontSize: 12,
     color: "#92400E",
     marginTop: 2,
-  },
-  advanceToggle: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-    backgroundColor: "#FFFFFF",
-  },
-  advanceToggleActive: {
-    borderColor: "#0E7A3D",
-    backgroundColor: "#ECFDF3",
-  },
-  advanceToggleText: {
-    fontSize: 13,
-    color: "#374151",
-    fontWeight: "600",
-  },
-  advanceToggleTextActive: {
-    color: "#166534",
   },
   divider: {
     height: 1,

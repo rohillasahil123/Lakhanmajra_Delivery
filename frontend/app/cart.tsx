@@ -20,6 +20,11 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import {
+  AddonDeliveryWindow,
+  getAddonDeliveryRemainingMs,
+  getAddonDeliveryWindow,
+} from "@/services/addonWindowService";
 
 // Cart items are managed by the global Zustand store (stores/cartStore.ts)
 
@@ -37,6 +42,10 @@ export default function CartScreen() {
   const hydrateLocal = useCart((s) => s.hydrateLocal);
   const syncFromServer = useCart((s) => s.syncFromServer);
   const initialized = useCart((s) => s.initialized);
+  const [addonWindow, setAddonWindow] = React.useState<AddonDeliveryWindow | null>(
+    null,
+  );
+  const [addonRemainingMs, setAddonRemainingMs] = React.useState(0);
 
   useEffect(() => {
     (async () => {
@@ -45,14 +54,41 @@ export default function CartScreen() {
     })();
   }, [initialized, hydrateLocal, syncFromServer]);
 
+  useEffect(() => {
+    let mounted = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const refreshAddonWindow = async () => {
+      const [active, remaining] = await Promise.all([
+        getAddonDeliveryWindow(),
+        getAddonDeliveryRemainingMs(),
+      ]);
+      if (!mounted) return;
+      setAddonWindow(active);
+      setAddonRemainingMs(remaining);
+    };
+
+    void refreshAddonWindow();
+    timer = setInterval(() => {
+      void refreshAddonWindow();
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      if (timer) clearInterval(timer);
+    };
+  }, []);
+
   // Calculate totals (give explicit types to reduce callback to satisfy strict TS)
   const itemCount = cartItems.length;
   const billTotal = cartItems.reduce(
     (sum: number, item) => sum + item.quantity * item.price,
     0,
   );
-  const deliveryFee = 10;
+  const hasAddonWindow = !!addonWindow && addonRemainingMs > 0;
+  const deliveryFee = hasAddonWindow ? 0 : 10;
   const totalPayable = billTotal + deliveryFee;
+  const addonSecondsLeft = Math.ceil(addonRemainingMs / 1000);
 
   // Remove item with confirmation
   const confirmRemove = (id: string) => {
@@ -247,6 +283,17 @@ export default function CartScreen() {
             >
               <ThemedText style={styles.summaryTitle}>Bill Details</ThemedText>
 
+              {hasAddonWindow && (
+                <View style={styles.addonBanner}>
+                  <ThemedText style={styles.addonBannerTitle}>
+                    Same Delivery Charge Active
+                  </ThemedText>
+                  <ThemedText style={styles.addonBannerText}>
+                    {`Agle ${addonSecondsLeft}s tak extra order par delivery fee 0 rahegi.`}
+                  </ThemedText>
+                </View>
+              )}
+
               <View style={styles.summaryRow}>
                 <ThemedText style={styles.summaryLabel}>Items Total</ThemedText>
                 <ThemedText style={styles.summaryValue}>
@@ -259,7 +306,7 @@ export default function CartScreen() {
                   Delivery Fee
                 </ThemedText>
                 <ThemedText style={styles.deliveryFee}>
-                  ₹{deliveryFee}
+                  {hasAddonWindow ? "₹0 (same delivery window)" : `₹${deliveryFee}`}
                 </ThemedText>
               </View>
 
@@ -514,6 +561,25 @@ const styles = createResponsiveStyles({
     marginTop: 12,
     paddingHorizontal: 16,
     paddingVertical: 16,
+  },
+  addonBanner: {
+    backgroundColor: "#ECFDF3",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  addonBannerTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  addonBannerText: {
+    marginTop: 2,
+    fontSize: 12,
+    color: "#166534",
   },
   summaryTitle: {
     fontSize: 16,

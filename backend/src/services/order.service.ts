@@ -10,10 +10,9 @@ import { recordAudit } from './audit.service';
 import { emitOrderRealtime } from './realtime.service';
 import { AuthRequest } from '../middlewares/auth.middleware';
 
-const CANCELLATION_THRESHOLD = 3;
-const ADVANCE_CHARGE = 20;
 const COD_DELIVERY_FEE = 10;
 const ONLINE_DELIVERY_FEE = 8;
+const ADDON_WINDOW_MS = 60 * 1000;
 
 const getOrderItemProductId = (item: any): string => {
   const raw = item?.productId ?? item?.product;
@@ -46,14 +45,30 @@ const restoreStockForOrder = async (order: any): Promise<void> => {
 
 const getCancellationPolicy = async (userId: string) => {
   const cancelledOrdersCount = await Order.countDocuments({ userId, status: 'cancelled' });
-  const requiresAdvancePayment = cancelledOrdersCount >= CANCELLATION_THRESHOLD;
-  const codAllowed = !requiresAdvancePayment;
+  const latestCancelledOrder = await Order.findOne({ userId, status: 'cancelled' })
+    .select('createdAt')
+    .sort({ createdAt: -1 })
+    .lean<{ createdAt?: Date }>();
+
+  let codAllowed = true;
+  if (latestCancelledOrder?.createdAt) {
+    const onlineOrderAfterCancel = await Order.findOne({
+      userId,
+      paymentMethod: 'online',
+      status: { $ne: 'cancelled' },
+      createdAt: { $gt: new Date(latestCancelledOrder.createdAt) },
+    })
+      .select('_id')
+      .lean<{ _id: Types.ObjectId } | null>();
+
+    codAllowed = !!onlineOrderAfterCancel;
+  }
 
   return {
     cancelledOrdersCount,
-    requiresAdvancePayment,
+    requiresAdvancePayment: false,
     codAllowed,
-    advanceAmount: ADVANCE_CHARGE,
+    advanceAmount: 0,
   };
 };
 
@@ -79,20 +94,22 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       res.status(401).json({ message: 'Unauthorized' });
       return;
     }
-    const { shippingAddress, paymentMethod = 'cod', advancePaid = false } = req.body;
+    const { shippingAddress, paymentMethod = 'cod', advancePaid = false, addonSourceOrderId } = req.body;
     const normalizedPaymentMethod = paymentMethod === 'online' ? 'online' : 'cod';
+    const normalizedAddonSourceOrderId =
+      typeof addonSourceOrderId === 'string' ? addonSourceOrderId.trim() : '';
 
     const policy = await getCancellationPolicy(userId);
 
     if (!policy.codAllowed && normalizedPaymentMethod === 'cod') {
       res.status(400).json({
-        message: `COD is disabled for your next order due to ${policy.cancelledOrdersCount} cancelled orders. Please pay ₹${policy.advanceAmount} advance.`,
+        message: 'COD is disabled until you complete one online order after your latest cancellation.',
         data: policy,
       });
       return;
     }
 
-    if (policy.requiresAdvancePayment && !advancePaid) {
+    if (policy.requiresAdvancePayment && policy.advanceAmount > 0 && !advancePaid) {
       res.status(400).json({
         message: `Advance payment of ₹${policy.advanceAmount} is required before placing your next order.`,
         data: policy,
@@ -185,11 +202,54 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
+    let addonSourceOrder:
+      | {
+          _id: Types.ObjectId;
+          createdAt: Date;
+          paymentMethod: 'online' | 'cod';
+          status: string;
+        }
+      | null = null;
+
+    if (normalizedAddonSourceOrderId && Types.ObjectId.isValid(normalizedAddonSourceOrderId)) {
+      const candidate = await Order.findOne({
+        _id: new Types.ObjectId(normalizedAddonSourceOrderId),
+        userId: new Types.ObjectId(userId),
+        deliveryFee: { $gt: 0 },
+        status: { $ne: 'cancelled' },
+      })
+        .select('_id createdAt paymentMethod status')
+        .lean<{
+          _id: Types.ObjectId;
+          createdAt?: Date;
+          paymentMethod: 'online' | 'cod';
+          status: string;
+        }>();
+
+      if (candidate?.createdAt) {
+        const elapsedMs = Date.now() - new Date(candidate.createdAt).getTime();
+        if (elapsedMs >= 0 && elapsedMs <= ADDON_WINDOW_MS) {
+          addonSourceOrder = {
+            _id: candidate._id,
+            createdAt: new Date(candidate.createdAt),
+            paymentMethod: candidate.paymentMethod,
+            status: candidate.status,
+          };
+        }
+      }
+    }
+
     // Calculate total
     const subtotal = cart.items.reduce((sum, item) => {
       return sum + (item.price * item.quantity);
     }, 0);
-    const deliveryFee = normalizedPaymentMethod === 'online' ? ONLINE_DELIVERY_FEE : COD_DELIVERY_FEE;
+    let deliveryFee = COD_DELIVERY_FEE;
+    if (normalizedPaymentMethod === 'online') {
+      deliveryFee = ONLINE_DELIVERY_FEE;
+    }
+    if (addonSourceOrder) {
+      deliveryFee = 0;
+    }
     const totalAmount = subtotal + deliveryFee;
 
     // Order create karo
@@ -292,9 +352,22 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       { persistent: true }
     );
 
-    res.status(201).json({ 
-      message: 'Order placed successfully', 
-      order 
+    const sourceCreatedAt = addonSourceOrder?.createdAt
+      ? new Date(addonSourceOrder.createdAt)
+      : null;
+    const orderCreatedAt = order?.createdAt ? new Date(order.createdAt) : new Date();
+    let addonWindowExpiresAt: string | null = null;
+    if (sourceCreatedAt) {
+      addonWindowExpiresAt = new Date(sourceCreatedAt.getTime() + ADDON_WINDOW_MS).toISOString();
+    } else {
+      addonWindowExpiresAt = new Date(orderCreatedAt.getTime() + ADDON_WINDOW_MS).toISOString();
+    }
+
+    res.status(201).json({
+      message: 'Order placed successfully',
+      order,
+      addonWindowExpiresAt,
+      addonDeliveryFeeApplied: !!addonSourceOrder,
     });
 
     void emitOrderRealtime(String(order._id), { event: 'created' });
