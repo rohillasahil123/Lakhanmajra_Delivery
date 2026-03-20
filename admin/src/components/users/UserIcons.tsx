@@ -135,4 +135,44 @@ export const UserIcons = {
       <path d="M10 11v6M14 11v6" />
     </svg>
   ),
+  Power: () => (
+    <svg
+      width="26"
+      height="26"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M18.364 5.636a9 9 0 11-12.728 0" />
+      <line x1="12" y1="3" x2="12" y2="12" />
+    </svg>
+  ),
+  Lock: () => (
+    <svg
+      width="26"
+      height="26"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="3" y="11" width="18" height="10" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  ),
+  Unlock: () => (
+    <svg
+      width="26"
+      height="26"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <rect x="3" y="11" width="18" height="10" rx="2" />
+      <path d="M7 11V7a5 5 0 0 1 9.7-1" />
+      <path d="M16 11h1" />
+    </svg>
+  ),
 };

@@ -6,6 +6,7 @@ interface ActionIconButtonProps {
   onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
+  color?: string;
 }
 
 /**
@@ -17,6 +18,7 @@ export function ActionIconButton({
   onClick,
   danger = false,
   disabled = false,
+  color,
 }: Readonly<ActionIconButtonProps>) {
   const [hovering, setHovering] = useState(false);
 
@@ -44,7 +46,7 @@ export function ActionIconButton({
         borderRadius: 7,
         border: `1px solid ${btnBorder}`,
         background: btnBg,
-        color: btnColor,
+        color: disabled ? '#a3a3a3' : btnColor,
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex',
         alignItems: 'center',

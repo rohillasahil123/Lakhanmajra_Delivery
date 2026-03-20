@@ -33,6 +33,7 @@ export default function Users() {
     createUser,
     updateUser,
     deleteUser,
+    toggleStatus,
   } = useUsers();
 
   const { roles, summary, hasPermission, loading: initLoading } = useUserInit(fetchUsers);
@@ -44,7 +45,7 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState<IUser | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -70,9 +71,9 @@ export default function Users() {
   );
 
   const handleStatusFilter = useCallback(
-    (status: string) => {
+    (status: 'all' | 'active' | 'inactive') => {
       setStatusFilter(status);
-      const statusParam = status !== 'all' ? (status === 'active' ? 'active' : 'inactive') : undefined;
+      const statusParam = status !== 'all' ? status : undefined;
       fetchUsers({
         page: 1,
         role: activeRole || undefined,
@@ -115,6 +116,24 @@ export default function Users() {
       await deleteUser(userId);
       setToast({ message: 'User deleted successfully', type: 'success' });
       await fetchUsers({ page: 1, role: activeRole || undefined });
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setToast({ message, type: 'error' });
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: string, isActive: boolean) => {
+    try {
+      await toggleStatus(userId, isActive);
+      setToast({
+        message: isActive ? 'User activated successfully' : 'User deactivated successfully',
+        type: 'success',
+      });
+      await fetchUsers({
+        page: 1,
+        role: activeRole || undefined,
+        status: statusFilter === 'all' ? undefined : (statusFilter as 'active' | 'inactive'),
+      });
     } catch (err) {
       const message = getErrorMessage(err);
       setToast({ message, type: 'error' });
@@ -209,6 +228,7 @@ export default function Users() {
           error={error}
           onEdit={handleEditUser}
           onDelete={handleDeleteUser}
+          onToggleStatus={handleToggleUserStatus}
           hasPermission={hasPermission}
         />
 

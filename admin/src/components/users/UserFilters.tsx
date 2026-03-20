@@ -2,20 +2,22 @@ import { useState } from 'react';
 import { ROLE_TABS, STATUS_OPTIONS } from './UserConstants';
 import { UserIcons } from './UserIcons';
 
+type UserStatusFilter = 'all' | 'active' | 'inactive';
+
 interface UserFiltersProps {
   search: string;
   onSearchChange: (value: string) => void;
   activeRole: string | null;
   onRoleChange: (role: string) => void;
-  statusFilter: string;
-  onStatusChange: (status: string) => void;
+  statusFilter: UserStatusFilter;
+  onStatusChange: (status: UserStatusFilter) => void;
   roleCountByKey: (role: string) => number;
 }
 
 /**
  * Status dropdown filter component
  */
-function StatusDropdown({ value, onChange }: { value: string; onChange: (status: string) => void }) {
+function StatusDropdown({ value, onChange }: { value: UserStatusFilter; onChange: (status: UserStatusFilter) => void }) {
   const [open, setOpen] = useState(false);
 
   const getLabel = () => {
@@ -65,7 +67,7 @@ function StatusDropdown({ value, onChange }: { value: string; onChange: (status:
             <button
               key={opt.value}
               onClick={() => {
-                onChange(opt.value);
+                onChange(opt.value as UserStatusFilter);
                 setOpen(false);
               }}
               style={{

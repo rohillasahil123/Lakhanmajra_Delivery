@@ -10,6 +10,7 @@ interface UserTableRowProps {
   user: IUser;
   onEdit: (user: IUser) => void;
   onDelete: (id: string) => void;
+  onToggleStatus: (id: string, isActive: boolean) => void;
   hasPermission: (perm: string) => boolean;
 }
 
@@ -21,6 +22,7 @@ export function UserTableRow({
   user,
   onEdit,
   onDelete,
+  onToggleStatus,
   hasPermission,
 }: Readonly<UserTableRowProps>) {
   const [hovering, setHovering] = useState(false);
@@ -87,11 +89,22 @@ export function UserTableRow({
             alignItems: 'center',
             justifyContent: 'flex-end',
             gap: 4,
-            opacity: hovering ? 1 : 0,
+            opacity: 1,
             transition: 'opacity 0.12s',
-            pointerEvents: hovering ? 'auto' : 'none',
+            pointerEvents: 'auto',
           }}
         >
+          {/* Activate / Deactivate */}
+          {hasPermission('users:update') && (
+            <ActionIconButton
+              title={user.isActive ? 'Deactivate' : 'Activate'}
+              onClick={() => onToggleStatus(user._id, !user.isActive)}
+              color={user.isActive ? '#f59e0b' : '#16a34a'}
+            >
+              <UserIcons.Power />
+            </ActionIconButton>
+          )}
+
           {/* Edit Button */}
           {hasPermission('users:update') && (
             <ActionIconButton title="Edit" onClick={() => onEdit(user)}>
