@@ -427,12 +427,8 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
         { $group: { _id: null, avgMinutes: { $avg: '$diffMinutes' } } },
       ]),
 
-      // active users (unique users who placed orders in range)
-      Order.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end } } },
-        { $group: { _id: '$userId' } },
-        { $group: { _id: null, count: { $sum: 1 } } },
-      ]),
+      // active users: number of currently active users in system
+      User.countDocuments({ isActive: true }),
 
       // orders by day
       Order.aggregate([
@@ -481,7 +477,7 @@ export const getDashboardMetrics = async (req: Request, res: Response) => {
 
     const revenue = (revenueAgg[0]?.total ?? 0);
     const avgDeliveryMinutes = avgDeliveryAgg[0]?.avgMinutes ?? null;
-    const activeUsers = activeUsersAgg[0]?.count ?? 0;
+    const activeUsers = typeof activeUsersAgg === 'number' ? activeUsersAgg : 0;
 
     // build per-day arrays across the full range (fill zeros)
     const daysArr: string[] = [];

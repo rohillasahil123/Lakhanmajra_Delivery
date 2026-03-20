@@ -89,7 +89,7 @@ export default function Dashboard() {
     },
     { key: 'orders-today', title: 'Orders today', value: metrics?.ordersToday ?? '-' },
     { key: 'pending-orders', title: 'Pending orders', value: metrics?.pendingOrders ?? '-' },
-    { key: 'active-users', title: 'Active users (range)', value: metrics?.activeUsers ?? '-' },
+    { key: 'active-users', title: 'Active users', value: metrics?.activeUsers ?? '-' },
   ];
 
   const getRangeQuery = () => {

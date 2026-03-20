@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
 import api from '../../api/client';
 
@@ -158,6 +158,8 @@ export default function Sidebar() {
     globalThis.location.href = '/login';
   };
 
+  const navigate = useNavigate();
+
   return (
     <>
       {/* Hover Zone - Invisible zone on left edge to trigger sidebar expansion */}
@@ -175,9 +177,10 @@ export default function Sidebar() {
       >
         {/* Logo */}
         <div
+          onClick={() => navigate('/')}
           className={`border-b border-[#e8eaf0] dark:border-slate-700 min-h-[70px] flex items-center ${
             isCollapsed ? 'justify-center' : 'justify-start'
-          } px-3.5 py-4`}
+          } px-3.5 py-4 cursor-pointer`}
         >
           <div className="flex items-center gap-2.25 flex-shrink-0">
             <div className="w-[30px] h-[30px] bg-[#3b6ef8] rounded-lg flex items-center justify-center shadow-[0_2px_8px_rgba(59,110,248,.3)]">

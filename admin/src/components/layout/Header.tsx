@@ -1,5 +1,5 @@
 import ThemeToggle from './ThemeToggle';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 export default function Header() {
   const location = useLocation();
@@ -27,7 +27,9 @@ export default function Header() {
       <div
         style={{ fontSize: 12.5, color: '#8b92a9', display: 'flex', alignItems: 'center', gap: 6 }}
       >
-        <span className="dark:text-slate-400">Dashboard</span>
+        <Link to="/" style={{ color: 'inherit', textDecoration: 'none', fontWeight: 600 }}>
+          Dashboard
+        </Link>
         {location.pathname !== '/' && (
           <>
             <span style={{ color: '#d1d5e0' }}>›</span>
