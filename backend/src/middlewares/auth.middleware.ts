@@ -45,8 +45,13 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
     // keep role name on the request (comes from JWT or populated roleId)
     const roleNameFromToken = decoded.roleName || decoded.role;
-    (user as any).roleName = roleNameFromToken || (user.roleId && (user.roleId as any).name) || undefined;
-    (user as any).role = (user as any).roleName || undefined;
+    const derivedRole =
+      String(roleNameFromToken || (user.roleId && (user.roleId as any).name) || '')
+        .trim()
+        .toLowerCase();
+
+    (user as any).roleName = derivedRole;
+    (user as any).role = derivedRole;
 
     req.user = user;
     return next();
@@ -59,7 +64,9 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
   if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
   const roleCandidate =
-    req.user.role || req.user.roleName || (req.user.roleId && (req.user.roleId.name || req.user.roleId));
+    String(req.user.role || req.user.roleName || (req.user.roleId && (req.user.roleId.name || req.user.roleId)) || '')
+      .trim()
+      .toLowerCase();
   if (roleCandidate && (roleCandidate === 'admin' || roleCandidate === 'superadmin')) return next();
   return res.status(403).json({ message: 'Admin privileges required' });
 };
@@ -68,13 +75,12 @@ export const requireRole = (role: string) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
 
-    // support multiple user shapes: `role`, `roleName`, or populated `roleId.name`
     const userRole =
-      req.user.role ||
-      req.user.roleName ||
-      (req.user.roleId && (req.user.roleId.name || req.user.roleId));
+      String(req.user.role || req.user.roleName || (req.user.roleId && (req.user.roleId.name || req.user.roleId)) || '')
+        .trim()
+        .toLowerCase();
 
-    if (userRole && userRole === role) return next();
+    if (userRole && userRole === role.toLowerCase()) return next();
     return res.status(403).json({ message: `Require role: ${role}` });
   };
 };
