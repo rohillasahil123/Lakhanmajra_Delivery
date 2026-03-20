@@ -162,6 +162,9 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
     const { page = "1", limit = "10", role, status, search } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
 
+    const superAdminRole = await Role.findOne({ name: 'superadmin' }).select('_id').lean();
+    const superAdminRoleId = superAdminRole?._id;
+
     const query: any = {};
 
     // ---------------- ROLE FILTER ----------------
@@ -187,7 +190,21 @@ export const listUsersWithRoles = async (req: Request, res: Response) => {
         );
       }
 
+      // Never return superadmin users in this endpoint
+      if (superAdminRoleId && roleDoc._id.toString() === superAdminRoleId.toString()) {
+        return success(
+          res,
+          { users: [], total: 0, page: Number(page), limit: Number(limit) },
+          "Users fetched"
+        );
+      }
+
       query.roleId = roleDoc._id;
+    }
+
+    // Exclude superadmin from any non-expanded list
+    if (!query.roleId && superAdminRoleId) {
+      query.roleId = { $ne: superAdminRoleId };
     }
 
     // ---------------- STATUS FILTER ----------------
@@ -349,10 +366,18 @@ export const updateUserStatus = async (req: Request, res: Response) => {
 
     if (typeof isActive !== 'boolean') return fail(res, 'isActive must be boolean', 400);
 
-    const user = await User.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
+    const user = await User.findById(id).populate('roleId');
     if (!user) return fail(res, 'User not found', 404);
 
-    return success(res, user, 'User status updated');
+    const isSuperAdmin =
+      user.email === 'superadmin@example.com' ||
+      (user.roleId && (user.roleId as any)?.name === 'superadmin');
+    if (isSuperAdmin) {
+      return fail(res, 'Cannot change status of superadmin user', 403);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
+    return success(res, updatedUser, 'User status updated');
   } catch (err: any) {
     return fail(res, err.message || 'Update failed', 500);
   }
@@ -361,7 +386,10 @@ export const updateUserStatus = async (req: Request, res: Response) => {
 // Superadmin: summary counts by role
 export const getUserSummary = async (_req: Request, res: Response) => {
   try {
-    const roles = await Role.find({ isActive: true });
+    const superAdminRole = await Role.findOne({ name: 'superadmin' }).select('_id').lean();
+    const superAdminRoleId = superAdminRole?._id;
+
+    const roles = await Role.find({ isActive: true, name: { $ne: 'superadmin' } });
     const summary: any = {};
 
     for (const r of roles) {
@@ -369,7 +397,7 @@ export const getUserSummary = async (_req: Request, res: Response) => {
       summary[r.name] = count;
     }
 
-    const total = await User.countDocuments({});
+    const total = await User.countDocuments(superAdminRoleId ? { roleId: { $ne: superAdminRoleId } } : {});
     return success(res, { summary, total }, 'User summary fetched');
   } catch (err: any) {
     return fail(res, err.message || 'Fetch failed', 500);
@@ -564,6 +592,10 @@ export const createUser = async (req: Request, res: Response) => {
       return fail(res, 'Role not found', 404);
     }
 
+    if (role.name === 'superadmin') {
+      return fail(res, 'Cannot create superadmin user via this endpoint', 403);
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -602,7 +634,12 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     // Prevent editing superadmin (except superadmin themselves)
-    if (user.email === 'superadmin@example.com') {
+    const userRole = await Role.findById(user.roleId).select('name');
+    const isSuperAdmin =
+      user.email === 'superadmin@example.com' ||
+      userRole?.name === 'superadmin';
+
+    if (isSuperAdmin) {
       return fail(res, 'Cannot edit superadmin user', 403);
     }
 

@@ -75,8 +75,15 @@ export const useUsers = () => {
         throw new Error('Invalid user response format');
       }
 
-      setUsers(payload.users);
-      setTotal(payload.total ?? 0);
+      // defensively filter out superadmin account in client view
+      const filteredUsers = payload.users.filter((u) => {
+        const isSuperAdminEmail = u.email?.toLowerCase() === 'superadmin@example.com';
+        const isSuperAdminRole = u.roleId?.name?.toLowerCase() === 'superadmin';
+        return !isSuperAdminEmail && !isSuperAdminRole;
+      });
+
+      setUsers(filteredUsers);
+      setTotal(filteredUsers.length !== payload.users.length ? payload.total - (payload.users.length - filteredUsers.length) : payload.total ?? 0);
       setPage(payload.page ?? currentPage);
       setLimit(payload.limit ?? currentLimit);
 

@@ -2,7 +2,6 @@ export const ITEMS_PER_PAGE = 8;
 
 export const ROLE_TABS = [
   { key: 'all', label: 'All' },
-  { key: 'superadmin', label: 'Super Admin' },
   { key: 'admin', label: 'Admin' },
   { key: 'manager', label: 'Manager' },
   { key: 'vendor', label: 'Vendor' },

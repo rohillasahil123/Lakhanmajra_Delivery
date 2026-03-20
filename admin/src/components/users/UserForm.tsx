@@ -204,11 +204,13 @@ export function UserForm({
               }}
             >
               <option value="">Select a role</option>
-              {roles.map((role) => (
-                <option key={role._id} value={role._id}>
-                  {role.name}
-                </option>
-              ))}
+              {roles
+                .filter((role) => role.name.toLowerCase() !== 'superadmin')
+                .map((role) => (
+                  <option key={role._id} value={role._id}>
+                    {role.name}
+                  </option>
+                ))}
             </select>
             {errors.roleId && <span style={{ fontSize: 11, color: '#ef4444', marginTop: 4, display: 'block' }}>{String(errors.roleId?.message)}</span>}
           </div>

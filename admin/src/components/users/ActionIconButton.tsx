@@ -32,6 +32,8 @@ export function ActionIconButton({
     btnBorder = danger ? '#fecdd3' : '#e8eaf0';
   }
 
+  const effectiveColor = disabled ? '#a3a3a3' : color || btnColor;
+
   return (
     <button
       type="button"
@@ -46,7 +48,7 @@ export function ActionIconButton({
         borderRadius: 7,
         border: `1px solid ${btnBorder}`,
         background: btnBg,
-        color: disabled ? '#a3a3a3' : btnColor,
+        color: effectiveColor,
         cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex',
         alignItems: 'center',

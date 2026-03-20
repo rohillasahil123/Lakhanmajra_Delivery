@@ -57,7 +57,7 @@ export const useUserInit = (fetchUsers: FetchUsersFn) => {
             ? permRes.data.data.permissions
             : [];
 
-        setRoles(rolesData);
+        setRoles(rolesData.filter((r: any) => String(r.name).toLowerCase() !== 'superadmin'));
         setSummary(summaryData);
         setPermissions(permData);
 
