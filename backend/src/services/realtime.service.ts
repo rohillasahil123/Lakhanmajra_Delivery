@@ -174,61 +174,106 @@ export const emitOrderRealtime = async (
   const socket = getRealtime();
   if (!socket || !orderId) return;
 
-  const fullOrder = await Order.findById(orderId)
-    .populate("userId", "name email phone")
-    .populate("assignedRiderId", "name email phone")
-    .populate("items.productId", "name images price");
+  try {
+    const fullOrder = await Order.findById(orderId)
+      .populate("userId", "name email phone")
+      .populate("assignedRiderId", "name email phone")
+      .populate("items.productId", "name images price");
 
-  if (!fullOrder) return;
+    if (!fullOrder) {
+      console.warn('⚠️ Realtime: Order not found for emission', { orderId });
+      return;
+    }
 
-  const eventType = options?.event || "updated";
-  const plainOrder = fullOrder.toObject();
-  socket.to("admin:orders").emit("admin:orderUpdated", {
-    event: eventType,
-    order: plainOrder,
-    socketEventId: `${Date.now()}_${orderId}`,
-  });
-
-  const riderPayload = mapToRiderOrder(fullOrder);
-  const assignedRiderId = riderPayload?.riderId;
-  const customerId = plainOrder?.userId?._id
-    ? String(plainOrder.userId._id)
-    : plainOrder?.userId
-    ? String(plainOrder.userId)
-    : "";
-
-  if (customerId) {
-    socket.to(`user:${customerId}`).emit("user:orderUpdated", {
-      event: eventType,
-      order: plainOrder,
-      socketEventId: `${Date.now()}_${orderId}`,
-    });
-
-    if (eventType === "status" && riderPayload.status === "OutForDelivery") {
-      socket.to(`user:${customerId}`).emit("user:orderArriving", {
-        event: "arriving",
+    const eventType = options?.event || "updated";
+    const plainOrder = fullOrder.toObject();
+    
+    // Emit to admins
+    try {
+      socket.to("admin:orders").emit("admin:orderUpdated", {
+        event: eventType,
+        order: plainOrder,
+        socketEventId: `${Date.now()}_${orderId}`,
+      });
+    } catch (err) {
+      console.error('⚠️ Realtime: Failed to emit to admin:orders', {
         orderId,
-        riderStatus: riderPayload.status,
-        socketEventId: `${Date.now()}_${orderId}_arriving`,
+        error: (err as Error)?.message,
       });
     }
-  }
 
-  if (assignedRiderId) {
-    const riderEvent = eventType === "assigned" ? "rider:orderAssigned" : "rider:orderUpdated";
-    socket.to(`rider:${assignedRiderId}`).emit(riderEvent, {
-      event: eventType,
-      order: riderPayload,
-      socketEventId: `${Date.now()}_${orderId}`,
-    });
-    return;
-  }
+    const riderPayload = mapToRiderOrder(fullOrder);
+    const assignedRiderId = riderPayload?.riderId;
+    const customerId = plainOrder?.userId?._id
+      ? String(plainOrder.userId._id)
+      : plainOrder?.userId
+      ? String(plainOrder.userId)
+      : "";
 
-  if (riderPayload.status === "Assigned") {
-    socket.to("riders:online").emit("rider:orderAssigned", {
-      event: eventType,
-      order: riderPayload,
-      socketEventId: `${Date.now()}_${orderId}`,
+    // Emit to customer
+    if (customerId) {
+      try {
+        socket.to(`user:${customerId}`).emit("user:orderUpdated", {
+          event: eventType,
+          order: plainOrder,
+          socketEventId: `${Date.now()}_${orderId}`,
+        });
+
+        if (eventType === "status" && riderPayload.status === "OutForDelivery") {
+          socket.to(`user:${customerId}`).emit("user:orderArriving", {
+            event: "arriving",
+            orderId,
+            riderStatus: riderPayload.status,
+            socketEventId: `${Date.now()}_${orderId}_arriving`,
+          });
+        }
+      } catch (err) {
+        console.error('⚠️ Realtime: Failed to emit to user socket', {
+          customerId,
+          orderId,
+          error: (err as Error)?.message,
+        });
+      }
+    }
+
+    // Emit to assigned rider
+    if (assignedRiderId) {
+      try {
+        const riderEvent = eventType === "assigned" ? "rider:orderAssigned" : "rider:orderUpdated";
+        socket.to(`rider:${assignedRiderId}`).emit(riderEvent, {
+          event: eventType,
+          order: riderPayload,
+          socketEventId: `${Date.now()}_${orderId}`,
+        });
+      } catch (err) {
+        console.error('⚠️ Realtime: Failed to emit to rider socket', {
+          riderId: assignedRiderId,
+          orderId,
+          error: (err as Error)?.message,
+        });
+      }
+      return;
+    }
+
+    // Emit to all online riders if not yet assigned
+    if (riderPayload.status === "Assigned") {
+      try {
+        socket.to("riders:online").emit("rider:orderAssigned", {
+          event: eventType,
+          order: riderPayload,
+          socketEventId: `${Date.now()}_${orderId}`,
+        });
+      } catch (err) {
+        console.error('⚠️ Realtime: Failed to emit to riders:online', {
+          orderId,
+          error: (err as Error)?.message,
+        });
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ Realtime: Error emitting order update', {
+      orderId,
+      error: (err as Error)?.message,
     });
   }
 };

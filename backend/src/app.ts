@@ -15,6 +15,7 @@ import adminRoutes from "./routes/admin.routes";
 import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
 import riderRoutes from "./routes/rider.routes";
+import webhookRoutes from "./routes/webhook.routes";
 
 import { apiLimiter } from "./middlewares/rateLimiter.middleware";
 import verifyCsrfToken from "./middlewares/csrf.middleware";
@@ -175,6 +176,13 @@ app.use("/api/admin", verifyCsrfToken, adminRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/rider", riderRoutes);
+
+/**
+ * PAYMENT WEBHOOKS
+ * No CSRF protection needed - external payment providers send webhooks
+ * Signature verification is built into webhook handlers
+ */
+app.use("/api/webhooks", webhookRoutes);
 
 /* =========================================================
    ❌ 404 HANDLER

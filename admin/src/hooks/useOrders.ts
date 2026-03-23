@@ -312,10 +312,58 @@ export function useOrders() {
     const token = localStorage.getItem('token');
     if (!token) return;
     const base = getApiBase().replace(/\/api\/?$/, '');
-    const socket: Socket = io(base, { transports: ['websocket'], auth: { token } });
-    socket.on('admin:orderUpdated', (payload: { order?: Order }) => {
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+    /**
+     * RELIABILITY: Socket.io connection with error handling and auto-reconnection
+     * Prevents stale orders when connection drops, automatic reconnect with exponential backoff
+     */
+    const socket: Socket = io(base, {
+      transports: ['websocket', 'polling'],
+      auth: { token },
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: maxReconnectAttempts,
+    });
+
+    socket.on('connect', () => {
+      console.log('✅ Admin orders socket connected');
+      reconnectAttempts = 0;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+    });
+
+    socket.on('connect_error', (error: any) => {
+      console.warn('⚠️ Admin Orders socket connection error', {
+        message: error?.message,
+        code: error?.code,
+        reconnectAttempts,
+      });
+      logErrorSafely('adminOrdersSocketConnectionError', error);
+    });
+
+    socket.on('disconnect', (reason: string) => {
+      console.warn('⚠️ Admin orders socket disconnected', { reason, reconnectAttempts });
+      // Trigger manual reload if disconnected for too long
+      reconnectAttempts++;
+      if (reconnectAttempts > maxReconnectAttempts) {
+        console.warn('⚠️ Max reconnection attempts reached, setting error state');
+        setError('Real-time updates temporarily unavailable. Please refresh.');
+      }
+    });
+
+    socket.on('admin:orderUpdated', (payload: { order?: Order; socketEventId?: string }) => {
       const incoming = payload?.order;
-      if (!incoming?._id) return;
+      if (!incoming?._id) {
+        console.warn('⚠️ Received invalid order update', { payload });
+        return;
+      }
+      // Update local state with incoming order
       setItems((prev) => {
         const idx = prev.findIndex((r) => r._id === incoming._id);
         if (idx === -1) return [incoming, ...prev];
@@ -325,8 +373,16 @@ export function useOrders() {
       });
       setDetail((prev) => (prev?._id === incoming._id ? { ...prev, ...incoming } : prev));
     });
+
+    socket.on('error', (error: any) => {
+      console.error('⚠️ Admin orders socket error', error);
+      logErrorSafely('adminOrdersSocketError', error);
+    });
+
     return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       socket.disconnect();
+      console.log('🔌 Admin orders socket cleanup');
     };
   }, []);
 

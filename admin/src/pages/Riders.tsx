@@ -121,6 +121,10 @@ export default function Riders() {
   const [editUpdating, setEditUpdating] = useState(false);
   const [reviewingKycId, setReviewingKycId] = useState<string | null>(null);
 
+  // KYC detail modal
+  const [kycDetailRiderId, setKycDetailRiderId] = useState<string | null>(null);
+  const [kycDetailRider, setKycDetailRider] = useState<RiderWithKyc | null>(null);
+
   const loadRiders = async (pageNum = 1, status: 'all' | 'incomplete' | KycStatus = kycFilter) => {
     try {
       const res = await api.get(
@@ -627,6 +631,36 @@ export default function Riders() {
                           )}
                           {hasPerm('users:update') && kycStatus === 'pending' && (
                             <button
+                              title="View KYC Details"
+                              className="p-1.5 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                              onClick={() => {
+                                setKycDetailRiderId(r._id);
+                                setKycDetailRider(r);
+                              }}
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="w-4 h-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                          {hasPerm('users:update') && kycStatus === 'pending' && (
+                            <button
                               title="Approve KYC"
                               className="p-1.5 rounded text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
                               onClick={() => reviewKyc(r._id, 'approved')}
@@ -708,6 +742,247 @@ export default function Riders() {
           </button>
         </div>
       </div>
+
+      {/* KYC Detail Modal */}
+      {kycDetailRiderId && kycDetailRider && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50 overflow-y-auto p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl my-8">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-blue-50 to-blue-100 px-6 py-4 border-b border-blue-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-slate-800">KYC Verification Details</h3>
+                <p className="text-sm text-slate-600 mt-1">{kycDetailRider.name}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setKycDetailRiderId(null);
+                  setKycDetailRider(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 max-h-[60vh] overflow-y-auto">
+              {/* Personal Info */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3 pb-2 border-b border-slate-200">
+                  📋 Personal Information
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <label className="font-medium text-slate-600">Full Name</label>
+                    <p className="text-slate-800">{kycDetailRider.riderProfile?.fullName || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-slate-600">Date of Birth</label>
+                    <p className="text-slate-800">{kycDetailRider.riderProfile?.dateOfBirth || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-slate-600">Phone</label>
+                    <p className="text-slate-800">{kycDetailRider.riderProfile?.phoneNumber || '—'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Aadhaar Details */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3 pb-2 border-b border-slate-200">
+                  🆔 Aadhaar Details
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <label className="font-medium text-slate-600">Aadhaar Number</label>
+                    <p className="text-slate-800 font-mono">{kycDetailRider.riderProfile?.aadhaarNumber || '—'}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  {kycDetailRider.riderProfile?.aadhaarFrontImage && (
+                    <div>
+                      <label className="text-sm font-medium text-slate-600 block mb-2">Aadhaar Front</label>
+                      <img
+                        src={kycDetailRider.riderProfile.aadhaarFrontImage}
+                        alt="Aadhaar Front"
+                        className="w-full h-32 object-cover rounded border border-slate-200"
+                      />
+                    </div>
+                  )}
+                  {kycDetailRider.riderProfile?.aadhaarBackImage && (
+                    <div>
+                      <label className="text-sm font-medium text-slate-600 block mb-2">Aadhaar Back</label>
+                      <img
+                        src={kycDetailRider.riderProfile.aadhaarBackImage}
+                        alt="Aadhaar Back"
+                        className="w-full h-32 object-cover rounded border border-slate-200"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Live Selfie */}
+              {kycDetailRider.riderProfile?.liveSelfieImage && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-3 pb-2 border-b border-slate-200">
+                    🤳 Live Selfie
+                  </h4>
+                  <img
+                    src={kycDetailRider.riderProfile.liveSelfieImage}
+                    alt="Live Selfie"
+                    className="w-32 h-32 object-cover rounded border border-slate-200"
+                  />
+                </div>
+              )}
+
+              {/* Driving License */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3 pb-2 border-b border-slate-200">
+                  🎫 Driving License
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                  <div>
+                    <label className="font-medium text-slate-600">DL Number</label>
+                    <p className="text-slate-800 font-mono">{kycDetailRider.riderProfile?.dlNumber || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-slate-600">Expiry Date</label>
+                    <p className="text-slate-800">{kycDetailRider.riderProfile?.dlExpiryDate || '—'}</p>
+                  </div>
+                </div>
+                {kycDetailRider.riderProfile?.dlFrontImage && (
+                  <div>
+                    <label className="text-sm font-medium text-slate-600 block mb-2">DL Front</label>
+                    <img
+                      src={kycDetailRider.riderProfile.dlFrontImage}
+                      alt="DL Front"
+                      className="w-full h-32 object-cover rounded border border-slate-200"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Vehicle Details */}
+              <div className="mb-6">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3 pb-2 border-b border-slate-200">
+                  🚗 Vehicle Details
+                </h4>
+                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                  <div>
+                    <label className="font-medium text-slate-600">Vehicle Number</label>
+                    <p className="text-slate-800 font-mono">{kycDetailRider.riderProfile?.vehicleNumber || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="font-medium text-slate-600">Vehicle Type</label>
+                    <p className="text-slate-800">{kycDetailRider.riderProfile?.vehicleType || '—'}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {kycDetailRider.riderProfile?.rcFrontImage && (
+                    <div>
+                      <label className="text-sm font-medium text-slate-600 block mb-2">RC Front</label>
+                      <img
+                        src={kycDetailRider.riderProfile.rcFrontImage}
+                        alt="RC Front"
+                        className="w-full h-32 object-cover rounded border border-slate-200"
+                      />
+                    </div>
+                  )}
+                  {kycDetailRider.riderProfile?.insuranceImage && (
+                    <div>
+                      <label className="text-sm font-medium text-slate-600 block mb-2">Insurance</label>
+                      <img
+                        src={kycDetailRider.riderProfile.insuranceImage}
+                        alt="Insurance"
+                        className="w-full h-32 object-cover rounded border border-slate-200"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bank Details */}
+              {(kycDetailRider.riderProfile as any)?.accountHolderName && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-3 pb-2 border-b border-slate-200">
+                    🏦 Bank Details
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    <div>
+                      <label className="font-medium text-slate-600">Account Holder</label>
+                      <p className="text-slate-800">{(kycDetailRider.riderProfile as any)?.accountHolderName}</p>
+                    </div>
+                    <div>
+                      <label className="font-medium text-slate-600">Account Number</label>
+                      <p className="text-slate-800 font-mono">{(kycDetailRider.riderProfile as any)?.bankAccountNumber || '—'}</p>
+                    </div>
+                    <div>
+                      <label className="font-medium text-slate-600">IFSC Code</label>
+                      <p className="text-slate-800 font-mono">{(kycDetailRider.riderProfile as any)?.ifscCode || '—'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* KYC Status Summary */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-600">Current KYC Status</p>
+                    <p className="text-lg font-semibold mt-1">{renderKycStatusBadge(kycDetailRider.kycStatus)}</p>
+                  </div>
+                  {kycDetailRider.kycRejectReason && (
+                    <div className="text-right">
+                      <p className="text-xs font-medium text-slate-600 mb-1">Rejection Reason</p>
+                      <p className="text-sm text-rose-600">{kycDetailRider.kycRejectReason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setKycDetailRiderId(null);
+                  setKycDetailRider(null);
+                }}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-sm font-medium transition-colors"
+              >
+                Close
+              </button>
+              {hasPerm('users:update') && kycDetailRider.kycStatus === 'pending' && (
+                <>
+                  <button
+                    onClick={() => {
+                      reviewKyc(kycDetailRiderId, 'rejected');
+                      setKycDetailRiderId(null);
+                      setKycDetailRider(null);
+                    }}
+                    disabled={reviewingKycId === kycDetailRiderId}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+                  >
+                    {reviewingKycId === kycDetailRiderId ? 'Rejecting...' : 'Reject KYC'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      reviewKyc(kycDetailRiderId, 'approved');
+                      setKycDetailRiderId(null);
+                      setKycDetailRider(null);
+                    }}
+                    disabled={reviewingKycId === kycDetailRiderId}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
+                  >
+                    {reviewingKycId === kycDetailRiderId ? 'Approving...' : 'Approve KYC'}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

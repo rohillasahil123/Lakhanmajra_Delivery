@@ -5,6 +5,7 @@ import { Permission } from "../models/permission.model";
 import User from "../models/user.model";
 import Order from "../models/order.model";
 import { Audit } from "../models/audit.model";
+import { recordAudit } from "./audit.service";
 import { success, fail } from "../utils/response";
 
 const riderKycRequiredFields = [
@@ -81,6 +82,19 @@ export const createRole = async (req: Request, res: Response) => {
     });
 
     await role.populate("permissions");
+    
+    /**
+     * AUDIT: Log role creation for compliance and security audit trails
+     */
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'role_create',
+      resource: 'role',
+      resourceId: String(role._id),
+      after: role.toObject(),
+      meta: { permissions: permissionIds?.length ?? 0 },
+    }).catch(() => {}); // non-blocking
+    
     return success(res, role, "Role created", 201);
   } catch (err: any) {
     return fail(res, err.message || "Create failed", 500);
@@ -104,8 +118,22 @@ export const updateRole = async (req: Request, res: Response) => {
       if (existing) return fail(res, 'Role name already exists', 400);
     }
 
+    const before = await Role.findById(id);
     const role = await Role.findByIdAndUpdate(id, update, { new: true }).populate('permissions');
     if (!role) return fail(res, 'Role not found', 404);
+
+    /**
+     * AUDIT: Log role updates for compliance and security audit trails
+     */
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'role_update',
+      resource: 'role',
+      resourceId: id,
+      before: before?.toObject(),
+      after: role.toObject(),
+      meta: { updatedFields: Object.keys(update) },
+    }).catch(() => {}); // non-blocking
 
     return success(res, role, 'Role updated');
   } catch (err: any) {
@@ -130,6 +158,18 @@ export const deleteRole = async (req: Request, res: Response) => {
     if (usersWithRole > 0) {
       return fail(res, 'Role is assigned to users; reassign users before deleting', 400);
     }
+
+    /**
+     * AUDIT: Log role deletion for compliance tracking
+     */
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'role_delete',
+      resource: 'role',
+      resourceId: id,
+      before: role.toObject(),
+      meta: { deletedName: role.name },
+    }).catch(() => {}); // non-blocking
 
     await Role.findByIdAndDelete(id);
     return success(res, null, 'Role deleted');
@@ -376,7 +416,22 @@ export const updateUserStatus = async (req: Request, res: Response) => {
       return fail(res, 'Cannot change status of superadmin user', 403);
     }
 
+    /**
+     * AUDIT: Log user status changes for security compliance
+     */
+    const before = user.toObject ? user.toObject() : user;
     const updatedUser = await User.findByIdAndUpdate(id, { isActive }, { new: true }).select('-password');
+    
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: isActive ? 'user_activate' : 'user_deactivate',
+      resource: 'user',
+      resourceId: id,
+      before: { isActive: (before as any).isActive },
+      after: { isActive },
+      meta: { userEmail: (before as any).email },
+    }).catch(() => {}); // non-blocking
+    
     return success(res, updatedUser, 'User status updated');
   } catch (err: any) {
     return fail(res, err.message || 'Update failed', 500);
@@ -613,6 +668,18 @@ export const createUser = async (req: Request, res: Response) => {
     await user.populate('roleId');
     const safeUser = { ...user.toObject(), password: undefined };
 
+    /**
+     * AUDIT: Log user creation for security compliance
+     */
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'user_create',
+      resource: 'user',
+      resourceId: String(user._id),
+      after: { name, email, phone, roleId },
+      meta: { role: (typeof roleId === 'string' ? roleId : roleId?._id) || roleId },
+    }).catch(() => {}); // non-blocking
+
     return success(res, safeUser, 'User created successfully', 201);
   } catch (err: any) {
     return fail(res, err.message || 'User creation failed', 500);
@@ -659,9 +726,23 @@ export const updateUser = async (req: Request, res: Response) => {
     }
 
     // Update user
+    const before = user.toObject ? user.toObject() : user;
     const updated = await User.findByIdAndUpdate(id, updateData, { new: true })
       .select('-password')
       .populate('roleId');
+
+    /**
+     * AUDIT: Log user updates for security compliance
+     */
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'user_update',
+      resource: 'user',
+      resourceId: id,
+      before: { name: (before as any).name, email: (before as any).email, phone: (before as any).phone, roleId: (before as any).roleId },
+      after: { name: updateData.name || (before as any).name, email: updateData.email || (before as any).email, phone: updateData.phone || (before as any).phone, roleId: updateData.roleId || (before as any).roleId },
+      meta: { updatedFields: Object.keys(updateData) },
+    }).catch(() => {}); // non-blocking
 
     return success(res, updated, 'User updated successfully');
   } catch (err: any) {
@@ -685,6 +766,18 @@ export const deleteUser = async (req: Request, res: Response) => {
     if (user.email === 'superadmin@example.com' || user.roleId.toString() === (await Role.findOne({ name: 'superadmin' }))?._id.toString()) {
       return fail(res, 'Cannot delete superadmin user', 403);
     }
+
+    /**
+     * AUDIT: Log user deletion for compliance and security audit trails
+     */
+    recordAudit({
+      actorId: (req as any).user?.id,
+      action: 'user_delete',
+      resource: 'user',
+      resourceId: id,
+      before: user.toObject(),
+      meta: { deletedName: user.name, deletedEmail: user.email, deletedPhone: user.phone },
+    }).catch(() => {}); // non-blocking
 
     // Delete user
     await User.findByIdAndDelete(id);
