@@ -10,9 +10,11 @@ const API_URL = (import.meta.env.VITE_API_URL as string) || 'http://localhost:50
  * - Sent automatically via withCredentials
  * - Not accessible to JavaScript (immune to XSS)
  * - Frontend cannot modify or access the token
+ * - Request timeout: 30 seconds to prevent hanging requests
  */
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 30000, // 30 seconds timeout to prevent request hanging
   headers: {
     'Content-Type': 'application/json',
   },
@@ -31,7 +33,9 @@ const api = axios.create({
 const getCsrfToken = (): string | null => {
   try {
     if (!document.cookie) {
-      console.warn('⚠️ CSRF: No cookies available');
+      if (import.meta.env.DEV) {
+        console.warn('⚠️ CSRF: No cookies available');
+      }
       return null;
     }
 
@@ -47,18 +51,22 @@ const getCsrfToken = (): string | null => {
         // SECURITY: Validate token format
         // CSRF tokens should be alphanumeric with hyphens (UUID-like format typically)
         if (!token || !/^[a-zA-Z0-9\-]+$/.test(token)) {
-          console.warn('⚠️ CSRF: Token found but invalid format', {
-            length: token?.length || 0,
-            hasSpecialChars: token ? !/^[a-zA-Z0-9\-]+$/.test(token) : false,
-          });
+          if (import.meta.env.DEV) {
+            console.warn('⚠️ CSRF: Token found but invalid format', {
+              length: token?.length || 0,
+              hasSpecialChars: token ? !/^[a-zA-Z0-9\-]+$/.test(token) : false,
+            });
+          }
           return null;
         }
 
         // Token should be reasonable length (32-256 chars for typical UUID/token formats)
         if (token.length < 32 || token.length > 256) {
-          console.warn('⚠️ CSRF: Token length out of bounds', {
-            length: token.length,
-          });
+          if (import.meta.env.DEV) {
+            console.warn('⚠️ CSRF: Token length out of bounds', {
+              length: token.length,
+            });
+          }
           return null;
         }
 
@@ -66,10 +74,14 @@ const getCsrfToken = (): string | null => {
       }
     }
 
-    console.warn('⚠️ CSRF: Token not found in cookies');
+    if (import.meta.env.DEV) {
+      console.warn('⚠️ CSRF: Token not found in cookies');
+    }
     return null;
   } catch (err) {
-    console.error('❌ CSRF: Error parsing XSRF token', err);
+    if (import.meta.env.DEV) {
+      console.error('❌ CSRF: Error parsing XSRF token', err);
+    }
     return null;
   }
 };

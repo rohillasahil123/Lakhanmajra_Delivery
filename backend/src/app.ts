@@ -19,8 +19,10 @@ import webhookRoutes from "./routes/webhook.routes";
 
 import { apiLimiter } from "./middlewares/rateLimiter.middleware";
 import verifyCsrfToken from "./middlewares/csrf.middleware";
+import { loggingMiddleware } from "./middlewares/logging.middleware";
 import { connectRabbitMQ } from "./config/rabbitmq";
 import { initMinio } from "./services/minio.service";
+import { logInfo, logError } from "./utils/logger";
 
 const app: Application = express();
 
@@ -62,6 +64,11 @@ app.use(hpp());
 app.use(compression());
 
 /* =========================================================
+   📝 REQUEST LOGGING MIDDLEWARE
+========================================================= */
+app.use(loggingMiddleware);
+
+/* =========================================================
    🌍 CORS CONFIGURATION (STRICT & PRODUCTION SAFE)
 ========================================================= */
 const allowedOrigins = (
@@ -71,7 +78,7 @@ const allowedOrigins = (
   .split(",")
   .map((url) => url.trim());
 
-console.log("✅ Allowed Origins:", allowedOrigins);
+logInfo("Allowed CORS origins configured", { origins: allowedOrigins });
 
 app.use(
   cors({
@@ -104,9 +111,9 @@ app.use(cookieParser()); // Parse cookies for request.cookies access
 const bootstrapInfrastructure = async () => {
   try {
     await mongoose.connect(process.env.MONGO_URI as string);
-    console.log("✅ MongoDB connected");
+    logInfo("MongoDB connected");
   } catch (err) {
-    console.error("❌ Mongo error:", err);
+    logError("MongoDB connection failed", {}, err as Error);
     process.exit(1);
   }
 
@@ -115,9 +122,9 @@ const bootstrapInfrastructure = async () => {
 ========================================================= */
   try {
     await connectRabbitMQ();
-    console.log("✅ RabbitMQ connected");
+    logInfo("RabbitMQ connected");
   } catch (err) {
-    console.error("❌ RabbitMQ error:", err);
+    logError("RabbitMQ connection failed", {}, err as Error);
     process.exit(1);
   }
 
@@ -126,9 +133,9 @@ const bootstrapInfrastructure = async () => {
 ========================================================= */
   try {
     await initMinio();
-    console.log("✅ MinIO ready");
+    logInfo("MinIO initialized");
   } catch (err) {
-    console.error("❌ MinIO error:", err);
+    logError("MinIO initialization failed", {}, err as Error);
     process.exit(1);
   }
 };
@@ -212,15 +219,15 @@ app.use(
     const errorMessage = err?.message || "Internal Server Error";
     const errorCode = err?.code || "UNKNOWN_ERROR";
 
-    // Log detailed error (always, for debugging)
-    console.error(`\n❌ [${status}] ${errorCode}: ${errorMessage}`, {
+    // Log detailed error using Winston logger
+    logError(`${errorCode} - ${errorMessage}`, {
+      status,
       method: _req.method,
       url: _req.url,
       userAgent: _req.get('User-Agent')?.slice(0, 50),
       ip: _req.ip,
-      stack: isDevelopment ? err?.stack : undefined,
-      timestamp: new Date().toISOString(),
-    });
+      correlationId: (_req as any).correlationId,
+    }, err);
 
     // Determine response message
     let message: string;

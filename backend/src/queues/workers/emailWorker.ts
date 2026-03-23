@@ -1,6 +1,7 @@
 import { connectRabbitMQ, getChannel } from '../../config/rabbitmq';
 import connectDB from '../../config/mongo';
-import { EmailQueueMessage } from '../../types';
+import { logQueue, logError, logInfo } from '../../utils/logger';
+import type { EmailQueueMessage } from '../../types';
 import Order from '../../models/order.model';
 import { getEmailTemplate } from '../../services/emailTemplates';
 
@@ -10,6 +11,7 @@ import { getEmailTemplate } from '../../services/emailTemplates';
  * TODO: Integrate with Nodemailer service and SMTP provider (SendGrid/AWS SES)
  */
 
+const EMAIL_QUEUE = 'email_queue';
 const MAX_RETRIES = 3;
 const MESSAGE_TIMEOUT_MS = 30000; // 30 seconds per message
 
@@ -27,8 +29,7 @@ const sendEmail = async (
     const order = await Order.findById(orderId).populate('userId');
     
     if (!order) {
-      console.error(`❌ Email Worker: Order not found - ${orderId}`);
-      throw new Error(`Order ${orderId} not found`);
+      throw new Error(`Order not found: ${orderId}`);
     }
 
     // Ensure userId is populated as a user object with email
@@ -37,7 +38,6 @@ const sendEmail = async (
       : null;
 
     if (!user || !user.email) {
-      console.error(`❌ Email Worker: No email found for user in order - ${orderId}`);
       throw new Error(`No email found for order ${orderId}`);
     }
 
@@ -55,30 +55,25 @@ const sendEmail = async (
     //
     // await transporter.sendMail({
     //   from: process.env.EMAIL_FROM || 'noreply@lakhanmajra.com',
-    //   to: (order.userId as any).email,
+    //   to: user.email,
     //   subject: template.subject,
     //   html: template.html,
     // });
 
     // For now, log the email that would be sent
-    console.log(`📧 Email would be sent:`, {
-      type: type,
-      orderId: orderId,
+    logInfo(`Email would be sent`, {
+      type,
+      orderId,
       to: user.email,
       subject: template.subject,
-      timestamp: new Date().toISOString(),
     });
 
     // Simulate email sending delay
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    console.log(`✅ Email processed for order ${orderId} (type: ${type})`);
+    logInfo(`Email processed`, { orderId, type });
   } catch (error) {
-    console.error(`❌ Email Worker: Failed to process email for order ${orderId}`, {
-      type: type,
-      error: (error as Error)?.message,
-      orderId: orderId,
-    });
+    logError(`Failed to process email for order`, { orderId, type }, error as Error);
     throw error; // Re-throw to trigger retry
   }
 };
@@ -86,19 +81,19 @@ const sendEmail = async (
 async function startEmailWorker(): Promise<void> {
   try {
     await connectDB();
-    console.log('✅ Email Worker: Database connected');
+    logInfo('Email Worker: Database connected');
     
     await connectRabbitMQ();
-    console.log('✅ Email Worker: RabbitMQ connected');
+    logInfo('Email Worker: RabbitMQ connected');
     
-    const channel = getChannel();
+    const channel = await getChannel();
     
     // Set prefetch to 1 to ensure fair distribution
     await channel.prefetch(1);
     
-    console.log('📧 Email Worker started successfully...\n');
+    logQueue('started', EMAIL_QUEUE, { prefetch: 1 });
     
-    channel.consume('email_queue', async (msg) => {
+    channel.consume(EMAIL_QUEUE, async (msg) => {
       if (!msg) return;
 
       const startTime = Date.now();
@@ -111,11 +106,10 @@ async function startEmailWorker(): Promise<void> {
 
           // Validate message
           if (!orderId || !type) {
-            console.error('❌ Email Worker: Invalid message format', { messageContent });
             throw new Error('Invalid message format: missing orderId or type');
           }
 
-          console.log(`📨 Processing email for order: ${orderId} (type: ${type})`);
+          logQueue('processing_message', EMAIL_QUEUE, { orderId, type });
 
           // Send email with timeout protection
           await Promise.race([
@@ -127,35 +121,33 @@ async function startEmailWorker(): Promise<void> {
 
           // Acknowledge message on success
           channel.ack(msg);
-          console.log(`✔️ Email Worker: Message acknowledged for order ${orderId}`);
+          const duration = Date.now() - startTime;
+          logQueue('message_processed', EMAIL_QUEUE, { orderId, type, duration: `${duration}ms` });
 
         } catch (error) {
           retryCount++;
           const processingTime = Date.now() - startTime;
 
           if (retryCount < MAX_RETRIES) {
-            console.warn(
-              `⚠️ Email Worker: Retry ${retryCount}/${MAX_RETRIES} for message (time: ${processingTime}ms)`,
-              {
-                error: (error as Error)?.message,
-              }
-            );
+            const backoffDelay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+            logQueue('retrying_message', EMAIL_QUEUE, {
+              attempt: retryCount,
+              maxRetries: MAX_RETRIES,
+              backoffDelay: `${backoffDelay}ms`,
+              duration: `${processingTime}ms`,
+            });
 
-            // Exponential backoff: 2s, 4s, 8s
-            const delayMs = Math.pow(2, retryCount) * 1000;
-            await new Promise(resolve => setTimeout(resolve, delayMs));
+            // Exponential backoff
+            await new Promise(resolve => setTimeout(resolve, backoffDelay));
             
             // Retry processing
             return processMessage();
           } else {
             // Max retries exceeded - nack and move to dead letter queue
-            console.error(
-              `❌ Email Worker: Max retries (${MAX_RETRIES}) exceeded, nacking message`,
-              {
-                error: (error as Error)?.message,
-                processingTime: processingTime,
-              }
-            );
+            logError(`Email message dropped after ${MAX_RETRIES} retries`, {
+              maxRetries: MAX_RETRIES,
+              totalDuration: `${processingTime}ms`,
+            }, error as Error);
             
             // nack with requeue=false to send to DLQ
             channel.nack(msg, false, false);
@@ -169,13 +161,15 @@ async function startEmailWorker(): Promise<void> {
 
     // Graceful shutdown on signals
     process.on('SIGINT', async () => {
-      console.log('\n⏹️ Email Worker: Shutting down gracefully...');
+      logInfo('SIGINT received - shutting down Email Worker gracefully...');
+      const channel = await getChannel();
       await channel.close();
       process.exit(0);
     });
 
     process.on('SIGTERM', async () => {
-      console.log('\n⏹️ Email Worker: Shutting down gracefully...');
+      logInfo('SIGTERM received - shutting down Email Worker gracefully...');
+      const channel = await getChannel();
       await channel.close();
       process.exit(0);
     });
