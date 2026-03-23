@@ -1,4 +1,5 @@
 import api from './api/client';
+import { logErrorSafely } from './utils/errorHandler';
 
 type LoginResponse = {
   token?: string;
@@ -38,7 +39,7 @@ export const logout = async () => {
     await api.post('/auth/logout');
   } catch (error) {
     // Even if logout fails, redirect to login
-    console.error('Logout failed:', error);
+    logErrorSafely('Auth: Logout endpoint failed', error);
   } finally {
     // Ensure redirect happens
     globalThis.location.href = '/login';
@@ -51,32 +52,60 @@ export const getMe = async () => {
 
 /**
  * Fetch user permissions from backend
- * Superadmin can fetch all permissions
+ * Superadmin can fetch all permissions with proper error handling
+ * 
+ * SECURITY:
+ * - Validates user role before attempting privileged operation
+ * - Logs errors for debugging instead of silent failures
+ * - Falls back gracefully if superadmin endpoint fails
  */
 export const getPermissions = async (): Promise<string[]> => {
   try {
+    // Fetch user permissions and current user info in parallel
     const [permsRes, meRes] = await Promise.all([
       api.get('/auth/permissions'),
       api.get('/auth/users'),
     ]);
 
+    // Extract user permissions from response
     const perms = permsRes.data?.permissions ?? permsRes.data?.data?.permissions ?? [];
 
+    // Extract user role - try multiple possible response formats
     const roleName = meRes.data?.role || meRes.data?.roleId?.name || null;
 
+    // If user is superadmin, try to fetch all available permissions
     if (roleName === 'superadmin') {
       try {
-        const all = await api.get('/admin/permissions');
-        const list: Permission[] = all.data?.data ?? all.data ?? [];
+        const allPermsRes = await api.get('/admin/permissions');
+        const list: Permission[] = allPermsRes.data?.data ?? allPermsRes.data ?? [];
+        
+        if (!Array.isArray(list)) {
+          logErrorSafely('Auth: Superadmin permissions response is not array', {
+            response: allPermsRes.data,
+          });
+          return perms;
+        }
 
-        return list.map((p) => p.name);
-      } catch {
+        const mappedPerms = list.map((p) => p.name).filter((name) => name && typeof name === 'string');
+        
+        if (mappedPerms.length === 0) {
+          logErrorSafely('Auth: Superadmin permissions list is empty', {
+            response: allPermsRes.data,
+          });
+          return perms;
+        }
+
+        return mappedPerms;
+      } catch (err) {
+        // Log the error but fallback gracefully to regular permissions
+        logErrorSafely('Auth: Failed to fetch superadmin permissions, falling back to regular perms', err);
         return perms;
       }
     }
 
     return perms;
-  } catch {
+  } catch (err) {
+    logErrorSafely('Auth: Failed to fetch permissions', err);
     return [];
   }
 };

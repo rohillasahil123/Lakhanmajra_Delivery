@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
+import { logErrorSafely } from '../utils/errorHandler';
 
 type RiderProfile = {
   fullName?: string;
@@ -137,7 +138,7 @@ export default function Riders() {
       setTotal(data?.total ?? 0);
       setPage(pageNum);
     } catch (err) {
-      console.error(err);
+      logErrorSafely('Riders: Load riders failed', err);
       setRiders([]);
     }
   };
@@ -151,7 +152,7 @@ export default function Riders() {
         setRoles(Array.isArray(rolesPayload) ? rolesPayload : []);
         await loadRiders(1);
       } catch (err) {
-        console.error(err);
+        logErrorSafely('Riders: Init load failed', err);
       }
     })();
   }, []);

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
+import { logErrorSafely } from '../utils/errorHandler';
 
 type Permission = { _id: string; name: string; description?: string };
 type Role = { _id: string; name: string; description?: string; permissions?: Permission[] };
@@ -417,7 +418,7 @@ function RoleDetailModal({
       setUsers((payload as { users: any[] }).users || []);
       setUsersLoaded(true);
     } catch (err) {
-      console.error('Failed to load users:', err);
+      logErrorSafely('Roles: Load users for role failed', err);
       setUsers([]);
       setUsersLoaded(true);
     }
@@ -748,7 +749,7 @@ export default function Roles() {
       const payload = res.data?.data ?? res.data ?? [];
       setRoles(Array.isArray(payload) ? payload : []);
     } catch (err) {
-      console.error('Failed to load roles:', err);
+      logErrorSafely('Roles: Load roles failed', err);
     } finally {
       setLoading(false);
     }
@@ -763,7 +764,7 @@ export default function Roles() {
         setPermissions(await getPermissions());
         await load();
       } catch (err) {
-        console.error('Failed to load permissions or roles:', err);
+        logErrorSafely('Roles: Init load permissions and roles failed', err);
       }
     })();
   }, []);

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import api from '../api/client';
 import { getPermissions } from '../auth';
 import Toast from '../components/users/Toast';
+import { logErrorSafely } from '../utils/errorHandler';
 
 type Category = {
   _id: string;
@@ -45,7 +46,7 @@ export default function Categories() {
       const payload = res.data?.data ?? res.data ?? [];
       setItems(Array.isArray(payload) ? payload : []);
     } catch (err) {
-      console.error(err);
+      logErrorSafely('Categories: Load categories failed', err);
       setItems([]);
     }
   };

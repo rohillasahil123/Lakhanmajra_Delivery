@@ -20,20 +20,58 @@ const api = axios.create({
 });
 
 /**
- * CSRF Protection: Read XSRF token from cookie and add to request headers
- * This ensures all state-changing requests include CSRF token for verification
+ * CSRF Protection: Read XSRF token from cookie and validate it
+ * This ensures all state-changing requests include a valid CSRF token for verification
+ * 
+ * SECURITY VALIDATIONS:
+ * - Token must exist and be a non-empty string
+ * - Token must not contain special characters that could indicate injection
+ * - Returns null if token is invalid (client will proceed without it, backend will reject)
  */
 const getCsrfToken = (): string | null => {
-  const name = 'XSRF-TOKEN=';
-  const decodedCookie = decodeURIComponent(document.cookie);
-  const cookieArray = decodedCookie.split('; ');
-  
-  for (let cookie of cookieArray) {
-    if (cookie.startsWith(name)) {
-      return cookie.substring(name.length);
+  try {
+    if (!document.cookie) {
+      console.warn('⚠️ CSRF: No cookies available');
+      return null;
     }
+
+    const cookieName = 'XSRF-TOKEN=';
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const cookieArray = decodedCookie.split(';');
+    
+    for (const cookie of cookieArray) {
+      const trimmedCookie = cookie.trim();
+      if (trimmedCookie.startsWith(cookieName)) {
+        const token = trimmedCookie.substring(cookieName.length).trim();
+        
+        // SECURITY: Validate token format
+        // CSRF tokens should be alphanumeric with hyphens (UUID-like format typically)
+        if (!token || !/^[a-zA-Z0-9\-]+$/.test(token)) {
+          console.warn('⚠️ CSRF: Token found but invalid format', {
+            length: token?.length || 0,
+            hasSpecialChars: token ? !/^[a-zA-Z0-9\-]+$/.test(token) : false,
+          });
+          return null;
+        }
+
+        // Token should be reasonable length (32-256 chars for typical UUID/token formats)
+        if (token.length < 32 || token.length > 256) {
+          console.warn('⚠️ CSRF: Token length out of bounds', {
+            length: token.length,
+          });
+          return null;
+        }
+
+        return token;
+      }
+    }
+
+    console.warn('⚠️ CSRF: Token not found in cookies');
+    return null;
+  } catch (err) {
+    console.error('❌ CSRF: Error parsing XSRF token', err);
+    return null;
   }
-  return null;
 };
 
 /**
@@ -50,6 +88,13 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const csrfToken = getCsrfToken();
     if (csrfToken) {
       config.headers['X-CSRF-Token'] = csrfToken;
+    } else {
+      // Log warning: state-changing request without CSRF token
+      // Backend will reject this request
+      console.warn('⚠️ CSRF: No valid token for state-changing request', {
+        method: config.method,
+        url: config.url,
+      });
     }
   }
   
@@ -57,18 +102,44 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 });
 
 /**
- * Response interceptor - Handle authentication errors
+ * Response interceptor - Handle authentication errors and CSRF failures
  */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If session expires (401), redirect to login
-    // Backend clears the cookie, frontend redirects
-    if (error.response?.status === 401) {
+    const status = error?.response?.status;
+    const errorMsg = error?.response?.data?.message || error?.message || '';
+
+    // 401 means session expired - redirect to login
+    if (status === 401) {
+      console.warn('⚠️ Session expired, redirecting to login');
       globalThis.location.href = '/login';
+      return Promise.reject(error);
     }
+
+    // 403 might be CSRF failure - log it
+    if (status === 403) {
+      if (errorMsg.toLowerCase().includes('csrf') || errorMsg.toLowerCase().includes('token')) {
+        console.error('❌ CSRF validation failed', {
+          message: errorMsg,
+          url: error?.config?.url,
+        });
+      }
+      return Promise.reject(error);
+    }
+
+    // Network errors
+    if (!error?.response) {
+      console.error('❌ Network error or no response from server', {
+        message: error?.message,
+        code: error?.code,
+      });
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );
 
 export default api;
+

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { getPermissions } from '../auth';
+import { logErrorSafely } from '../utils/errorHandler';
 import {
   LineChart,
   Line,
@@ -47,7 +48,7 @@ export default function Dashboard() {
         setMetrics(res.data?.data ?? res.data);
         setLastUpdatedAt(new Date());
       } catch (err) {
-        console.error('Metrics fetch failed', err);
+        logErrorSafely('Dashboard: Metrics fetch failed', err);
       } finally {
         if (showLoader) setLoading(false);
       }
