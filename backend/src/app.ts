@@ -189,20 +189,52 @@ app.use((_req: Request, res: Response) => {
 /* =========================================================
    ⚠ GLOBAL ERROR HANDLER
 ========================================================= */
+/**
+ * Global Error Handler
+ * SECURITY: Different error responses for development vs production
+ * - Production: Generic error messages to prevent info leakage
+ * - Development: Detailed errors for debugging
+ */
 app.use(
   (err: any, _req: Request, res: Response, _next: NextFunction) => {
-    console.error("❌ Error:", err);
-
     const status = err?.status || err?.statusCode || 500;
+    const isDevelopment = process.env.NODE_ENV === "development";
 
-    const message =
-      process.env.NODE_ENV === "production"
-        ? "Something went wrong"
-        : err?.message || "Internal Server Error";
+    // Extract meaningful error information
+    const errorMessage = err?.message || "Internal Server Error";
+    const errorCode = err?.code || "UNKNOWN_ERROR";
+
+    // Log detailed error (always, for debugging)
+    console.error(`\n❌ [${status}] ${errorCode}: ${errorMessage}`, {
+      method: _req.method,
+      url: _req.url,
+      userAgent: _req.get('User-Agent')?.slice(0, 50),
+      ip: _req.ip,
+      stack: isDevelopment ? err?.stack : undefined,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Determine response message
+    let message: string;
+    if (isDevelopment) {
+      // Development: Full error details for debugging
+      message = errorMessage;
+    } else {
+      // Production: Safe, generic messages to prevent info leakage
+      if (status === 400) message = "Invalid request. Please check your input.";
+      else if (status === 401) message = "Unauthorized. Please authenticate.";
+      else if (status === 403) message = "You don't have permission to access this resource.";
+      else if (status === 404) message = "Resource not found.";
+      else if (status === 409) message = "The operation conflicts with existing data.";
+      else if (status >= 400 && status < 500) message = "Invalid request.";
+      else if (status >= 500) message = "Server error. Please try again later.";
+      else message = "An error occurred. Please try again.";
+    }
 
     res.status(status).json({
       success: false,
       message,
+      ...(isDevelopment && { errorCode, details: err?.details }),
     });
   }
 );

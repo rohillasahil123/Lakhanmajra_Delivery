@@ -48,42 +48,115 @@ const clearExpiredOtps = () => {
 	}
 };
 
+/**
+ * SECURITY: IP-based rate limiting for OTP requests
+ * Prevent brute force attacks by limiting OTP requests per IP
+ * Max 3 OTP requests per IP in 10 minute window
+ */
+interface RateLimitEntry {
+	attempts: number;
+	resetAt: number;
+}
+
+const otpRateLimiter: { [key: string]: RateLimitEntry } = {};
+const OTP_RATE_LIMIT_ATTEMPTS = 3;
+const OTP_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+
+const checkOtpRateLimit = (ip: string | undefined): { allowed: boolean; message: string } => {
+	if (!ip) ip = "unknown";
+
+	const now = Date.now();
+	const limiter = otpRateLimiter[ip];
+
+	// If no entry or window expired, reset
+	if (!limiter || limiter.resetAt < now) {
+		otpRateLimiter[ip] = { attempts: 1, resetAt: now + OTP_RATE_LIMIT_WINDOW_MS };
+		return { allowed: true, message: "OTP request allowed" };
+	}
+
+	// Check if limit exceeded
+	if (limiter.attempts >= OTP_RATE_LIMIT_ATTEMPTS) {
+		const remainingSeconds = Math.ceil((limiter.resetAt - now) / 1000);
+		return {
+			allowed: false,
+			message: `Too many OTP requests. Try again in ${remainingSeconds} seconds`,
+		};
+	}
+
+	// Increment and allow
+	limiter.attempts++;
+	return { allowed: true, message: "OTP request allowed" };
+};
+
 /* ================= SEND OTP ================= */
 export const sendOtp = async (req: Request, res: Response) => {
 	try {
 		const { phone } = req.body;
+		const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress;
+
+		// Check rate limiting
+		const rateLimitCheck = checkOtpRateLimit(clientIp);
+		if (!rateLimitCheck.allowed) {
+			console.warn('⚠️ Auth: OTP rate limit exceeded', {
+				ip: clientIp,
+				phone: phone?.slice?.(-4),
+			});
+			return res.status(429).json({
+				message: rateLimitCheck.message,
+				code: "OTP_RATE_LIMITED",
+			});
+		}
+
 		const normalizedPhone = normalizePhoneForOtp(phone);
 
 		if (!normalizedPhone || normalizedPhone.length < 10) {
-			return res.status(400).json({ message: "Valid phone number is required" });
+			console.warn('⚠️ Auth: Invalid phone format', {
+				ip: clientIp,
+				phone: phone?.slice?.(-4),
+			});
+			return res.status(400).json({
+				message: "Valid 10-digit phone number is required",
+				code: "INVALID_PHONE",
+			});
 		}
 
 		clearExpiredOtps();
 		// Reset previous verify state for this phone (ensures fresh OTP in every cycle)
 		verifiedOtps.delete(normalizedPhone);
 
-		// Generate OTP
+		// Generate OTP (4 digits)
 		const otp = generateOtp();
 		const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-		// Store OTP
+		// Store OTP with attempt tracking
 		otpStore[normalizedPhone] = {
 			otp,
 			expiresAt,
-			attempts: 0,
+			attempts: 0, // Track failed verification attempts
 		};
 
-		// Show OTP in terminal (development only)
-		console.log(`\n🔐 OTP for ${normalizedPhone}: ${otp}`);
-		console.log(`⏰ Expires in ${Math.round((expiresAt - Date.now())/1000)} seconds\n`);
+		// Log OTP (development only - hide in production for security)
+		if (process.env.NODE_ENV === "development") {
+			console.log(`\n🔐 [DEV] OTP for ${normalizedPhone}: ${otp}`);
+			console.log(`⏰ Expires in ${Math.round((expiresAt - Date.now())/1000)} seconds\n`);
+		} else {
+			console.log(`✅ OTP sent for phone: ${normalizedPhone}`);
+		}
 
 		return res.json({
 			message: "OTP sent successfully",
 			phone: `${normalizedPhone.slice(0, 6)}****`,
 			expiresIn: "10 minutes",
+			code: "OTP_SENT",
 		});
 	} catch (err) {
-		return res.status(500).json({ message: "Failed to send OTP" });
+		console.error('❌ Auth: Failed to send OTP', {
+			error: (err as Error)?.message,
+		});
+		return res.status(500).json({
+			message: "Failed to send OTP. Please try again.",
+			code: "OTP_SEND_FAILED",
+		});
 	}
 };
 
@@ -92,25 +165,53 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 	try {
 		const { phone, otp, name, email, village, verificationToken } = req.body;
 
+		// Validate all required fields
 		if (!phone || !otp || !name || !email || !village || !verificationToken) {
-			return res.status(400).json({ message: "All fields are required" });
+			return res.status(400).json({
+				message: "All fields are required",
+				code: "MISSING_FIELDS",
+			});
+		}
+
+		// Validate OTP format (should be 4 digits)
+		if (!/^\d{4}$/.test(String(otp).trim())) {
+			return res.status(400).json({
+				message: "OTP must be a 4-digit number",
+				code: "INVALID_OTP_FORMAT",
+			});
 		}
 
 		const normalizedPhone = normalizePhoneForOtp(phone);
 		if (!normalizedPhone || normalizedPhone.length < 10) {
-			return res.status(400).json({ message: "Valid phone number is required" });
+			return res.status(400).json({
+				message: "Valid phone number is required",
+				code: "INVALID_PHONE",
+			});
 		}
 
 		let tokenData: any;
 		try {
 			tokenData = jwt.verify(verificationToken, JWT_SECRET) as { phone?: string };
 		} catch (err) {
-			return res.status(401).json({ message: "Invalid or expired verification token" });
+			console.warn('⚠️ Auth: Invalid or expired verification token', {
+				error: (err as Error)?.message,
+			});
+			return res.status(401).json({
+				message: "Invalid or expired verification token",
+				code: "INVALID_TOKEN",
+			});
 		}
 
 		const tokenPhone = normalizePhoneForOtp(tokenData?.phone);
 		if (tokenPhone !== normalizedPhone) {
-			return res.status(400).json({ message: "OTP verification mismatch. Please request a new OTP" });
+			console.warn('⚠️ Auth: OTP verification mismatch', {
+				tokenPhone,
+				normalizedPhone,
+			});
+			return res.status(400).json({
+				message: "OTP verification mismatch. Please request a new OTP",
+				code: "PHONE_MISMATCH",
+			});
 		}
 
 		clearExpiredOtps();
@@ -119,12 +220,40 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 		if (storedOtp) {
 			if (storedOtp.expiresAt < Date.now()) {
 				delete otpStore[normalizedPhone];
-				return res.status(400).json({ message: "OTP expired. Please request a new OTP" });
+				console.warn('⚠️ Auth: OTP expired', { phone: normalizedPhone });
+				return res.status(400).json({
+					message: "OTP expired. Please request a new OTP",
+					code: "OTP_EXPIRED",
+				});
 			}
 
 			if (storedOtp.otp !== otp) {
 				storedOtp.attempts += 1;
-				return res.status(400).json({ message: "Invalid OTP. Please try again" });
+				const remainingAttempts = 5 - storedOtp.attempts;
+
+				// Security: Max 5 failed attempts
+				if (storedOtp.attempts >= 5) {
+					delete otpStore[normalizedPhone];
+					console.warn('⚠️ Auth: OTP brute force attempt detected', {
+						phone: normalizedPhone,
+						attempts: storedOtp.attempts,
+					});
+					return res.status(429).json({
+						message: "Too many failed OTP attempts. Please request a new OTP",
+						code: "OTP_MAX_ATTEMPTS",
+					});
+				}
+
+				console.warn('⚠️ Auth: Invalid OTP', {
+					phone: normalizedPhone,
+					attempts: storedOtp.attempts,
+					remainingAttempts,
+				});
+				return res.status(400).json({
+					message: `Invalid OTP. ${remainingAttempts} attempts remaining`,
+					code: "INVALID_OTP",
+					attemptsRemaining: remainingAttempts,
+				});
 			}
 		}
 

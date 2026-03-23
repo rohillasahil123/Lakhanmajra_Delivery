@@ -20,8 +20,7 @@ const MESSAGE_TIMEOUT_MS = 30000; // 30 seconds per message
  */
 const sendEmail = async (
   orderId: string,
-  type: 'order_confirmation' | 'order_shipped' | 'order_delivered',
-  orderData: any
+  type: 'order_confirmation' | 'order_shipped' | 'order_delivered'
 ): Promise<void> => {
   try {
     // Fetch full order data with user info for email
@@ -32,7 +31,12 @@ const sendEmail = async (
       throw new Error(`Order ${orderId} not found`);
     }
 
-    if (!order.userId || !order.userId.email) {
+    // Ensure userId is populated as a user object with email
+    const user = typeof order.userId === 'object' && order.userId !== null
+      ? (order.userId as any)
+      : null;
+
+    if (!user || !user.email) {
       console.error(`❌ Email Worker: No email found for user in order - ${orderId}`);
       throw new Error(`No email found for order ${orderId}`);
     }
@@ -60,7 +64,7 @@ const sendEmail = async (
     console.log(`📧 Email would be sent:`, {
       type: type,
       orderId: orderId,
-      to: (order.userId as any).email,
+      to: user.email,
       subject: template.subject,
       timestamp: new Date().toISOString(),
     });
@@ -115,7 +119,7 @@ async function startEmailWorker(): Promise<void> {
 
           // Send email with timeout protection
           await Promise.race([
-            sendEmail(orderId, type, {}),
+            sendEmail(orderId, type),
             new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Email sending timeout')), MESSAGE_TIMEOUT_MS)
             ),

@@ -35,9 +35,56 @@ async function isPortFree(port: number): Promise<boolean> {
   const server = createServer(app);
   initRealtime(server);
 
-  server.keepAliveTimeout = Number(process.env.KEEP_ALIVE_TIMEOUT_MS || 65000);
-  server.headersTimeout = Number(process.env.HEADERS_TIMEOUT_MS || 66000);
-  server.requestTimeout = Number(process.env.REQUEST_TIMEOUT_MS || 30000);
+  // Timeout Configuration
+  const keepAliveTimeout = Number(process.env.KEEP_ALIVE_TIMEOUT_MS || 65000);
+  const headersTimeout = Number(process.env.HEADERS_TIMEOUT_MS || 66000);
+  const requestTimeout = Number(process.env.REQUEST_TIMEOUT_MS || 30000);
+
+  server.keepAliveTimeout = keepAliveTimeout;
+  server.headersTimeout = headersTimeout;
+  server.requestTimeout = requestTimeout;
+
+  /**
+   * SECURITY: Handle client errors and timeouts
+   * Logs timeout attempts to detect potential DDoS attacks
+   */
+  server.on('clientError', (err: any, socket) => {
+    if (err.code === 'ECONNRESET' || !socket.writable) {
+      console.warn('⚠️ Client connection reset:', {
+        code: err.code,
+        message: err.message,
+      });
+      return;
+    }
+
+    if (err.code === 'ETIMEDOUT' || err.code === 'EHOSTUNREACH') {
+      console.warn('⚠️ Request timeout detected:', {
+        code: err.code,
+        message: err.message,
+        timeout: requestTimeout,
+        remoteAddress: socket.remoteAddress,
+      });
+      if (socket.writable) {
+        socket.end('HTTP/1.1 408 Request Timeout\r\n\r\n');
+      }
+      return;
+    }
+
+    // For other errors, send 400 Bad Request
+    console.warn('⚠️ Client error:', {
+      code: err.code,
+      message: err.message,
+    });
+    if (socket.writable) {
+      socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
+    }
+  });
+
+  console.log(`\n⏱️  Timeout Configuration:`, {
+    keepAlive: `${keepAliveTimeout}ms`,
+    headers: `${headersTimeout}ms`,
+    request: `${requestTimeout}ms`,
+  });
 
   const shutdown = (signal: NodeJS.Signals) => {
     console.log(`\n${signal} received. Starting graceful shutdown...`);
