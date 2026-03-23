@@ -14,6 +14,7 @@ import {
 import { protect } from "../middlewares/auth.middleware";
 import { requirePermission } from "../middlewares/permission.middleware";
 import { authLimiter } from "../middlewares/rateLimiter.middleware";
+import { userChangeOwnPassword } from "../services/passwordChange.service";
 
 const router = Router();
 
@@ -30,6 +31,9 @@ router.post("/register-with-otp", authLimiter, verifyOtpAndRegister);
 router.get('/permissions', protect, getPermissions);
 router.get("/users", protect, getUsers);
 router.put("/users/:id", protect, updateUser);
+
+// User password change (authenticated users changing their own password)
+router.post("/change-password", protect, userChangeOwnPassword);
 
 // Assign role to users (requires roles:manage permission)
 router.patch('/users/:id/role', protect, requirePermission('roles:manage'), assignRole);

@@ -11,6 +11,7 @@ interface UserTableRowProps {
   onEdit: (user: IUser) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string, isActive: boolean) => void;
+  onResetPassword: (user: IUser) => void;
   hasPermission: (perm: string) => boolean;
 }
 
@@ -23,6 +24,7 @@ export function UserTableRow({
   onEdit,
   onDelete,
   onToggleStatus,
+  onResetPassword,
   hasPermission,
 }: Readonly<UserTableRowProps>) {
   const [hovering, setHovering] = useState(false);
@@ -102,6 +104,17 @@ export function UserTableRow({
               color={user.isActive ? '#f59e0b' : '#16a34a'}
             >
               <UserIcons.Power />
+            </ActionIconButton>
+          )}
+
+          {/* Reset Password Button */}
+          {hasPermission('users:update') && (
+            <ActionIconButton
+              title="Reset Password"
+              onClick={() => onResetPassword(user)}
+              color="#d32f2f"
+            >
+              <span style={{ fontSize: 16 }}>🔐</span>
             </ActionIconButton>
           )}
 

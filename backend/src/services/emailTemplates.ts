@@ -93,14 +93,61 @@ export const emailTemplates = {
       </div>
     `,
   }),
+
+  password_reset: (userData: any): EmailTemplate => ({
+    subject: `Password Reset Notification - ${userData.appName || 'Lakhanmajra Delivery'}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #d32f2f;">🔐 Password Reset Notification</h2>
+        <p>Dear ${userData.name || 'User'},</p>
+        
+        ${
+          userData.isAdminReset
+            ? `<p style="color: #d32f2f; font-weight: bold;">Your password has been reset by an administrator.</p>
+               <p>You should have received a temporary password or reset link. Please use it to log in and change your password.</p>`
+            : `<p>Your password has been successfully changed.</p>
+               <p>If you did not make this change, please contact support immediately.</p>`
+        }
+        
+        <div style="background-color: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0;">
+          <h3 style="margin-top: 0; color: #e65100;">Security Tips:</h3>
+          <ul style="color: #666;">
+            <li>Never share your password with anyone</li>
+            <li>Use a strong, unique password (8+ characters with letters, numbers, and symbols)</li>
+            <li>Change your password regularly for enhanced security</li>
+            <li>Log out of all sessions after password change</li>
+          </ul>
+        </div>
+
+        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <h3 style="margin-top: 0;">Account Details</h3>
+          <p><strong>Email:</strong> ${userData.email || 'N/A'}</p>
+          <p><strong>Role:</strong> ${userData.role || 'User'}</p>
+          <p><strong>Updated At:</strong> ${new Date().toLocaleDateString('en-IN')} ${new Date().toLocaleTimeString('en-IN')}</p>
+        </div>
+
+        ${
+          userData.isAdminReset
+            ? `<p style="color: #d32f2f;"><strong>⚠️ Action Required:</strong> Please log in and change your password as soon as possible.</p>`
+            : `<p style="color: #388e3c;"><strong>✓ Your account is secure.</strong> If this wasn't you, change your password immediately and contact support.</p>`
+        }
+
+        <p style="margin-top: 30px; color: #666; font-size: 12px; border-top: 1px solid #ddd; padding-top: 15px;">
+          ${userData.appName || 'Lakhanmajra Delivery'} - Security Team<br/>
+          If you have any questions or concerns, please contact our support team.<br/>
+          <strong>Do not reply to this email. Use the contact form on our website.</strong>
+        </p>
+      </div>
+    `,
+  }),
 };
 
 /**
- * Get email template for a specific order type
+ * Get email template for a specific type
  */
 export const getEmailTemplate = (
-  type: 'order_confirmation' | 'order_shipped' | 'order_delivered',
-  orderData: any
+  type: 'order_confirmation' | 'order_shipped' | 'order_delivered' | 'password_reset',
+  data: any
 ): EmailTemplate => {
   const templateFunc = emailTemplates[type];
   
@@ -108,10 +155,10 @@ export const getEmailTemplate = (
     console.warn(`⚠️ Email: Unknown email type: ${type}`);
     // Return a default template
     return {
-      subject: `Order Update - Order #${orderData.orderNumber || orderData._id}`,
-      html: `<p>Order update for #${orderData._id}</p>`,
+      subject: `Notification - ${type}`,
+      html: `<p>Notification: ${type}</p>`,
     };
   }
 
-  return templateFunc(orderData);
+  return templateFunc(data);
 };

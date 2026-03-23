@@ -8,6 +8,7 @@ import { UserFilters } from '../components/users/UserFilters';
 import { UserTable } from '../components/users/UserTable';
 import { UserPagination } from '../components/users/UserPagination';
 import { UserForm } from '../components/users/UserForm';
+import { PasswordResetModal } from '../components/users/PasswordResetModal';
 import { ITEMS_PER_PAGE } from '../components/users/UserConstants';
 import { getErrorMessage } from '../components/users/UserUtils';
 
@@ -46,6 +47,11 @@ export default function Users() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+
+  // Password reset state
+  const [passwordResetModalOpen, setPasswordResetModalOpen] = useState(false);
+  const [passwordResetUser, setPasswordResetUser] = useState<IUser | null>(null);
+  const [passwordResetLoading, setPasswordResetLoading] = useState(false);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -140,6 +146,45 @@ export default function Users() {
     }
   };
 
+  const handleResetPassword = (user: IUser) => {
+    setPasswordResetUser(user);
+    setPasswordResetModalOpen(true);
+  };
+
+  const handleConfirmPasswordReset = async (password: string, reason: string) => {
+    try {
+      setPasswordResetLoading(true);
+      const response = await fetch('/api/admin/users/' + passwordResetUser?._id + '/reset-password', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newPassword: password,
+          reason,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to reset password');
+      }
+
+      setToast({
+        message: `Password reset successfully for ${passwordResetUser?.name}`,
+        type: 'success',
+      });
+      setPasswordResetModalOpen(false);
+      setPasswordResetUser(null);
+    } catch (err) {
+      const message = (err as Error)?.message || 'Failed to reset password';
+      setToast({ message, type: 'error' });
+      throw err;
+    } finally {
+      setPasswordResetLoading(false);
+    }
+  };
+
 
   const handleNewUser = () => {
     setEditingUser(null);
@@ -229,6 +274,7 @@ export default function Users() {
           onEdit={handleEditUser}
           onDelete={handleDeleteUser}
           onToggleStatus={handleToggleUserStatus}
+          onResetPassword={handleResetPassword}
           hasPermission={hasPermission}
         />
 
@@ -269,6 +315,18 @@ export default function Users() {
         roles={roles}
         editingUser={editingUser}
         loading={submitting}
+      />
+
+      {/* Password Reset Modal */}
+      <PasswordResetModal
+        open={passwordResetModalOpen}
+        user={passwordResetUser}
+        onClose={() => {
+          setPasswordResetModalOpen(false);
+          setPasswordResetUser(null);
+        }}
+        onConfirm={handleConfirmPasswordReset}
+        loading={passwordResetLoading}
       />
 
       {/* Toast Notification */}

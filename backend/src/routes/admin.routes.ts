@@ -21,6 +21,7 @@ import {
 import { protect, requireRole } from "../middlewares/auth.middleware";
 import { requirePermission } from "../middlewares/permission.middleware";
 import { adminListOrders, assignOrderToRider, adminUpdateOrderStatus, adminGetOrderById } from "../controllers/order.controller";
+import { adminChangeUserPassword } from "../services/passwordChange.service";
 
 const router = Router();
 
@@ -46,6 +47,9 @@ router.get('/users', protect, requirePermission('users:view'), listUsersWithRole
 router.get('/users/summary', protect, requirePermission('users:view'), getUserSummary);
 router.get('/users/rider-kyc', protect, requirePermission('users:view'), listRiderKycQueue);
 router.patch('/users/:id/kyc-review', protect, requireRole('superadmin'), reviewRiderKyc);
+
+// Admin password reset with role-based permission check
+router.patch('/users/:id/reset-password', protect, requirePermission('users:update'), adminChangeUserPassword);
 
 // User management (superadmin only)
 router.post('/users', protect, requireRole('superadmin'), createUser);

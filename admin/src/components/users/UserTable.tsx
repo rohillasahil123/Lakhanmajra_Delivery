@@ -8,6 +8,7 @@ interface UserTableProps {
   onEdit: (user: IUser) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string, isActive: boolean) => void;
+  onResetPassword: (user: IUser) => void;
   hasPermission: (perm: string) => boolean;
 }
 
@@ -22,6 +23,7 @@ export function UserTable({
   onEdit,
   onDelete,
   onToggleStatus,
+  onResetPassword,
   hasPermission,
 }: Readonly<UserTableProps>) {
   return (
@@ -150,6 +152,7 @@ export function UserTable({
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onToggleStatus={onToggleStatus}
+                onResetPassword={onResetPassword}
                 hasPermission={hasPermission}
               />
             ))
