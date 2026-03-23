@@ -4,6 +4,7 @@ dotenv.config();
 import app from "./app";
 import { createServer } from "http";
 import net from "net";
+import { Socket } from "net";
 import { initRealtime } from "./services/realtime.service";
 
 const PORT = Number(process.env.PORT || 5000);
@@ -62,7 +63,7 @@ async function isPortFree(port: number): Promise<boolean> {
         code: err.code,
         message: err.message,
         timeout: requestTimeout,
-        remoteAddress: socket.remoteAddress,
+        remoteAddress: (socket as Socket).remoteAddress,
       });
       if (socket.writable) {
         socket.end('HTTP/1.1 408 Request Timeout\r\n\r\n');
