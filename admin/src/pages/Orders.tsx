@@ -255,43 +255,6 @@ export default function Orders() {
 
         {/* Filters row */}
         <div className="flex flex-wrap gap-1.5 items-center">
-          {/* Status chips */}
-          <div className="flex items-center gap-1 flex-wrap">
-            <button
-              onClick={() => setFilter('status', 'all')}
-              className={`px-2 py-1 rounded-full text-xs font-medium transition-colors border ${
-                filters.status === 'all'
-                  ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              All
-            </button>
-            {allStatuses.map((s) => {
-              const m = getStatus(s);
-              const active = filters.status === s;
-              return (
-                <button
-                  key={s}
-                  onClick={() => setFilter('status', s)}
-                  className={`px-2 py-1 rounded-full text-xs font-medium transition-all border ${
-                    active
-                      ? `${m.bg} ${m.text} ${m.border} shadow-sm`
-                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  <span
-                    className={`inline-block w-1 h-1 rounded-full mr-0.5 ${active ? m.dot : 'bg-slate-300'}`}
-                  />
-                  {m.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Divider */}
-          <div className="w-px h-4 bg-slate-200" />
-
           {/* Payment filter */}
           <div className="flex gap-0.5">
             {[
