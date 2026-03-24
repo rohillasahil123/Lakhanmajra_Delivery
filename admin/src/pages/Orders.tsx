@@ -5,7 +5,6 @@ import {
   formatTime,
   timeAgo,
   PLACEHOLDER_IMAGE,
-  STATUS_META,
 } from '../hooks/useOrders';
 import OrderDetailModal from '../components/orders/OrderDetailModal';
 
@@ -84,6 +83,7 @@ export default function Orders() {
   const {
     items,
     total,
+    grandTotal,
     page,
     loading,
     search,
@@ -110,7 +110,6 @@ export default function Orders() {
     totalPages,
   } = useOrders();
 
-  const allStatuses = Object.keys(STATUS_META);
   const hasActiveFilters =
     filters.status !== 'all' ||
     filters.paymentMethod !== 'all' ||
@@ -124,7 +123,7 @@ export default function Orders() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-slate-800">Orders</h2>
-          <p className="text-xs text-slate-400 mt-0.25">{total} total orders</p>
+          <p className="text-xs text-slate-400 mt-0.25">{grandTotal} total orders</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
@@ -136,7 +135,7 @@ export default function Orders() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
         <StatCard
           label="Total Orders"
-          value={total}
+          value={grandTotal}
           icon="📦"
           color="border-slate-200"
           onClick={() => {

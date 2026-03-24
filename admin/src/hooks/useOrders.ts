@@ -501,21 +501,31 @@ export function useOrders() {
   };
 
   const stats = fullStats || {
-    total,
-    revenue: items.reduce((s, o) => s + (o.totalAmount || 0), 0),
     pending: items.filter((o) => o.status === 'pending').length,
     confirmed: items.filter((o) => o.status === 'confirmed').length,
     processing: items.filter((o) => o.status === 'processing').length,
     shipped: items.filter((o) => o.status === 'shipped').length,
     delivered: items.filter((o) => o.status === 'delivered').length,
     cancelled: items.filter((o) => o.status === 'cancelled').length,
+    revenue: items.reduce((s, o) => s + (o.totalAmount || 0), 0),
     cod: items.filter((o) => o.paymentMethod === 'cod').length,
     online: items.filter((o) => o.paymentMethod === 'online').length,
   };
 
+  // Grand total is sum of all status counts from fullStats, or fallback to initial load
+  const grandTotal = fullStats
+    ? (fullStats.pending || 0) +
+      (fullStats.confirmed || 0) +
+      (fullStats.processing || 0) +
+      (fullStats.shipped || 0) +
+      (fullStats.delivered || 0) +
+      (fullStats.cancelled || 0)
+    : total;
+
   return {
     items,
     total,
+    grandTotal,
     page,
     loading,
     error,
