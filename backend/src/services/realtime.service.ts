@@ -197,7 +197,7 @@ export const emitOrderRealtime = async (
         socketEventId: `${Date.now()}_${orderId}`,
       });
     } catch (err) {
-      logError('Realtime: Failed to emit to admin:orders', err);
+      logError('Realtime: Failed to emit to admin:orders', {
         orderId,
         error: (err as Error)?.message,
       });
@@ -229,7 +229,7 @@ export const emitOrderRealtime = async (
           });
         }
       } catch (err) {
-        logError('Realtime: Failed to emit to user socket', err);
+        logError('Realtime: Failed to emit to user socket', {
           customerId,
           orderId,
           error: (err as Error)?.message,
@@ -247,7 +247,7 @@ export const emitOrderRealtime = async (
           socketEventId: `${Date.now()}_${orderId}`,
         });
       } catch (err) {
-        logError('Realtime: Failed to emit to rider socket', err);
+        logError('Realtime: Failed to emit to rider socket', {
           riderId: assignedRiderId,
           orderId,
           error: (err as Error)?.message,
@@ -265,14 +265,14 @@ export const emitOrderRealtime = async (
           socketEventId: `${Date.now()}_${orderId}`,
         });
       } catch (err) {
-        logError('Realtime: Failed to emit to riders:online', err);
+        logError('Realtime: Failed to emit to riders:online', {
           orderId,
           error: (err as Error)?.message,
         });
       }
     }
   } catch (err) {
-    console.error('⚠️ Realtime: Error emitting order update', {
+    logError('Realtime: Error emitting order update', {
       orderId,
       error: (err as Error)?.message,
     });
