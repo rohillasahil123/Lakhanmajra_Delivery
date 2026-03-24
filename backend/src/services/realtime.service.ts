@@ -2,6 +2,7 @@ import { Server as HttpServer } from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import Order from "../models/order.model";
+import { logWarn, logError } from "../utils/logger";
 
 let io: Server | null = null;
 
@@ -181,7 +182,7 @@ export const emitOrderRealtime = async (
       .populate("items.productId", "name images price");
 
     if (!fullOrder) {
-      console.warn('⚠️ Realtime: Order not found for emission', { orderId });
+      logWarn('Realtime: Order not found for emission', { orderId });
       return;
     }
 
@@ -196,7 +197,7 @@ export const emitOrderRealtime = async (
         socketEventId: `${Date.now()}_${orderId}`,
       });
     } catch (err) {
-      console.error('⚠️ Realtime: Failed to emit to admin:orders', {
+      logError('Realtime: Failed to emit to admin:orders', err);
         orderId,
         error: (err as Error)?.message,
       });
@@ -228,7 +229,7 @@ export const emitOrderRealtime = async (
           });
         }
       } catch (err) {
-        console.error('⚠️ Realtime: Failed to emit to user socket', {
+        logError('Realtime: Failed to emit to user socket', err);
           customerId,
           orderId,
           error: (err as Error)?.message,
@@ -246,7 +247,7 @@ export const emitOrderRealtime = async (
           socketEventId: `${Date.now()}_${orderId}`,
         });
       } catch (err) {
-        console.error('⚠️ Realtime: Failed to emit to rider socket', {
+        logError('Realtime: Failed to emit to rider socket', err);
           riderId: assignedRiderId,
           orderId,
           error: (err as Error)?.message,
@@ -264,7 +265,7 @@ export const emitOrderRealtime = async (
           socketEventId: `${Date.now()}_${orderId}`,
         });
       } catch (err) {
-        console.error('⚠️ Realtime: Failed to emit to riders:online', {
+        logError('Realtime: Failed to emit to riders:online', err);
           orderId,
           error: (err as Error)?.message,
         });

@@ -6,6 +6,7 @@ import { createServer } from "http";
 import net from "net";
 import { Socket } from "net";
 import { initRealtime } from "./services/realtime.service";
+import { logInfo, logError, logWarn } from "./utils/logger";
 
 const PORT = Number(process.env.PORT || 5000);
 const SHUTDOWN_GRACE_MS = Number(process.env.SHUTDOWN_GRACE_MS || 15000);
@@ -28,7 +29,7 @@ async function isPortFree(port: number): Promise<boolean> {
 (async () => {
   const free = await isPortFree(PORT);
   if (!free) {
-    console.error(`\n❌ Port ${PORT} is already in use. Server will not start.\n- To free the port: run \n  npx kill-port ${PORT}\n  or change PORT in your environment.\n`);
+    logError(`Port ${PORT} is already in use. Server will not start.\n- To free the port: run \n  npx kill-port ${PORT}\n  or change PORT in your environment.`, "");
     // Do not attempt to force-kill here — leave control to the developer / environment.
     process.exit(1);
   }
@@ -51,7 +52,7 @@ async function isPortFree(port: number): Promise<boolean> {
    */
   server.on('clientError', (err: any, socket) => {
     if (err.code === 'ECONNRESET' || !socket.writable) {
-      console.warn('⚠️ Client connection reset:', {
+      logWarn('Client connection reset', {
         code: err.code,
         message: err.message,
       });
@@ -59,7 +60,7 @@ async function isPortFree(port: number): Promise<boolean> {
     }
 
     if (err.code === 'ETIMEDOUT' || err.code === 'EHOSTUNREACH') {
-      console.warn('⚠️ Request timeout detected:', {
+      logWarn('Request timeout detected', {
         code: err.code,
         message: err.message,
         timeout: requestTimeout,
@@ -72,7 +73,7 @@ async function isPortFree(port: number): Promise<boolean> {
     }
 
     // For other errors, send 400 Bad Request
-    console.warn('⚠️ Client error:', {
+    logWarn('Client error', {
       code: err.code,
       message: err.message,
     });
@@ -81,17 +82,17 @@ async function isPortFree(port: number): Promise<boolean> {
     }
   });
 
-  console.log(`\n⏱️  Timeout Configuration:`, {
+  logInfo('Timeout Configuration', {
     keepAlive: `${keepAliveTimeout}ms`,
     headers: `${headersTimeout}ms`,
     request: `${requestTimeout}ms`,
   });
 
   const shutdown = (signal: NodeJS.Signals) => {
-    console.log(`\n${signal} received. Starting graceful shutdown...`);
+    logInfo(`${signal} received. Starting graceful shutdown...`, {});
 
     const forceCloseTimer = setTimeout(() => {
-      console.error("Graceful shutdown timed out. Forcing exit.");
+      logError("Graceful shutdown timed out. Forcing exit.", "");
       process.exit(1);
     }, SHUTDOWN_GRACE_MS);
 
@@ -99,11 +100,11 @@ async function isPortFree(port: number): Promise<boolean> {
       clearTimeout(forceCloseTimer);
 
       if (error) {
-        console.error("Error while closing server:", error);
+        logError("Error while closing server", error);
         process.exit(1);
       }
 
-      console.log("Server closed gracefully.");
+      logInfo("Server closed gracefully", {});
       process.exit(0);
     });
   };
@@ -111,20 +112,20 @@ async function isPortFree(port: number): Promise<boolean> {
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
   process.on("unhandledRejection", (reason) => {
-    console.error("Unhandled promise rejection:", reason);
+    logError("Unhandled promise rejection", reason);
   });
   process.on("uncaughtException", (error) => {
-    console.error("Uncaught exception:", error);
+    logError("Uncaught exception", error);
     shutdown("SIGTERM");
   });
 
   server.listen(PORT, () => {
-    console.log(`🚀 Server started on http://localhost:${PORT}`);
+    logInfo(`Server started on http://localhost:${PORT}`, {});
   }).on("error", (e: any) => {
     if (e.code === "EADDRINUSE") {
-      console.error(`Port ${PORT} already in use (EADDRINUSE).`);
+      logError(`Port ${PORT} already in use (EADDRINUSE)`, e);
     } else {
-      console.error("Server error:", e);
+      logError("Server error", e);
     }
     process.exit(1);
   });

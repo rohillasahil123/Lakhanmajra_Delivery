@@ -10,6 +10,7 @@ import User from '../models/user.model';
 import { Role } from '../models/role.model';
 import { AuthRequest } from '../middlewares/auth.middleware';
 import { recordAudit } from './audit.service';
+import { logInfo, logError } from '../utils/logger';
 // import { sendPasswordResetEmail } from './expo-push.service';
 
 /**
@@ -189,7 +190,7 @@ export const adminChangeUserPassword = async (
     );
 
     if (!permissionCheck.allowed) {
-      console.warn('⚠️ PasswordChange: Unauthorized attempt', {
+      logError('PasswordChange: Unauthorized attempt', {
         actor: actorId,
         target: userId,
         reason: permissionCheck.reason,
@@ -228,16 +229,16 @@ export const adminChangeUserPassword = async (
         isAdminReset: actorId !== userId,
       },
     }).catch((err) => {
-      console.error('⚠️ PasswordChange: Audit logging failed', { error: (err as Error)?.message });
+      logError('PasswordChange: Audit logging failed', err);
     });
 
     // Send email notification to user
     sendPasswordResetNotification(targetUser.email, targetUser.name, actorId !== userId)
       .catch((err) => {
-        console.error('⚠️ PasswordChange: Email notification failed', { error: (err as Error)?.message });
+        logError('PasswordChange: Email notification failed', err);
       });
 
-    console.log('✅ PasswordChange: Password updated successfully', {
+    logInfo('PasswordChange: Password updated successfully', {
       actor: actorId,
       target: userId,
       targetEmail: targetUser.email,
@@ -254,7 +255,7 @@ export const adminChangeUserPassword = async (
       },
     });
   } catch (err) {
-    console.error('❌ PasswordChange: Error', { error: (err as Error)?.message });
+    logError('PasswordChange: Error', err);
     res.status(500).json({
       success: false,
       message: 'Failed to reset password',
@@ -319,7 +320,7 @@ export const userChangeOwnPassword = async (
     // Verify old password
     const isPasswordValid = await bcrypt.compare(oldPassword, user.password);
     if (!isPasswordValid) {
-      console.warn('⚠️ PasswordChange: Invalid old password attempt', {
+      logError('PasswordChange: Invalid old password attempt', {
         userId,
         userEmail: user.email,
       });
@@ -355,10 +356,10 @@ export const userChangeOwnPassword = async (
         changeType: 'self_initiated',
       },
     }).catch((err) => {
-      console.error('⚠️ PasswordChange: Audit logging failed', { error: (err as Error)?.message });
+      logError('PasswordChange: Audit logging failed', err);
     });
 
-    console.log('✅ PasswordChange: User password changed successfully', {
+    logInfo('PasswordChange: User password changed successfully', {
       userId,
       userEmail: user.email,
     });
@@ -369,7 +370,7 @@ export const userChangeOwnPassword = async (
       code: 'PASSWORD_CHANGED_SUCCESS',
     });
   } catch (err) {
-    console.error('❌ PasswordChange: Error', { error: (err as Error)?.message });
+    logError('PasswordChange: Error', err);
     res.status(500).json({
       success: false,
       message: 'Failed to change password',
@@ -388,7 +389,7 @@ async function sendPasswordResetNotification(
 ): Promise<void> {
   // TODO: Integrate with email service
   // For now, just log
-  console.log(`📧 PasswordChange: Email notification`, {
+  logInfo('PasswordChange: Email notification', {
     to: email,
     name,
     isAdminReset,

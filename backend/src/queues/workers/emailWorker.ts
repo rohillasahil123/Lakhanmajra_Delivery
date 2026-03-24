@@ -175,16 +175,14 @@ async function startEmailWorker(): Promise<void> {
     });
 
   } catch (error) {
-    console.error('❌ Email Worker: Failed to start', {
-      error: (error as Error)?.message,
-    });
+    logError('Email Worker: Failed to start', error);
     process.exit(1);
   }
 }
 
 // Start the worker
 startEmailWorker().catch((error) => {
-  console.error('❌ Email Worker: Unhandled error', error);
+  logError('Email Worker: Unhandled error', error);
   process.exit(1);
 });
 

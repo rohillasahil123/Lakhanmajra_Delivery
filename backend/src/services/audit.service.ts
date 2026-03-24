@@ -1,4 +1,5 @@
 import { Audit } from '../models/audit.model';
+import { logError } from '../utils/logger';
 
 export const recordAudit = async (payload: {
   actorId?: string | null;
@@ -22,7 +23,7 @@ export const recordAudit = async (payload: {
     return a;
   } catch (err) {
     // do not throw from audit (non‑blocking)
-    console.error('Audit write failed', err);
+    logError('Audit write failed', err);
     return null;
   }
 };

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { logError } from '../utils/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -55,7 +56,7 @@ export const verifyCsrfToken = (req: Request, res: Response, next: NextFunction)
     // Token is valid, allow request to proceed
     next();
   } catch (err) {
-    console.error('CSRF token verification failed:', err);
+    logError('CSRF token verification failed', err);
     return res.status(403).json({
       success: false,
       message: 'Invalid CSRF token. Request rejected.',

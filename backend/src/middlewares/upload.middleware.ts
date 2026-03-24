@@ -1,6 +1,7 @@
 import multer from "multer";
 import { Request, Response, NextFunction } from "express";
 import { validateImageBatch, validateKycDocumentImage, getSafeFileName } from "../services/imageValidation.service";
+import { logWarn, logError } from "../utils/logger";
 
 // Store in memory (buffer) — we upload directly to MinIO
 const storage = multer.memoryStorage();
@@ -69,7 +70,7 @@ export const validateUploadedImages = (req: Request, res: Response, next: NextFu
   // Validate batch
   const batchValidation = validateImageBatch(imagesToValidate);
   if (!batchValidation.valid) {
-    console.warn('⚠️ Upload: Image validation failed', {
+    logWarn('Upload: Image validation failed', {
       uploadPath: req.path,
       errorCount: batchValidation.details?.length || 0,
       totalError: batchValidation.error,
@@ -105,7 +106,7 @@ export const validateKycDocumentUploads = (req: Request, res: Response, next: Ne
   );
 
   if (!validation.valid) {
-    console.warn('⚠️ Upload: KYC document validation failed', {
+    logWarn('Upload: KYC document validation failed', {
       fileName: req.file.originalname,
       error: validation.error,
     });
@@ -130,7 +131,7 @@ export const handleUploadError = (err: any, _req: Request, res: Response, next: 
     if (err.code === "LIMIT_FILE_COUNT") {
       return res.status(400).json({ success: false, message: "Too many files. Max 5 images per upload." });
     }
-    console.warn('⚠️ Upload multer error', { code: err.code, message: err.message });
+    logWarn('Upload multer error', { code: err.code, message: err.message });
     return res.status(400).json({ success: false, message: err.message });
   }
   if (err?.message?.includes("images are allowed")) {
@@ -139,6 +140,6 @@ export const handleUploadError = (err: any, _req: Request, res: Response, next: 
   if (err?.message?.includes("PDF files are allowed")) {
     return res.status(400).json({ success: false, message: err.message });
   }
-  console.error('⚠️ Upload error', { error: err?.message });
+  logError('Upload error', err);
   return next(err);
 };

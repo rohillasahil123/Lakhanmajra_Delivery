@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import { logError } from "../utils/logger";
 
 export const errorHandler = (
   err: any,
@@ -6,7 +7,7 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ) => {
-  console.error("Error:", err);
+  logError("Error", err);
   
   const status = err?.status || err?.statusCode || 500;
   const message = err?.message || "Internal Server Error";

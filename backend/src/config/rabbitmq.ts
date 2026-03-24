@@ -1,5 +1,6 @@
 ﻿import amqp, { Channel } from 'amqplib';
 import type { ChannelModel } from 'amqplib';
+import { logInfo, logError } from '../utils/logger';
 
 const RABBITMQ_URL = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
 const RECONNECT_DELAY_MS = Number(process.env.RABBITMQ_RETRY_DELAY_MS || 5000);
@@ -20,7 +21,7 @@ const scheduleReconnect = (): void => {
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     void connectRabbitMQ().catch((error) => {
-      console.error('RabbitMQ reconnect attempt failed:', error);
+      logError('RabbitMQ reconnect attempt failed', error);
       scheduleReconnect();
     });
   }, RECONNECT_DELAY_MS);
@@ -33,12 +34,12 @@ const attachConnectionListeners = (rabbitConnection: ChannelModel): void => {
   });
 
   rabbitConnection.once('error', (error) => {
-    console.error('RabbitMQ connection error:', error);
+    logError('RabbitMQ connection error', error);
   });
 };
 
 const createChannel = async (): Promise<Channel> => {
-  console.log('Connecting to RabbitMQ at', RABBITMQ_URL);
+  logInfo('Connecting to RabbitMQ at', { url: RABBITMQ_URL });
 
   const rabbitConnection = await amqp.connect(RABBITMQ_URL);
   const rabbitChannel = await rabbitConnection.createChannel();
@@ -51,7 +52,7 @@ const createChannel = async (): Promise<Channel> => {
 
   attachConnectionListeners(rabbitConnection);
 
-  console.log('RabbitMQ connected successfully');
+  logInfo('RabbitMQ connected successfully', {});
   return rabbitChannel;
 };
 
@@ -66,7 +67,7 @@ export async function connectRabbitMQ(): Promise<Channel> {
 
   connectionPromise = createChannel()
     .catch((error) => {
-      console.error('RabbitMQ connection failed:', error);
+      logError('RabbitMQ connection failed', error);
       clearConnectionState();
       scheduleReconnect();
       throw error;

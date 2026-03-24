@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
+import { logWarn, logError } from '../utils/logger';
 
 const JWT_SECRET = process.env.JWT_SECRET || '';
 
@@ -33,7 +34,7 @@ const extractUserRole = (user: any, tokenData: any): string => {
   }
 
   // Default: Unknown role
-  console.warn('⚠️ Auth: Unable to extract user role, defaulting to empty string', {
+  logWarn('Auth: Unable to extract user role, defaulting to empty string', {
     userId: user?._id,
     hasRoleId: !!user?.roleId,
     hasTokenRole: !!(tokenData?.roleName || tokenData?.role),
@@ -79,7 +80,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     const userRole = extractUserRole(user, decoded);
 
     if (!userRole) {
-      console.error('❌ Auth: User has no valid role', {
+      logError('Auth: User has no valid role', {
         userId: user._id,
         email: user.email,
       });
@@ -93,7 +94,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
     req.user = user;
     return next();
   } catch (err) {
-    console.error('❌ Auth: JWT verification failed', {
+    logError('Auth: JWT verification failed', {
       error: (err as Error)?.message,
       token: token?.slice(0, 20) + '...',
     });
@@ -111,7 +112,7 @@ export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => 
     return next();
   }
   
-  console.warn('⚠️ Auth: Admin access denied', {
+  logWarn('Auth: Admin access denied', {
     userId: req.user._id,
     userRole: userRole,
   });
@@ -131,7 +132,7 @@ export const requireRole = (role: string) => {
       return next();
     }
 
-    console.warn('⚠️ Auth: Role check failed', {
+    logWarn('Auth: Role check failed', {
       userId: req.user._id,
       userRole: userRole,
       requiredRole: requiredRole,
