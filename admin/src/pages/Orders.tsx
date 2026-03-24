@@ -52,18 +52,27 @@ function StatCard({
   value,
   icon,
   color,
+  onClick,
+  isActive,
 }: {
   label: string;
   value: string | number;
   icon: string;
   color: string;
+  onClick?: () => void;
+  isActive?: boolean;
 }) {
   return (
-    <div className={`rounded-2xl border p-4 flex items-center gap-3 bg-white ${color}`}>
-      <span className="text-2xl">{icon}</span>
+    <div
+      onClick={onClick}
+      className={`rounded-lg border p-2 flex items-center gap-1.5 bg-white transition-all ${color} ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:scale-105' : ''
+      } ${isActive ? 'ring-2 ring-blue-400 shadow-lg' : ''}`}
+    >
+      <span className="text-lg">{icon}</span>
       <div>
-        <p className="text-2xl font-bold text-slate-800 leading-none">{value}</p>
-        <p className="text-xs text-slate-500 mt-0.5">{label}</p>
+        <p className="text-lg font-bold text-slate-800 leading-none">{value}</p>
+        <p className="text-xs text-slate-500 mt-0.25">{label}</p>
       </div>
     </div>
   );
@@ -110,12 +119,12 @@ export default function Orders() {
     !!filters.to;
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-3 space-y-2.5">
       {/* ── Page header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Orders</h2>
-          <p className="text-sm text-slate-400 mt-0.5">{total} total orders</p>
+          <h2 className="text-lg font-bold text-slate-800">Orders</h2>
+          <p className="text-xs text-slate-400 mt-0.25">{total} total orders</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-400">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
@@ -124,27 +133,103 @@ export default function Orders() {
       </div>
 
       {/* ── Stats bar ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard label="Total Orders" value={total} icon="📦" color="border-slate-200" />
-        <StatCard label="Pending" value={stats.pending} icon="⏳" color="border-amber-200" />
-        <StatCard label="Shipped" value={stats.shipped} icon="🚴" color="border-purple-200" />
-        <StatCard label="Delivered" value={stats.delivered} icon="✅" color="border-emerald-200" />
-        <StatCard label="Cancelled" value={stats.cancelled} icon="❌" color="border-red-200" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+        <StatCard
+          label="Total Orders"
+          value={total}
+          icon="📦"
+          color="border-slate-200"
+          onClick={() => {
+            setFilter('status', 'all');
+            applyFilters();
+          }}
+          isActive={filters.status === 'all'}
+        />
+        <StatCard
+          label="Pending"
+          value={stats.pending || 0}
+          icon="⏳"
+          color="border-amber-200"
+          onClick={() => {
+            setFilter('status', 'pending');
+            applyFilters();
+          }}
+          isActive={filters.status === 'pending'}
+        />
+        <StatCard
+          label="Confirmed"
+          value={stats.confirmed || 0}
+          icon="✓"
+          color="border-blue-200"
+          onClick={() => {
+            setFilter('status', 'confirmed');
+            applyFilters();
+          }}
+          isActive={filters.status === 'confirmed'}
+        />
+        <StatCard
+          label="Processing"
+          value={stats.processing || 0}
+          icon="⚙️"
+          color="border-indigo-200"
+          onClick={() => {
+            setFilter('status', 'processing');
+            applyFilters();
+          }}
+          isActive={filters.status === 'processing'}
+        />
+        <StatCard
+          label="Shipped"
+          value={stats.shipped || 0}
+          icon="🚴"
+          color="border-purple-200"
+          onClick={() => {
+            setFilter('status', 'shipped');
+            applyFilters();
+          }}
+          isActive={filters.status === 'shipped'}
+        />
+        <StatCard
+          label="Delivered"
+          value={stats.delivered || 0}
+          icon="✅"
+          color="border-emerald-200"
+          onClick={() => {
+            setFilter('status', 'delivered');
+            applyFilters();
+          }}
+          isActive={filters.status === 'delivered'}
+        />
+      </div>
+
+      {/* ── Additional stats row ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
+        <StatCard
+          label="Cancelled"
+          value={stats.cancelled || 0}
+          icon="❌"
+          color="border-red-200"
+          onClick={() => {
+            setFilter('status', 'cancelled');
+            applyFilters();
+          }}
+          isActive={filters.status === 'cancelled'}
+        />
         <StatCard
           label="Revenue"
-          value={`₹${stats.revenue.toLocaleString('en-IN')}`}
+          value={`₹${(stats.revenue || 0).toLocaleString('en-IN')}`}
           icon="💰"
-          color="border-blue-200"
+          color="border-green-200"
         />
       </div>
 
       {/* ── Search + filters ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 space-y-3">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-2 space-y-1.5">
         {/* Search row */}
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <div className="relative flex-1">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -157,7 +242,7 @@ export default function Orders() {
               />
             </svg>
             <input
-              className="border border-slate-200 pl-9 pr-4 py-2.5 rounded-xl w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
+              className="border border-slate-200 pl-7 pr-3 py-1.5 rounded-lg w-full text-xs focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 transition"
               placeholder="Search by order #, customer name, phone..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -165,7 +250,7 @@ export default function Orders() {
             />
           </div>
           <button
-            className="px-5 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-medium hover:bg-slate-700 transition-colors"
+            className="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-medium hover:bg-slate-700 transition-colors"
             onClick={() => load(1)}
           >
             Search
@@ -173,12 +258,12 @@ export default function Orders() {
         </div>
 
         {/* Filter row */}
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap gap-1.5 items-center">
           {/* Status chips */}
           <div className="flex items-center gap-1 flex-wrap">
             <button
               onClick={() => setFilter('status', 'all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+              className={`px-2 py-1 rounded-full text-xs font-medium transition-colors border ${
                 filters.status === 'all'
                   ? 'bg-slate-800 text-white border-slate-800'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
@@ -193,14 +278,14 @@ export default function Orders() {
                 <button
                   key={s}
                   onClick={() => setFilter('status', s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                  className={`px-2 py-1 rounded-full text-xs font-medium transition-all border ${
                     active
                       ? `${m.bg} ${m.text} ${m.border} shadow-sm`
                       : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                   }`}
                 >
                   <span
-                    className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${active ? m.dot : 'bg-slate-300'}`}
+                    className={`inline-block w-1 h-1 rounded-full mr-0.5 ${active ? m.dot : 'bg-slate-300'}`}
                   />
                   {m.label}
                 </button>
@@ -209,10 +294,10 @@ export default function Orders() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-slate-200" />
+          <div className="w-px h-4 bg-slate-200" />
 
           {/* Payment filter */}
-          <div className="flex gap-1">
+          <div className="flex gap-0.5">
             {[
               { value: 'all', label: 'All Pay' },
               { value: 'cod', label: '💵 COD' },
@@ -221,7 +306,7 @@ export default function Orders() {
               <button
                 key={opt.value}
                 onClick={() => setFilter('paymentMethod', opt.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+                className={`px-2 py-1 rounded-full text-xs font-medium transition-colors border ${
                   filters.paymentMethod === opt.value
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
@@ -233,12 +318,12 @@ export default function Orders() {
           </div>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-slate-200" />
+          <div className="w-px h-4 bg-slate-200" />
 
           {/* Date filters */}
           <button
             onClick={() => setFilter('today', !filters.today)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${
+            className={`px-2 py-1 rounded-full text-xs font-medium transition-colors border ${
               filters.today
                 ? 'bg-indigo-600 text-white border-indigo-600'
                 : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
@@ -248,17 +333,17 @@ export default function Orders() {
           </button>
 
           {!filters.today && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <input
                 type="date"
-                className="border border-slate-200 px-2 py-1.5 rounded-xl text-xs"
+                className="border border-slate-200 px-1.5 py-1 rounded-lg text-xs"
                 value={filters.from}
                 onChange={(e) => setFilter('from', e.target.value)}
               />
               <span className="text-slate-400 text-xs">to</span>
               <input
                 type="date"
-                className="border border-slate-200 px-2 py-1.5 rounded-xl text-xs"
+                className="border border-slate-200 px-1.5 py-1 rounded-lg text-xs"
                 value={filters.to}
                 onChange={(e) => setFilter('to', e.target.value)}
               />
@@ -267,7 +352,7 @@ export default function Orders() {
 
           <button
             onClick={applyFilters}
-            className="px-4 py-1.5 bg-indigo-600 text-white rounded-full text-xs font-medium hover:bg-indigo-700 transition-colors"
+            className="px-2.5 py-1 bg-indigo-600 text-white rounded-full text-xs font-medium hover:bg-indigo-700 transition-colors"
           >
             Apply
           </button>
@@ -275,7 +360,7 @@ export default function Orders() {
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
-              className="px-4 py-1.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium hover:bg-slate-200 transition-colors"
+              className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium hover:bg-slate-200 transition-colors"
             >
               ✕ Clear
             </button>
@@ -284,17 +369,17 @@ export default function Orders() {
       </div>
 
       {/* ── Orders table ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="py-20 flex flex-col items-center gap-3 text-slate-400">
-            <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm">Loading orders...</span>
+          <div className="py-10 flex flex-col items-center gap-2 text-slate-400">
+            <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs">Loading orders...</span>
           </div>
         ) : items.length === 0 ? (
-          <div className="py-20 text-center">
-            <div className="text-4xl mb-2">📭</div>
-            <p className="text-slate-500 font-medium">No orders found</p>
-            <p className="text-slate-400 text-sm mt-1">Try changing filters or search query</p>
+          <div className="py-10 text-center">
+            <div className="text-2xl mb-1">📭</div>
+            <p className="text-slate-500 font-medium text-sm">No orders found</p>
+            <p className="text-slate-400 text-xs mt-0.5">Try changing filters or search query</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -314,7 +399,7 @@ export default function Orders() {
                   ].map((h) => (
                     <th
                       key={h}
-                      className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                      className="px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap"
                     >
                       {h}
                     </th>
@@ -330,23 +415,23 @@ export default function Orders() {
                   return (
                     <tr key={order._id} className="hover:bg-slate-50/80 transition-colors group">
                       {/* Order # */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-2 py-2">
                         <p className="font-mono text-xs font-semibold text-slate-700">
                           #{order.orderNumber || order._id.slice(-8).toUpperCase()}
                         </p>
-                        <p className="text-xs text-slate-400 mt-0.5">
+                        <p className="text-xs text-slate-400 mt-0.25">
                           {formatDate(order.createdAt)}
                         </p>
                       </td>
 
                       {/* Customer */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
                             {order.userId && order.userId.name ? (order.userId.name as string).charAt(0).toUpperCase() : '?'}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-800 leading-tight">
+                            <p className="text-xs font-medium text-slate-800 leading-tight">
                               {order.userId?.name || 'Unknown'}
                             </p>
                             <p className="text-xs text-slate-400">
@@ -357,18 +442,18 @@ export default function Orders() {
                       </td>
 
                       {/* Items */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2">
+                      <td className="px-2 py-2">
+                        <div className="flex items-center gap-1.5">
                           <img
                             src={firstItem?.productId?.images?.[0] || PLACEHOLDER_IMAGE}
                             alt={firstItem?.productId?.name || 'Item'}
-                            className="w-10 h-10 object-cover rounded-lg border border-slate-200 flex-shrink-0"
+                            className="w-8 h-8 object-cover rounded-lg border border-slate-200 flex-shrink-0"
                             onError={(e) => {
                               (e.target as HTMLImageElement).src = PLACEHOLDER_IMAGE;
                             }}
                           />
                           <div>
-                            <p className="text-sm text-slate-700 font-medium leading-tight max-w-[120px] truncate">
+                            <p className="text-xs text-slate-700 font-medium leading-tight max-w-[100px] truncate">
                               {firstItem?.productId?.name || 'Product'}
                             </p>
                             <p className="text-xs text-slate-400">
@@ -381,28 +466,28 @@ export default function Orders() {
                       </td>
 
                       {/* Amount */}
-                      <td className="px-4 py-3.5">
-                        <p className="font-bold text-slate-800">₹{order.totalAmount}</p>
+                      <td className="px-2 py-2">
+                        <p className="font-bold text-slate-800 text-sm">₹{order.totalAmount}</p>
                         <p className="text-xs text-slate-400">
                           +₹{Number(order.deliveryFee ?? 0)} delivery
                         </p>
                       </td>
 
                       {/* Payment */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-2 py-2">
                         <PaymentPill method={order.paymentMethod} status={order.paymentStatus} />
                       </td>
 
                       {/* Status */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-2 py-2">
                         <StatusPill status={order.status} />
                       </td>
 
                       {/* Rider */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-2 py-2">
                         {rider && (
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-xs flex-shrink-0">
+                          <div className="flex items-center gap-1">
+                            <div className="w-5 h-5 rounded-full bg-purple-100 flex items-center justify-center text-purple-700 font-bold text-xs flex-shrink-0">
                               {rider && rider.name ? (rider.name as string).charAt(0).toUpperCase() : 'R'}
                             </div>
                             <div>
@@ -410,7 +495,7 @@ export default function Orders() {
                                 {rider.name}
                               </p>
                               {rider.phone && (
-                                <p className="text-xs text-slate-400">{rider.phone}</p>
+                                <p className="text-xs text-slate-400 text-[10px]">{rider.phone}</p>
                               )}
                             </div>
                           </div>
@@ -421,7 +506,7 @@ export default function Orders() {
                       </td>
 
                       {/* Time */}
-                      <td className="px-4 py-3.5 whitespace-nowrap">
+                      <td className="px-2 py-2 whitespace-nowrap">
                         <p className="text-xs text-slate-600 font-medium">
                           {formatTime(order.createdAt)}
                         </p>
@@ -429,10 +514,10 @@ export default function Orders() {
                       </td>
 
                       {/* Action */}
-                      <td className="px-4 py-3.5">
+                      <td className="px-2 py-2">
                         <button
                           onClick={() => openDetail(order._id)}
-                          className="px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors whitespace-nowrap"
+                          className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors whitespace-nowrap"
                         >
                           View →
                         </button>

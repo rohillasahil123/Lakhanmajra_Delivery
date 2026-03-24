@@ -590,6 +590,93 @@ export const adminListOrders = async (req: AuthRequest, res: Response): Promise<
   }
 };
 
+export const getOrderStats = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    // Get comprehensive stats across all orders
+    const statsAgg = await Order.aggregate([
+      {
+        $facet: {
+          total: [{ $count: 'count' }],
+          statusCount: [
+            {
+              $group: {
+                _id: '$status',
+                count: { $sum: 1 }
+              }
+            }
+          ],
+          paymentMethodCount: [
+            {
+              $group: {
+                _id: '$paymentMethod',
+                count: { $sum: 1 }
+              }
+            }
+          ],
+          totalRevenue: [
+            {
+              $group: {
+                _id: null,
+                revenue: { $sum: '$totalAmount' }
+              }
+            }
+          ]
+        }
+      }
+    ]);
+
+    const result = statsAgg[0];
+    const totalCount = result.total[0]?.count || 0;
+    
+    // Build status counts object
+    const statusCounts: any = {
+      pending: 0,
+      confirmed: 0,
+      processing: 0,
+      shipped: 0,
+      delivered: 0,
+      cancelled: 0
+    };
+    
+    result.statusCount.forEach((item: any) => {
+      if (statusCounts.hasOwnProperty(item._id)) {
+        statusCounts[item._id] = item.count;
+      }
+    });
+
+    // Build payment method counts
+    const paymentCounts: any = {
+      cod: 0,
+      online: 0
+    };
+    
+    result.paymentMethodCount.forEach((item: any) => {
+      if (paymentCounts.hasOwnProperty(item._id)) {
+        paymentCounts[item._id] = item.count;
+      }
+    });
+
+    const revenue = result.totalRevenue[0]?.revenue || 0;
+
+    const stats = {
+      total: totalCount,
+      pending: statusCounts.pending,
+      confirmed: statusCounts.confirmed,
+      processing: statusCounts.processing,
+      shipped: statusCounts.shipped,
+      delivered: statusCounts.delivered,
+      cancelled: statusCounts.cancelled,
+      cod: paymentCounts.cod,
+      online: paymentCounts.online,
+      revenue
+    };
+
+    res.json({ data: stats });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+};
+
 export const assignOrderToRider = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     let { id } = req.params;

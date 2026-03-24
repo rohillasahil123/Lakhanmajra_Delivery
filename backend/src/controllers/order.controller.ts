@@ -5,6 +5,7 @@ export {
   getOrderById,
   adminGetOrderById,
   adminListOrders,
+  getOrderStats,
   assignOrderToRider,
   adminUpdateOrderStatus,
   cancelMyOrder,

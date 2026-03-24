@@ -236,6 +236,7 @@ export function useOrders() {
   const [editStatus, setEditStatus] = useState('');
   const [editRider, setEditRider] = useState('');
   const [updating, setUpdating] = useState(false);
+  const [fullStats, setFullStats] = useState<any>(null);
 
   const hasPerm = useCallback((p: string) => permissions.includes(p), [permissions]);
 
@@ -284,6 +285,17 @@ export function useOrders() {
     [buildQuery]
   );
 
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await api.get(`/admin/orders/stats`);
+      const stats = res.data?.data ?? res.data;
+      setFullStats(stats);
+    } catch (err) {
+      logErrorSafely('loadOrderStats', err);
+      setFullStats(null);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -296,7 +308,7 @@ export function useOrders() {
         setPermissions(perms);
         setRiders(resolveRiders(rRes.data?.data ?? rRes.data));
         setError(null);
-        await load(1);
+        await Promise.all([load(1), loadStats()]);
       } catch (err) {
         const sanitized = sanitizeError(err);
         logErrorSafely('initializeOrders', err);
@@ -306,7 +318,7 @@ export function useOrders() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [load, loadStats]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -392,7 +404,8 @@ export function useOrders() {
   }, [searchParams]);
   useEffect(() => {
     load(1);
-  }, [filters]);
+    loadStats();
+  }, [filters, load, loadStats]);
 
   const setFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -487,11 +500,12 @@ export function useOrders() {
     }
   };
 
-  const stats = {
+  const stats = fullStats || {
     total,
     revenue: items.reduce((s, o) => s + (o.totalAmount || 0), 0),
     pending: items.filter((o) => o.status === 'pending').length,
     confirmed: items.filter((o) => o.status === 'confirmed').length,
+    processing: items.filter((o) => o.status === 'processing').length,
     shipped: items.filter((o) => o.status === 'shipped').length,
     delivered: items.filter((o) => o.status === 'delivered').length,
     cancelled: items.filter((o) => o.status === 'cancelled').length,

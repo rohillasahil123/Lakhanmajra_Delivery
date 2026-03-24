@@ -20,7 +20,7 @@ import {
 } from "../controllers/admin.controller";
 import { protect, requireRole } from "../middlewares/auth.middleware";
 import { requirePermission } from "../middlewares/permission.middleware";
-import { adminListOrders, assignOrderToRider, adminUpdateOrderStatus, adminGetOrderById } from "../controllers/order.controller";
+import { adminListOrders, getOrderStats, assignOrderToRider, adminUpdateOrderStatus, adminGetOrderById } from "../controllers/order.controller";
 import { adminChangeUserPassword } from "../services/passwordChange.service";
 
 const router = Router();
@@ -31,6 +31,7 @@ router.get("/roles", protect, getAllRoles);
 router.get("/roles/:id", protect, getRoleById);
 
 // Orders (admin views)
+router.get('/orders/stats', protect, requirePermission('orders:view'), getOrderStats);
 router.get('/orders', protect, requirePermission('orders:view'), adminListOrders);
 router.get('/orders/:id', protect, requirePermission('orders:view'), adminGetOrderById);
 router.get('/metrics', protect, requirePermission('reports:view'), getDashboardMetrics);
