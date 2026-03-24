@@ -123,10 +123,10 @@ export default function HomeScreen() {
   const [showOrderToast, setShowOrderToast] = useState(false);
   const [addonWindow, setAddonWindow] = useState<AddonDeliveryWindow | null>(null);
   const [addonRemainingMs, setAddonRemainingMs] = useState(0);
-  
+
   // Error state
   const [catalogError, setCatalogError] = useState<string | null>(null);
-  
+
   const toastAnim = useRef(new Animated.Value(0)).current;
   const offerFlatListRef = useRef<FlatList>(null);
   const [activeOfferIdx, setActiveOfferIdx] = useState(0);
@@ -191,7 +191,7 @@ export default function HomeScreen() {
           finalOffers = localImgs.map((img, i) => ({ id: `local-${i}`, title: "", subtitle: "", image: img }));
         }
         setOffers(finalOffers);
-        if (mainCategories.length > 0) setSelectedCategory(mainCategories[0]._id || null);
+       setSelectedCategory(mainCategories?.[0]?._id ?? null);
       } catch (error: any) {
         if (!mounted) return;
         const errorMessage = error?.message || 'Failed to load catalog. Please try again.';
@@ -218,8 +218,8 @@ export default function HomeScreen() {
       }
     };
     loadUnreadCount();
-    const intervalId = setInterval(() => { 
-      loadUnreadCount(); 
+    const intervalId = setInterval(() => {
+      loadUnreadCount();
     }, 25000);
     return () => { mounted = false; clearInterval(intervalId); };
   }, []);
