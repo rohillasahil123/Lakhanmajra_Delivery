@@ -1057,20 +1057,24 @@ const styles = StyleSheet.create({
   // ── Delivery Strip ──
   deliveryStrip: {
     marginBottom: verticalScale(18),
-    gap: verticalScale(10),
+    gap: scale(10),
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
   deliveryCard: {
     backgroundColor: COLORS.white,
     borderRadius: moderateScale(12),
     flexDirection: "row",
     alignItems: "center",
-    gap: scale(12),
-    paddingHorizontal: scale(12),
+    gap: scale(8),
+    paddingHorizontal: scale(10),
     paddingVertical: verticalScale(10),
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
     elevation: 3,
+    flex: 1,
+    minWidth: scale(110),
   },
   dcIcon: {
     width: scale(44),

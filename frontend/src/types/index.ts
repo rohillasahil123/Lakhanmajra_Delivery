@@ -7,7 +7,19 @@
  */
 
 // Authentication
-export * from './auth.types';
+export type {
+	User,
+	RegisterRequest,
+	LoginRequest,
+	RegisterResponse,
+	LoginResponse,
+	GetUserResponse,
+	PermissionsResponse,
+	AuthState,
+	AuthContextType,
+	ApiError as AuthApiError,
+	ApiResponse as AuthApiResponse,
+} from './auth.types';
 
 // Products
 export * from './product.types';

@@ -341,7 +341,7 @@ export default function LocationScreen() {
               numberOfLines={3}
             />
           </View>
-          <View style={{ height: responsiveVerticalScale(100) }} />{" "}
+          <View style={{ height: responsiveVerticalScale(100) }} />
           {/* Space for sticky button */}
         </ScrollView>
 

@@ -23,7 +23,7 @@ TextInputComponent.defaultProps.maxFontSizeMultiplier = 1;
 
 const AppContent: React.FC = () => {
   // Check geofencing on app mount
-  const {isInsideZone, currentZone, error} = useGeofencing(true);
+  const {isInsideZone, currentZone} = useGeofencing(true);
 
   useEffect(() => {
     // Yahan aap log store kare sakte ho ya screen navigate kar sakte ho
