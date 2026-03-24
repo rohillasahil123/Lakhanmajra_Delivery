@@ -200,10 +200,6 @@ export default function Orders() {
           }}
           isActive={filters.status === 'delivered'}
         />
-      </div>
-
-      {/* ── Additional stats row ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5">
         <StatCard
           label="Cancelled"
           value={stats.cancelled || 0}
@@ -257,7 +253,7 @@ export default function Orders() {
           </button>
         </div>
 
-        {/* Filter row */}
+        {/* Filters row */}
         <div className="flex flex-wrap gap-1.5 items-center">
           {/* Status chips */}
           <div className="flex items-center gap-1 flex-wrap">
@@ -534,15 +530,15 @@ export default function Orders() {
       {/* ── Pagination ── */}
       {!loading && total > 0 && (
         <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
+          <p className="text-xs text-slate-500">
             Showing {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of <strong>{total}</strong>{' '}
             orders
           </p>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1">
             <button
               disabled={page === 1}
               onClick={() => load(Math.max(1, page - 1))}
-              className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm disabled:opacity-40 hover:bg-slate-50 transition-colors"
+              className="px-2 py-1 border border-slate-200 rounded-lg text-xs disabled:opacity-40 hover:bg-slate-50 transition-colors"
             >
               ← Prev
             </button>
@@ -554,7 +550,7 @@ export default function Orders() {
                   <button
                     key={p}
                     onClick={() => load(p)}
-                    className={`w-8 h-8 rounded-xl text-sm font-medium transition-colors ${p === page ? 'bg-slate-800 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    className={`w-6 h-6 rounded-lg text-xs font-medium transition-colors ${p === page ? 'bg-slate-800 text-white' : 'border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                   >
                     {p}
                   </button>
@@ -564,7 +560,7 @@ export default function Orders() {
             <button
               disabled={page >= totalPages}
               onClick={() => load(Math.min(totalPages, page + 1))}
-              className="px-3 py-1.5 border border-slate-200 rounded-xl text-sm disabled:opacity-40 hover:bg-slate-50 transition-colors"
+              className="px-2 py-1 border border-slate-200 rounded-lg text-xs disabled:opacity-40 hover:bg-slate-50 transition-colors"
             >
               Next →
             </button>
