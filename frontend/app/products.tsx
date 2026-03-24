@@ -1,5 +1,6 @@
 // ✅ SAME IMPORTS (unchanged)
 import { ThemedText } from "@/components/themed-text";
+import { Product, Category } from "@/types";
 import {
   getResponsiveFont,
   getScreenPadding,
@@ -67,8 +68,8 @@ export default function ProductsScreen() {
   const addItem = useCart((s) => s.addItem);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [products, setProducts] = useState<any[]>([]);
-  const [subCategories, setSubCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [subCategories, setSubCategories] = useState<Category[]>([]);
   const [selectedSubCategoryId, setSelectedSubCategoryId] =
     useState<string>("all");
 

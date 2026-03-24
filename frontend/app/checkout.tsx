@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { AddonDeliveryBanner } from "@/components/AddonDeliveryBanner";
 import {
   getResponsiveFont,
   getScreenPadding,
@@ -437,16 +438,8 @@ export default function CheckoutScreen() {
         <View
           style={[styles.billSection, { paddingHorizontal: screenPadding }]}
         >
-          {hasAddonWindow && (
-            <View style={styles.addonBanner}>
-              <ThemedText style={styles.addonBannerTitle}>
-                Same Delivery Charge Active
-              </ThemedText>
-              <ThemedText style={styles.addonBannerText}>
-                {`Next ${addonSecondsLeft}s tak extra order par delivery fee nahi lagegi.`}
-              </ThemedText>
-            </View>
-          )}
+          {/* Addon Delivery Banner - Shows when active window exists */}
+          <AddonDeliveryBanner window={addonWindow} remainingMs={addonRemainingMs} />
 
           <View style={styles.billRow}>
             <ThemedText style={styles.billLabel}>Bill Total</ThemedText>

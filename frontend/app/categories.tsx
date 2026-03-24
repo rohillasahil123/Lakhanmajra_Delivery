@@ -1,5 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Category } from "@/types";
 import {
   getResponsiveFont,
   getScreenPadding,
@@ -26,7 +27,7 @@ export default function CategoriesScreen() {
   const isCompact = width < 380;
   const screenPadding = getScreenPadding(width);
 
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const getParentCategoryId = (category: any): string => {
     if (!category?.parentCategory) return "";

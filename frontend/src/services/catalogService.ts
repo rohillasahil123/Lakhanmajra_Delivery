@@ -1,4 +1,5 @@
 import { getEndpoint, API_ENDPOINTS } from '@/config/api';
+import { Category, Product, OfferUI } from '@/types';
 
 export type FetchProductsPageParams = {
   page?: number;
@@ -9,7 +10,7 @@ export type FetchProductsPageParams = {
 };
 
 export type FetchProductsPageResult = {
-  data: any[];
+  data: Product[];
   total: number;
   page: number;
   limit: number;
@@ -32,7 +33,7 @@ async function safeGet(url: string, options?: { silentNotFound?: boolean }) {
   }
 }
 
-export async function fetchCategories(): Promise<any[]> {
+export async function fetchCategories(): Promise<Category[]> {
   const url = getEndpoint(API_ENDPOINTS.CATEGORIES as string);
   const response = await safeGet(url);
   if (!response) return [];
@@ -89,7 +90,7 @@ export async function fetchProductsPage(params?: FetchProductsPageParams): Promi
   };
 }
 
-export async function fetchProducts(params?: { limit?: number; categoryId?: string }): Promise<any[]> {
+export async function fetchProducts(params?: { limit?: number; categoryId?: string }): Promise<Product[]> {
   const result = await fetchProductsPage({
     page: 1,
     limit: params?.limit,
@@ -99,7 +100,7 @@ export async function fetchProducts(params?: { limit?: number; categoryId?: stri
   return result.data;
 }
 
-export async function fetchOffers(): Promise<any[]> {
+export async function fetchOffers(): Promise<OfferUI[]> {
   // Home offer slider is admin-managed via offers endpoint
   const offersUrl = getEndpoint('/api/offers');
   const offersResponse = await safeGet(offersUrl, { silentNotFound: true });

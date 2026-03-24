@@ -1,4 +1,5 @@
 import { ThemedText } from "@/components/themed-text";
+import { Product } from "@/types";
 import { resolveImageUrl } from "@/config/api";
 import { fetchProductsPage } from "@/services/catalogService";
 import {
@@ -32,7 +33,7 @@ export default function SearchScreen() {
   const screenPadding = getScreenPadding(width);
   const [searchQuery, setSearchQuery] = useState("");
   const [recentSearches, setRecentSearches] = useState(RECENT_SEARCHES);
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);

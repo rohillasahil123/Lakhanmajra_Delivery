@@ -34,7 +34,7 @@ const getAuthHeaders = async (): Promise<Record<string, string>> => {
   };
 };
 
-const parseJson = async (res: Response): Promise<any> => {
+const parseJson = async (res: Response): Promise<Record<string, any>> => {
   try {
     return await res.json();
   } catch {

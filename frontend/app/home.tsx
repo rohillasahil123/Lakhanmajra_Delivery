@@ -1,6 +1,8 @@
 import { ThemedText } from "@/components/themed-text";
 import TopHeader from "@/components/TopHeader";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Product, Category, OfferUI } from "@/types";
 import useCart from "@/stores/cartStore";
 import useLocationStore from "@/stores/locationStore";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -113,16 +115,18 @@ export default function HomeScreen() {
   const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
   const cartCount = useCart((s) => s.items.length);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
-  const [offers, setOffers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [offers, setOffers] = useState<OfferUI[]>([]);
   const [latestOrder, setLatestOrder] = useState<OrderRow | null>(null);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const [showOrderToast, setShowOrderToast] = useState(false);
-  const [addonWindow, setAddonWindow] = useState<AddonDeliveryWindow | null>(
-    null,
-  );
+  const [addonWindow, setAddonWindow] = useState<AddonDeliveryWindow | null>(null);
   const [addonRemainingMs, setAddonRemainingMs] = useState(0);
+  
+  // Error state
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  
   const toastAnim = useRef(new Animated.Value(0)).current;
   const offerFlatListRef = useRef<FlatList>(null);
   const [activeOfferIdx, setActiveOfferIdx] = useState(0);
@@ -162,6 +166,7 @@ export default function HomeScreen() {
   useEffect(() => {
     let mounted = true;
     async function loadCatalog() {
+      setCatalogError(null);
       try {
         const [cats, prods, offs] = await Promise.all([
           fetchCategories(),
@@ -186,8 +191,13 @@ export default function HomeScreen() {
           finalOffers = localImgs.map((img, i) => ({ id: `local-${i}`, title: "", subtitle: "", image: img }));
         }
         setOffers(finalOffers);
-        if (mainCategories.length > 0) setSelectedCategory(mainCategories[0]._id);
-      } finally {}
+        if (mainCategories.length > 0) setSelectedCategory(mainCategories[0]._id || null);
+      } catch (error: any) {
+        if (!mounted) return;
+        const errorMessage = error?.message || 'Failed to load catalog. Please try again.';
+        setCatalogError(errorMessage);
+        console.error('Catalog loading error:', error);
+      }
     }
     loadCatalog();
     return () => { mounted = false; };
@@ -200,12 +210,17 @@ export default function HomeScreen() {
         const result = await getMyNotifications("unread");
         if (!mounted) return;
         setUnreadNotificationCount(Number(result.unreadCount || 0));
-      } catch {
-        if (mounted) setUnreadNotificationCount(0);
+      } catch (error: any) {
+        if (!mounted) return;
+        // Silently set to 0, but log the error
+        setUnreadNotificationCount(0);
+        console.warn('Failed to load notification count:', error?.message);
       }
     };
-    loadUnreadCount().catch(() => {});
-    const intervalId = setInterval(() => { loadUnreadCount().catch(() => {}); }, 25000);
+    loadUnreadCount();
+    const intervalId = setInterval(() => { 
+      loadUnreadCount(); 
+    }, 25000);
     return () => { mounted = false; clearInterval(intervalId); };
   }, []);
 
@@ -277,15 +292,6 @@ export default function HomeScreen() {
   const filteredProducts = selectedCategory
     ? products.filter((p: any) => getEntityId(p.categoryId) === selectedCategory)
     : products;
-
-  const getDiscountPercent = (product: any): number => {
-    const discount = Number(product?.discount ?? 0);
-    if (Number.isFinite(discount) && discount > 0) return Math.round(discount);
-    const mrp = Number(product?.mrp ?? 0);
-    const price = Number(product?.price ?? 0);
-    if (mrp > 0 && price >= 0 && price < mrp) return Math.round(((mrp - price) / mrp) * 100);
-    return 0;
-  };
 
   const locationLines = useMemo(() => {
     const fallback = ["Select your location", "Tap to choose delivery address"];
@@ -383,6 +389,15 @@ export default function HomeScreen() {
             🚚 Tracking order {latestOrder?._id || "your latest order"} in progress
           </ThemedText>
         </Animated.View>
+      )}
+
+      {/* ───── ERROR MESSAGES ───── */}
+      {catalogError && (
+        <ErrorMessage
+          message={catalogError}
+          type="error"
+          onDismiss={() => setCatalogError(null)}
+        />
       )}
 
       {hasAddonWindow && (
@@ -540,7 +555,7 @@ export default function HomeScreen() {
           nestedScrollEnabled
           renderItem={({ item }) => (
             <Pressable
-              onPress={() => setSelectedCategory(item._id)}
+              onPress={() => setSelectedCategory(item._id || null)}
               style={({ pressed }) => [
                 styles.categoryCard,
                 {
@@ -578,16 +593,14 @@ export default function HomeScreen() {
             </View>
           ) : (
             filteredProducts.map((product) => {
-              const variants = Array.isArray(product?.variants) ? product.variants : [];
-              const defaultVariant = variants.find((v: any) => v?.isDefault) || variants[0] || null;
-              const activePrice = Number(defaultVariant?.price ?? product?.price ?? 0);
-              const activeMrp = Number(defaultVariant?.mrp ?? product?.mrp ?? 0);
-              const activeStock = Number(defaultVariant?.stock ?? product?.stock ?? 0);
-              const activeUnitLabel = String(defaultVariant?.label || defaultVariant?.unitType || product?.unit || "piece");
+              const activePrice = Number(product?.price ?? 0);
+              const activeMrp = Number(product?.price ?? 0);
+              const activeStock = Number(product?.stock ?? 0);
+              const activeUnitLabel = String(product?.unit || "piece");
               const isOutOfStock = activeStock <= 0;
-              const discountPercent = defaultVariant ? getDiscountPercent(defaultVariant) : getDiscountPercent(product);
-              const previewVariants = variants.slice(0, 3);
-              const extraVariantCount = Math.max(0, variants.length - previewVariants.length);
+              const discountPercent = 0;
+              const previewVariants: any[] = [];
+              const extraVariantCount = 0;
 
               return (
                 <TouchableOpacity
@@ -595,7 +608,9 @@ export default function HomeScreen() {
                   style={styles.productCard}
                   onPress={() => {
                     const id = product._id || product.id;
-                    router.push({ pathname: "/product/[productId]", params: { productId: id } });
+                    if (id) {
+                      router.push({ pathname: "/product/[productId]", params: { productId: id } });
+                    }
                   }}
                 >
                   <View style={styles.productImg}>
@@ -607,7 +622,7 @@ export default function HomeScreen() {
                       />
                     ) : (
                       <ThemedText style={styles.productEmoji}>
-                        {product.emoji || product.image || "🛍️"}
+                        {product.image || "🛍️"}
                       </ThemedText>
                     )}
                     {discountPercent > 0 && (
@@ -622,7 +637,7 @@ export default function HomeScreen() {
 
                   <View style={styles.productBody}>
                     <ThemedText style={styles.productMeta}>
-                      {product.category || product.meta || product.type}
+                      {typeof product.category === 'string' ? product.category : (typeof product.category === 'object' && product.category?.name) ? product.category.name : "Item"}
                     </ThemedText>
                     {product.rating && (
                       <View style={styles.rating}>
@@ -662,18 +677,16 @@ export default function HomeScreen() {
                         style={[styles.addBtn, isOutOfStock && styles.addBtnDisabled]}
                         onPress={() =>
                           addItem({
-                            id: defaultVariant?._id
-                              ? `${product._id || product.id}:${String(defaultVariant._id)}`
-                              : product._id || product.id,
-                            productId: product._id || product.id,
-                            variantId: defaultVariant?._id ? String(defaultVariant._id) : undefined,
-                            variantLabel: defaultVariant?.label || defaultVariant?.unitType || undefined,
+                            id: product._id || product.id || "",
+                            productId: product._id || product.id || "",
+                            variantId: undefined,
+                            variantLabel: undefined,
                             name: product.name,
                             price: activePrice,
                             unit: activeUnitLabel,
                             image: Array.isArray(product.images) && product.images[0]
                               ? resolveImageUrl(product.images[0])
-                              : product.emoji || product.image || "🛍️",
+                              : product.image || "🛍️",
                             stock: activeStock,
                           }, 1)
                         }

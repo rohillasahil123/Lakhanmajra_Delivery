@@ -1,7 +1,8 @@
 import { ThemedText } from "@/components/themed-text";
 import { TextField } from "@/components/ui/text-field";
+import { ErrorMessage } from "@/components/ErrorMessage";
 import { authService } from "@/services/authService";
-import { getMyOrdersApi, OrderRow } from "@/services/orderService";
+import { getMyOrdersApi } from "@/services/orderService";
 import useCart from "@/stores/cartStore";
 import useLocationStore, {
   DEFAULT_LOCATION_COORDS,
@@ -21,7 +22,7 @@ import {
   sanitizeDeliveryInstructions,
   sanitizeAddress,
 } from "@/utils/sanitize";
-import { User } from "@/types/auth.types";
+import { User, Order, OrderRow } from "@/types";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -72,6 +73,8 @@ export default function ProfileScreen() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editName, setEditName] = useState("");
@@ -82,6 +85,7 @@ export default function ProfileScreen() {
 
   useEffect(() => {
     (async () => {
+      setLoadError(null);
       try {
         if (!initialized) await hydrateLocal();
         await syncFromServer();
@@ -108,8 +112,10 @@ export default function ProfileScreen() {
 
         const myOrders = await getMyOrdersApi();
         setOrders(Array.isArray(myOrders) ? myOrders : []);
-      } catch {
-        // keep UI resilient
+      } catch (error: any) {
+        const errorMessage = error?.message || 'Failed to load profile. Please try again.';
+        setLoadError(errorMessage);
+        console.error('Profile loading error:', error);
       } finally {
         setLoading(false);
       }
@@ -264,6 +270,7 @@ export default function ProfileScreen() {
     }
 
     setSaving(true);
+    setSaveError(null);
     try {
       const updatedUser = await authService.updateProfile(
         String(user._id || user.id),
@@ -294,10 +301,10 @@ export default function ProfileScreen() {
       setIsEditing(false);
       Alert.alert("Success", "Profile updated successfully.");
     } catch (error: any) {
-      Alert.alert(
-        "Update Failed",
-        error?.message || "Unable to update profile right now.",
-      );
+      const errorMsg = error?.message || "Unable to update profile right now.";
+      setSaveError(errorMsg);
+      Alert.alert("Update Failed", errorMsg);
+      console.error('Profile save error:', error);
     } finally {
       setSaving(false);
     }
