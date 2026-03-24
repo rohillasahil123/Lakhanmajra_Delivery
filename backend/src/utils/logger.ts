@@ -97,6 +97,30 @@ export const logger = winston.createLogger({
   ],
 });
 
+/**
+ * Metrics Logger - Only logs to files, not to console
+ * Used for request/response metrics and other noisy logs
+ */
+export const metricsLogger = winston.createLogger({
+  level: 'info',
+  levels,
+  format,
+  transports: [
+    new winston.transports.File({
+      filename: path.join(process.cwd(), 'logs', 'metrics.log'),
+      format,
+      maxsize: 5242880, // 5MB
+      maxFiles: 10,
+    }),
+    ...(isDevelopment ? [] : [new winston.transports.File({
+      filename: path.join(process.cwd(), 'logs', 'combined.log'),
+      format,
+      maxsize: 5242880, // 5MB
+      maxFiles: 10,
+    })]),
+  ],
+});
+
 // Export logger methods for easier use
 export const logError = (message: string, meta?: any, error?: Error) => {
   logger.error(message, { ...meta, stack: error?.stack });
@@ -120,9 +144,10 @@ export const logTrace = (message: string, meta?: any) => {
 
 /**
  * Request/Response logging helper
+ * Logs only to files (metrics.log), not to console
  */
 export const logRequest = (method: string, url: string, status: number, duration: number, meta?: any) => {
-  logger.info(`${method} ${url} - ${status}`, {
+  metricsLogger.info(`${method} ${url} - ${status}`, {
     method,
     url,
     status,

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/user.model";
 import { getRoleByName, assignRoleToUser, getUserWithRole, getUserPermissions } from "./role.service";
+import { logInfo, logWarn, logError } from "../utils/logger";
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 
@@ -97,7 +98,7 @@ export const sendOtp = async (req: Request, res: Response) => {
 		// Check rate limiting
 		const rateLimitCheck = checkOtpRateLimit(clientIp);
 		if (!rateLimitCheck.allowed) {
-			console.warn('⚠️ Auth: OTP rate limit exceeded', {
+			logWarn('OTP rate limit exceeded', {
 				ip: clientIp,
 				phone: phone?.slice?.(-4),
 			});
@@ -110,7 +111,7 @@ export const sendOtp = async (req: Request, res: Response) => {
 		const normalizedPhone = normalizePhoneForOtp(phone);
 
 		if (!normalizedPhone || normalizedPhone.length < 10) {
-			console.warn('⚠️ Auth: Invalid phone format', {
+			logWarn('Invalid phone format', {
 				ip: clientIp,
 				phone: phone?.slice?.(-4),
 			});
@@ -137,10 +138,13 @@ export const sendOtp = async (req: Request, res: Response) => {
 
 		// Log OTP (development only - hide in production for security)
 		if (process.env.NODE_ENV === "development") {
-			console.log(`\n🔐 [DEV] OTP for ${normalizedPhone}: ${otp}`);
-			console.log(`⏰ Expires in ${Math.round((expiresAt - Date.now())/1000)} seconds\n`);
+			logInfo(`🔐 [DEV] OTP for ${normalizedPhone}: ${otp}`, {
+				phone: normalizedPhone,
+				otp: otp,
+				expiresInSeconds: Math.round((expiresAt - Date.now())/1000),
+			});
 		} else {
-			console.log(`✅ OTP sent for phone: ${normalizedPhone}`);
+			logInfo(`OTP sent for phone: ${normalizedPhone}`, { phone: normalizedPhone });
 		}
 
 		return res.json({
@@ -150,9 +154,7 @@ export const sendOtp = async (req: Request, res: Response) => {
 			code: "OTP_SENT",
 		});
 	} catch (err) {
-		console.error('❌ Auth: Failed to send OTP', {
-			error: (err as Error)?.message,
-		});
+		logError('Failed to send OTP', { error: (err as Error)?.message }, err as Error);
 		return res.status(500).json({
 			message: "Failed to send OTP. Please try again.",
 			code: "OTP_SEND_FAILED",
@@ -193,7 +195,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 		try {
 			tokenData = jwt.verify(verificationToken, JWT_SECRET) as { phone?: string };
 		} catch (err) {
-			console.warn('⚠️ Auth: Invalid or expired verification token', {
+			logWarn('Invalid or expired verification token', {
 				error: (err as Error)?.message,
 			});
 			return res.status(401).json({
@@ -204,7 +206,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 
 		const tokenPhone = normalizePhoneForOtp(tokenData?.phone);
 		if (tokenPhone !== normalizedPhone) {
-			console.warn('⚠️ Auth: OTP verification mismatch', {
+			logWarn('OTP verification mismatch', {
 				tokenPhone,
 				normalizedPhone,
 			});
@@ -220,7 +222,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 		if (storedOtp) {
 			if (storedOtp.expiresAt < Date.now()) {
 				delete otpStore[normalizedPhone];
-				console.warn('⚠️ Auth: OTP expired', { phone: normalizedPhone });
+				logWarn('OTP expired', { phone: normalizedPhone });
 				return res.status(400).json({
 					message: "OTP expired. Please request a new OTP",
 					code: "OTP_EXPIRED",
@@ -234,7 +236,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 				// Security: Max 5 failed attempts
 				if (storedOtp.attempts >= 5) {
 					delete otpStore[normalizedPhone];
-					console.warn('⚠️ Auth: OTP brute force attempt detected', {
+					logWarn('OTP brute force attempt detected', {
 						phone: normalizedPhone,
 						attempts: storedOtp.attempts,
 					});
@@ -244,7 +246,7 @@ export const verifyOtpAndRegister = async (req: Request, res: Response) => {
 					});
 				}
 
-				console.warn('⚠️ Auth: Invalid OTP', {
+				logWarn('Invalid OTP attempt', {
 					phone: normalizedPhone,
 					attempts: storedOtp.attempts,
 					remainingAttempts,
