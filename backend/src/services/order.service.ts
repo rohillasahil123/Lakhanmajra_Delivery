@@ -453,17 +453,33 @@ export const adminListOrders = async (req: AuthRequest, res: Response): Promise<
   try {
     const { page = '1', limit = '20', status, paymentMethod, q, from, to, today } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
-    const filters: any = {};
+    const pipeline: any[] = [];
 
-    if (status && status !== 'all') filters.status = status;
-    if (paymentMethod && paymentMethod !== 'all') filters.paymentMethod = paymentMethod;
+    // Stage 1: Lookup user data to enable searching by customer name/phone
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'userId',
+        foreignField: '_id',
+        as: 'userDetails'
+      }
+    });
+
+    // Stage 2: Unwind userDetails (convert array to object)
+    pipeline.push({ $unwind: { path: '$userDetails', preserveNullAndEmptyArrays: true } });
+
+    // Stage 3: Build match filters
+    const matchStage: any = {};
+
+    if (status && status !== 'all') matchStage.status = status;
+    if (paymentMethod && paymentMethod !== 'all') matchStage.paymentMethod = paymentMethod;
 
     if (today === '1' || today === 'true') {
       const start = new Date();
       start.setHours(0, 0, 0, 0);
       const end = new Date();
       end.setHours(23, 59, 59, 999);
-      filters.createdAt = { $gte: start, $lte: end };
+      matchStage.createdAt = { $gte: start, $lte: end };
     } else if (from || to) {
       const dateRange: any = {};
       if (from) {
@@ -476,31 +492,97 @@ export const adminListOrders = async (req: AuthRequest, res: Response): Promise<
         end.setHours(23, 59, 59, 999);
         dateRange.$lte = end;
       }
-      if (Object.keys(dateRange).length > 0) filters.createdAt = dateRange;
+      if (Object.keys(dateRange).length > 0) matchStage.createdAt = dateRange;
     }
 
+    // Stage 4: Handle search query
     if (q) {
-      // allow searching by customer name or order id
       const queryText = String(q).trim();
       const regex = new RegExp(queryText, 'i');
-      const or: any[] = [{ 'shippingAddress.street': regex }];
+      const orConditions: any[] = [
+        { 'userDetails.name': regex },
+        { 'userDetails.phone': regex },
+        { 'shippingAddress.street': regex }
+      ];
 
       if (Types.ObjectId.isValid(queryText)) {
-        or.push({ _id: queryText });
+        orConditions.push({ _id: new Types.ObjectId(queryText) });
       }
 
-      filters.$or = or;
+      matchStage.$or = orConditions;
     }
 
-    const orders = await Order.find(filters)
-      .populate('userId', 'name email phone')
-      .populate('assignedRiderId', 'name email phone')
-      .populate('items.productId', 'name images price')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(Number(limit));
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
 
-    const total = await Order.countDocuments(filters);
+    // Stage 5: Sort by creation date descending
+    pipeline.push({ $sort: { createdAt: -1 } });
+
+    // Stage 6: Get total count before pagination
+    const countPipeline = [...pipeline, { $count: 'total' }];
+    const countResult = await Order.aggregate(countPipeline);
+    const total = countResult[0]?.total || 0;
+
+    // Stage 7: Add pagination
+    pipeline.push({ $skip: skip });
+    pipeline.push({ $limit: Number(limit) });
+
+    // Stage 8: Lookup for assigned rider
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'assignedRiderId',
+        foreignField: '_id',
+        as: 'riderDetails'
+      }
+    });
+
+    pipeline.push({ $unwind: { path: '$riderDetails', preserveNullAndEmptyArrays: true } });
+
+    // Stage 9: Lookup for product details
+    pipeline.push({
+      $lookup: {
+        from: 'products',
+        localField: 'items.productId',
+        foreignField: '_id',
+        as: 'productDetails'
+      }
+    });
+
+    // Stage 10: Project the result
+    pipeline.push({
+      $project: {
+        _id: 1,
+        totalAmount: 1,
+        deliveryFee: 1,
+        paymentMethod: 1,
+        paymentStatus: 1,
+        status: 1,
+        riderStatus: 1,
+        items: 1,
+        shippingAddress: 1,
+        riderLocation: 1,
+        etaMinutes: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        userId: {
+          _id: '$userDetails._id',
+          name: '$userDetails.name',
+          email: '$userDetails.email',
+          phone: '$userDetails.phone'
+        },
+        assignedRiderId: {
+          _id: '$riderDetails._id',
+          name: '$riderDetails.name',
+          email: '$riderDetails.email',
+          phone: '$riderDetails.phone'
+        },
+        productDetails: 1
+      }
+    });
+
+    const orders = await Order.aggregate(pipeline);
 
     res.json({ orders, total, page: Number(page), limit: Number(limit) });
   } catch (error) {
