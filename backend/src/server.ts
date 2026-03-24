@@ -52,10 +52,14 @@ async function isPortFree(port: number): Promise<boolean> {
    */
   server.on('clientError', (err: any, socket) => {
     if (err.code === 'ECONNRESET' || !socket.writable) {
-      logWarn('Client connection reset', {
-        code: err.code,
-        message: err.message,
-      });
+      // ECONNRESET is normal when clients disconnect abruptly - don't log
+      // Only log to file if needed for debugging, not to console
+      if (process.env.DEBUG_CLIENT_ERRORS === 'true') {
+        logWarn('Client connection reset (ECONNRESET)', {
+          code: err.code,
+          remoteAddress: (socket as Socket).remoteAddress,
+        });
+      }
       return;
     }
 
