@@ -13,7 +13,7 @@ type ErrorType = 'auth' | 'network' | null;
  * Instead, we verify authentication by:
  * 1. Attempting to fetch user info from backend
  * 2. If 401 is returned, user is not authenticated
- * 3. Checking if role is 'superadmin'
+ * 3. Allowing all authenticated users except riders
  */
 export default function ProtectedRoute({ children }: Props) {
   const [role, setRole] = useState<string | null>(null);
@@ -29,8 +29,8 @@ export default function ProtectedRoute({ children }: Props) {
         setError(null);
         setLoading(true);
         const res = await api.get('/auth/users');
-        const userRole = res.data?.role || res.data?.roleId?.name;
-        setRole(userRole);
+        const userRole = String(res.data?.role || res.data?.roleId?.name || '').trim().toLowerCase();
+        setRole(userRole || null);
         setAuthChecked(true);
         setError(null);
         setRetryCount(0);
@@ -131,8 +131,8 @@ export default function ProtectedRoute({ children }: Props) {
     return <Navigate to="/login" replace />;
   }
 
-  // Not superadmin - redirect to login
-  if (role !== 'superadmin') {
+  // Riders are blocked from admin panel login for now
+  if (role === 'rider') {
     return <Navigate to="/login" replace />;
   }
 
