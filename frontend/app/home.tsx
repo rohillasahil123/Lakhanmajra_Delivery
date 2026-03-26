@@ -525,20 +525,20 @@ export default function HomeScreen() {
         {/* Delivery Info Cards */}
         <View style={styles.deliveryStrip}>
           {[
-            { bg: "#FFF8D0", emoji: "⚡", badge: "10 MIN", badgeBg: COLORS.accent, title: "Lightning Fast", desc: "Average delivery" },
-            { bg: "#DCFCE7", emoji: "🌿", badge: "100% FRESH", badgeBg: "#10B981", title: "Farm Fresh", desc: "Sourced daily" },
-            { bg: "#DBEAFE", emoji: "🏷️", badge: "BEST PRICE", badgeBg: "#8B5CF6", title: "Best Price", desc: "Free delivery" },
+            { bg: "#FFF8D0", emoji: "⚡", badge: "10 MIN", badgeBg: COLORS.accent, title: "Lightning Fast" },
+            { bg: "#DCFCE7", emoji: "🌿", badge: "100% FRESH", badgeBg: "#10B981", title: "Farm Fresh" },
+            { bg: "#DBEAFE", emoji: "🏷️", badge: "BEST PRICE", badgeBg: "#8B5CF6", title: "Best Price" },
           ].map((card) => (
             <View key={card.title} style={styles.deliveryCard}>
               <View style={[styles.dcIcon, { backgroundColor: card.bg }]}>
+
                 <ThemedText style={styles.dcEmoji}>{card.emoji}</ThemedText>
               </View>
               <View style={styles.flexOne}>
                 <ThemedText style={[styles.deliveryTime, { backgroundColor: card.badgeBg }]}>
                   {card.badge}
                 </ThemedText>
-                <ThemedText style={styles.dcTitle} numberOfLines={1}>{card.title}</ThemedText>
-                <ThemedText style={styles.dcDesc} numberOfLines={1}>{card.desc}</ThemedText>
+                <ThemedText style={styles.dcTitle} numberOfLines={2}>{card.title}</ThemedText>
               </View>
             </View>
           ))}
@@ -559,7 +559,7 @@ export default function HomeScreen() {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{
-            paddingHorizontal: scale(16),
+            paddingHorizontal: scale(8),
             paddingBottom: verticalScale(8),
           }}
           nestedScrollEnabled
@@ -1115,15 +1115,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   dcIcon: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: moderateScale(10),
+    width: scale(32),
+    height: scale(32),
+    borderRadius: moderateScale(9),
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: verticalScale(8),
+    marginBottom: verticalScale(6),
+    overflow: "hidden",
   },
   dcEmoji: {
-    fontSize: moderateScale(20),
+    fontSize: moderateScale(16),
   },
   flexOne: { alignItems: "center", width: "100%" },
   deliveryTime: {
@@ -1139,7 +1140,8 @@ const styles = StyleSheet.create({
   dcTitle: {
     fontWeight: "700",
     color: COLORS.text,
-    fontSize: moderateScale(10),
+    fontSize: moderateScale(9),
+    lineHeight: moderateScale(12),
     textAlign: "center",
     marginBottom: verticalScale(1),
   },
