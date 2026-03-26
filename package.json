@@ -1,4 +1,9 @@
 {
+  "scripts": {
+    "dev:auto-ip": "bash ./scripts/dev-auto-ip.sh",
+    "admin:auto-ip": "cd admin && VITE_API_URL=http://127.0.0.1:5000/api npm run dev",
+    "backend:auto-ip": "cd backend && HOST=0.0.0.0 PORT=5000 npm run dev"
+  },
   "dependencies": {
     "expo": "^55.0.8"
   }

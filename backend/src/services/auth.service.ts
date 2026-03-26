@@ -564,19 +564,19 @@ export const login = async (req: Request, res: Response) => {
 		res.cookie('token', token, {
 			httpOnly: true,
 			secure: process.env.NODE_ENV === 'production',
-			sameSite: 'strict',
+			sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
 			maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
 			path: '/',
 		});
 
 		/**
-		 * SECURITY: Set XSRF token in separate cookie for CSRF protection
-		 * Frontend will read this and send it back in X-CSRF-Token header
-		 */
+	 	 * SECURITY: Set XSRF token in separate cookie for CSRF protection
+	 	 * Frontend will read this and send it back in X-CSRF-Token header
+	 	 */
 		res.cookie('XSRF-TOKEN', xsrfToken, {
 			httpOnly: false, // Frontend needs to read this via JavaScript
 			secure: process.env.NODE_ENV === 'production',
-			sameSite: 'strict',
+			sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
 			maxAge: 60 * 60 * 1000, // 1 hour
 			path: '/',
 		});
@@ -603,8 +603,6 @@ export const login = async (req: Request, res: Response) => {
 		return res.status(500).json({ message: "Login failed" });
 	}
 };
-
-/* ================= GET LOGGED IN USER ================= */
 export const getUsers = async (req: any, res: Response) => {
 	try {
 		const userId = req.user?.id || req.user?._id;
