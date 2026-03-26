@@ -1088,11 +1088,12 @@ const styles = StyleSheet.create({
 
   // ── Delivery Strip ──
   deliveryStrip: {
-    marginBottom: verticalScale(14),
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: verticalScale(16),
     paddingHorizontal: scale(16),
-    gap: scale(12),
+    gap: scale(8),
   },
   deliveryCard: {
     backgroundColor: COLORS.white,
@@ -1100,10 +1101,10 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: verticalScale(16),
-    paddingHorizontal: scale(12),
-    flex: 1,
-    aspectRatio: 1, // Make it square
+    paddingVertical: verticalScale(12),
+    paddingHorizontal: scale(8),
+    width: scale(100),
+    height: scale(100),
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,
@@ -1120,27 +1121,27 @@ const styles = StyleSheet.create({
   dcEmoji: {
     fontSize: moderateScale(20),
   },
-  flexOne: { flex: 1, alignItems: "center" },
+  flexOne: { alignItems: "center", width: "100%" },
   deliveryTime: {
     color: COLORS.white,
     fontWeight: "800",
-    fontSize: moderateScale(8),
-    borderRadius: moderateScale(4),
-    paddingHorizontal: scale(6),
-    paddingVertical: verticalScale(2),
-    marginBottom: verticalScale(4),
+    fontSize: moderateScale(7),
+    borderRadius: moderateScale(3),
+    paddingHorizontal: scale(4),
+    paddingVertical: verticalScale(1),
+    marginBottom: verticalScale(2),
     alignSelf: "center",
   },
   dcTitle: {
     fontWeight: "700",
     color: COLORS.text,
-    fontSize: moderateScale(12),
+    fontSize: moderateScale(10),
     textAlign: "center",
-    marginBottom: verticalScale(2),
+    marginBottom: verticalScale(1),
   },
   dcDesc: {
     color: COLORS.muted,
-    fontSize: moderateScale(10),
+    fontSize: moderateScale(8),
     textAlign: "center",
   },
 
