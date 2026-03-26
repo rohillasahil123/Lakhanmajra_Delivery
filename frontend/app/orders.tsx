@@ -376,7 +376,7 @@ export default function OrdersScreen() {
                 <ThemedText style={styles.addonAddBtnTitle}>
                   + Add More Items
                 </ThemedText>
-                <ThemedText style={styles.addonAddBtnSub}>
+                <ThemedText style={styles.addonAddBtnSub}>j
                   {`Same delivery charge — ${addonSecondsLeft}s baaki`}
                 </ThemedText>
               </View>
