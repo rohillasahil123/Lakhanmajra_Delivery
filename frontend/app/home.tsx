@@ -527,7 +527,7 @@ export default function HomeScreen() {
           {[
             { bg: "#FFF8D0", emoji: "⚡", badge: "10 MIN", badgeBg: COLORS.accent, title: "Lightning Fast", desc: "Average delivery" },
             { bg: "#DCFCE7", emoji: "🌿", badge: "100% FRESH", badgeBg: "#10B981", title: "Farm Fresh", desc: "Sourced daily" },
-            { bg: "#DBEAFE", emoji: "🏷️", badge: "BEST PRICE", badgeBg: "#8B5CF6", title: "Zero Fees", desc: "Free delivery" },
+            { bg: "#DBEAFE", emoji: "🏷️", badge: "BEST PRICE", badgeBg: "#8B5CF6", title: "Best Price", desc: "Free delivery" },
           ].map((card) => (
             <View key={card.title} style={styles.deliveryCard}>
               <View style={[styles.dcIcon, { backgroundColor: card.bg }]}>
@@ -537,8 +537,8 @@ export default function HomeScreen() {
                 <ThemedText style={[styles.deliveryTime, { backgroundColor: card.badgeBg }]}>
                   {card.badge}
                 </ThemedText>
-                <ThemedText style={styles.dcTitle}>{card.title}</ThemedText>
-                <ThemedText style={styles.dcDesc}>{card.desc}</ThemedText>
+                <ThemedText style={styles.dcTitle} numberOfLines={1}>{card.title}</ThemedText>
+                <ThemedText style={styles.dcDesc} numberOfLines={1}>{card.desc}</ThemedText>
               </View>
             </View>
           ))}
@@ -964,12 +964,14 @@ const styles = StyleSheet.create({
   },
   offerCard: {
     height: verticalScale(130),
-    borderRadius: moderateScale(12),
+    borderRadius: moderateScale(14),
     overflow: "hidden",
     justifyContent: "flex-end",
     backgroundColor: COLORS.accent,
-  },  offerCardImage: {
+  },
+  offerCardImage: {
     resizeMode: "cover",
+    borderRadius: moderateScale(14),
   },
   offerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -1091,20 +1093,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginTop: verticalScale(12),          // spacing from the big offers card above
     marginBottom: verticalScale(16),
     paddingHorizontal: scale(16),
     gap: scale(8),
   },
   deliveryCard: {
     backgroundColor: COLORS.white,
-    borderRadius: moderateScale(12),
+    borderRadius: moderateScale(14),      // strong rounded border
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: verticalScale(12),
     paddingHorizontal: scale(8),
-    width: scale(100),
-    height: scale(100),
+    width: scale(104),
+    height: scale(104),
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,
