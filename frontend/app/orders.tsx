@@ -820,7 +820,7 @@ const styles = createResponsiveStyles({
   },
   compactMetaText: {
     fontSize: 12,
-    color: "#6B7280",
+    color: "#374151",
     fontWeight: "600",
   },
   compactAmount: {
@@ -830,7 +830,7 @@ const styles = createResponsiveStyles({
   },
   compactDate: {
     fontSize: 11,
-    color: "#9CA3AF",
+    color: "#6B7280",
   },
   orderTopRow: {
     flexDirection: "row",
@@ -874,7 +874,7 @@ const styles = createResponsiveStyles({
   trackingLabel: {
     fontSize: 10,
     textAlign: "center",
-    color: "#64748B",
+    color: "#475569",
   },
   trackingLabelActive: {
     color: "#0F172A",
@@ -915,7 +915,7 @@ const styles = createResponsiveStyles({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  amountLabel: { fontSize: 12, color: "#6B7280" },
+  amountLabel: { fontSize: 12, color: "#374151" },
   amountValue: { fontSize: 18, color: "#10B981", fontWeight: "800" },
   paymentMetaRow: {
     marginTop: 6,
@@ -925,7 +925,7 @@ const styles = createResponsiveStyles({
   },
   paymentMetaText: {
     fontSize: 12,
-    color: "#6B7280",
+    color: "#374151",
     fontWeight: "600",
   },
   riderCard: {
@@ -997,7 +997,7 @@ const styles = createResponsiveStyles({
   },
   productMeta: {
     fontSize: 12,
-    color: "#6B7280",
+    color: "#374151",
     marginBottom: 2,
   },
   productTotal: {

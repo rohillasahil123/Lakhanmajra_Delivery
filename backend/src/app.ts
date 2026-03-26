@@ -88,7 +88,7 @@ app.use(
 
       // In development, allow all origins for easier collaboration
       if (process.env.NODE_ENV === "development") {
-        logInfo("CORS: allowing dev origin", { origin });
+        // Silently allow in development - no console log spam
         return callback(null, true);
       }
 

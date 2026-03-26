@@ -119,7 +119,9 @@ export default function ProductsScreen() {
           prods = prods.filter((p: any) => {
             const cid = getId(p.categoryId);
             const sid = getId(p.subcategoryId);
-            return relatedIds.has(cid) || relatedIds.has(sid);
+            // Show product if categoryId OR subcategoryId matches any related ID
+            // Also show products with matching categoryId even if subcategoryId is missing
+            return relatedIds.has(cid) || relatedIds.has(sid) || cid === catId;
           });
         }
 
@@ -156,12 +158,14 @@ export default function ProductsScreen() {
   const normalizedQuery = searchQuery.trim().toLowerCase();
 
   const visibleProducts = products
-    .filter((p) =>
-      selectedSubCategoryId === "all"
-        ? true
-        : getId(p.subcategoryId) === selectedSubCategoryId ||
-          getId(p.categoryId) === selectedSubCategoryId,
-    )
+    .filter((p) => {
+      // If "all" is selected, show all products in this category
+      if (selectedSubCategoryId === "all") return true;
+      
+      // Otherwise, only show products that belong to the selected subcategory
+      const pCategoryId = getId(p.categoryId);
+      return pCategoryId === selectedSubCategoryId;
+    })
     .filter((p) =>
       normalizedQuery === ""
         ? true
