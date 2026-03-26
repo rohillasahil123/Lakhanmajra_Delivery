@@ -718,8 +718,8 @@ const styles = createResponsiveStyles({
     marginTop: 0,
     marginBottom: 12,
   },
-  title: { fontSize: 22, fontWeight: "800", color: "#FFFFFF", marginBottom: 4 },
-  subtitle: { fontSize: 13, color: "#D1FAE5", marginBottom: 12 },
+  title: { fontSize: 22, fontWeight: "800", color: "#1F2937", marginBottom: 4 },
+  subtitle: { fontSize: 13, color: "#6B7280", marginBottom: 12 },
   summaryRow: { flexDirection: "row", gap: 8 },
   addonAddBtn: {
     backgroundColor: "#F0FDF4",

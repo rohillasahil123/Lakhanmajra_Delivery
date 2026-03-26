@@ -118,10 +118,8 @@ export default function ProductsScreen() {
 
           prods = prods.filter((p: any) => {
             const cid = getId(p.categoryId);
-            const sid = getId(p.subcategoryId);
-            // Show product if categoryId OR subcategoryId matches any related ID
-            // Also show products with matching categoryId even if subcategoryId is missing
-            return relatedIds.has(cid) || relatedIds.has(sid) || cid === catId;
+            // Show product if categoryId matches the selected category or any of its subcategories
+            return relatedIds.has(cid);
           });
         }
 

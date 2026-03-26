@@ -563,7 +563,13 @@ export default function HomeScreen() {
           nestedScrollEnabled
           renderItem={({ item }) => (
             <Pressable
-              onPress={() => setSelectedCategory(item._id || null)}
+              onPress={() => {
+                const catId = item._id || item.id;
+                router.push({
+                  pathname: "/products",
+                  params: { categoryId: catId, categoryName: item.name },
+                });
+              }}
               style={({ pressed }) => [
                 styles.categoryCard,
                 {
@@ -1088,36 +1094,36 @@ const styles = StyleSheet.create({
   },
   deliveryCard: {
     backgroundColor: COLORS.white,
-    borderRadius: moderateScale(12),
+    borderRadius: moderateScale(10),
     flexDirection: "row",
     alignItems: "center",
-    gap: scale(10),
-    paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(8),
+    gap: scale(6),
+    paddingHorizontal: scale(8),
+    paddingVertical: verticalScale(6),
     width: "48%",
     shadowColor: "#000",
     shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowRadius: 8,
+    elevation: 2,
     flex: 1,
-    minWidth: scale(110),
+    minWidth: scale(100),
   },
   dcIcon: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: moderateScale(12),
+    width: scale(32),
+    height: scale(32),
+    borderRadius: moderateScale(8),
     justifyContent: "center",
     alignItems: "center",
     flexShrink: 0,
   },
   dcEmoji: {
-    fontSize: moderateScale(20),
+    fontSize: moderateScale(16),
   },
   flexOne: { flex: 1 },
   deliveryTime: {
     color: COLORS.white,
     fontWeight: "800",
-    fontSize: moderateScale(10),
+    fontSize: moderateScale(9),
     borderRadius: moderateScale(4),
     paddingHorizontal: scale(6),
     paddingVertical: verticalScale(2),
@@ -1127,12 +1133,12 @@ const styles = StyleSheet.create({
   dcTitle: {
     fontWeight: "700",
     color: COLORS.text,
-    fontSize: moderateScale(13),
-    marginBottom: verticalScale(2),
+    fontSize: moderateScale(11),
+    marginBottom: verticalScale(1),
   },
   dcDesc: {
     color: COLORS.muted,
-    fontSize: moderateScale(11),
+    fontSize: moderateScale(9),
   },
 
   // ── Category Card ──
