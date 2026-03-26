@@ -394,7 +394,7 @@ const styles = createResponsiveStyles({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 4,
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     elevation: 4,
     shadowColor: "#000",
     shadowOpacity: 0.1,
@@ -458,7 +458,7 @@ const styles = createResponsiveStyles({
     paddingVertical: 8,
     borderRadius: 16,
   },
-  subCategoryChipActive: { backgroundColor: "#0E7A3D" },
+  subCategoryChipActive: { backgroundColor: "#10B981" },
   subCategoryChipText: { fontSize: 12, color: "#374151", fontWeight: "600" },
   subCategoryChipTextActive: { color: "#FFFFFF" },
   countContainer: {
@@ -565,7 +565,7 @@ const styles = createResponsiveStyles({
     marginTop: 2,
   },
   addButton: {
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     width: 28,
     height: 28,
     borderRadius: 6,

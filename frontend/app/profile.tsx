@@ -704,7 +704,7 @@ const styles = createResponsiveStyles({
     paddingVertical: 10,
     alignItems: "center",
   },
-  tabButtonActive: { backgroundColor: "#0E7A3D" },
+  tabButtonActive: { backgroundColor: "#10B981" },
   tabText: { color: "#374151", fontSize: 14, fontWeight: "600" },
   tabTextActive: { color: "#FFFFFF" },
 
@@ -752,7 +752,7 @@ const styles = createResponsiveStyles({
   logoutText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   addressButton: {
     marginTop: 6,
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     paddingVertical: 11,
     borderRadius: 8,
     alignItems: "center",
@@ -764,15 +764,15 @@ const styles = createResponsiveStyles({
   },
   mapAddressButton: {
     marginTop: 4,
-    backgroundColor: "#EEF7F0",
+    backgroundColor: "#F0FDF4",
     borderWidth: 1,
-    borderColor: "#B8E2C4",
+    borderColor: "#DCFCE7",
     paddingVertical: 10,
     borderRadius: 8,
     alignItems: "center",
   },
   mapAddressButtonText: {
-    color: "#0E7A3D",
+    color: "#10B981",
     fontSize: 13,
     fontWeight: "700",
   },
@@ -796,7 +796,7 @@ const styles = createResponsiveStyles({
   },
   saveButton: {
     flex: 1,
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",

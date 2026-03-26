@@ -512,7 +512,7 @@ const styles = createResponsiveStyles({
     color: "#6B7280",
   },
   loadMoreButton: {
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 8,

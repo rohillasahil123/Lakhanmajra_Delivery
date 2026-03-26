@@ -262,7 +262,7 @@ export default function SignupScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <LinearGradient
-        colors={["#E8F8EE", "#F6FCF8", "#EAF4EE"]}
+        colors={["#F0FDF4", "#F7FEFC", "#EDFCF9"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.backgroundLayer}
@@ -343,7 +343,7 @@ export default function SignupScreen() {
                     disabled={loading}
                   >
                     <LinearGradient
-                      colors={["#0F8B46", "#0C6F38"]}
+                      colors={["#10B981", "#059669"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.buttonGradient}
@@ -393,7 +393,7 @@ export default function SignupScreen() {
                     disabled={loading}
                   >
                     <LinearGradient
-                      colors={["#0F8B46", "#0C6F38"]}
+                      colors={["#10B981", "#059669"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.buttonGradient}
@@ -469,7 +469,7 @@ export default function SignupScreen() {
                     disabled={loading}
                   >
                     <LinearGradient
-                      colors={["#0F8B46", "#0C6F38"]}
+                      colors={["#10B981", "#059669"]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.buttonGradient}
@@ -510,7 +510,7 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#E8F8EE",
+    backgroundColor: "#F0FDF4",
   },
   backgroundLayer: {
     flex: 1,
@@ -532,8 +532,8 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(24),
     padding: moderateScale(24),
     borderWidth: 1,
-    borderColor: "#CFE8D7",
-    shadowColor: "#0B4E2B",
+    borderColor: "#D1FAE5",
+    shadowColor: "#059669",
     shadowOpacity: 0.16,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 10 },
@@ -549,10 +549,10 @@ const styles = StyleSheet.create({
     borderRadius: scale(45),
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
-    borderColor: "#D2EBD9",
+    borderColor: "#DCFCE7",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0E7A3D",
+    shadowColor: "#10B981",
     shadowOpacity: 0.2,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 6 },
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     borderRadius: scale(35),
   },
   badge: {
-    backgroundColor: "#E1F5E8",
+    backgroundColor: "#DCFCE7",
     borderRadius: 999,
     paddingHorizontal: scale(14),
     paddingVertical: verticalScale(6),
@@ -574,12 +574,12 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: moderateScale(11),
     fontWeight: "700",
-    color: "#0E7A3D",
+    color: "#10B981",
   },
   brandName: {
     fontSize: moderateScale(26),
     fontWeight: "800",
-    color: "#0E7A3D",
+    color: "#10B981",
     marginBottom: verticalScale(4),
   },
   subtitle: {
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E5E7EB",
   },
   progressDotActive: {
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
   },
   progressLine: {
     flex: 1,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
     maxWidth: scale(30),
   },
   progressLineActive: {
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
   },
   form: {
     gap: verticalScale(12),
@@ -629,9 +629,9 @@ const styles = StyleSheet.create({
     marginBottom: verticalScale(8),
   },
   input: {
-    backgroundColor: "#F5FAF7",
+    backgroundColor: "#F0FDF4",
     borderWidth: 1.5,
-    borderColor: "#D2E5D8",
+    borderColor: "#DCFCE7",
     borderRadius: moderateScale(12),
     paddingHorizontal: scale(16),
     paddingVertical: verticalScale(13),
@@ -640,9 +640,9 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   selectInput: {
-    backgroundColor: "#F5FAF7",
+    backgroundColor: "#F0FDF4",
     borderWidth: 1.5,
-    borderColor: "#D2E5D8",
+    borderColor: "#DCFCE7",
     borderRadius: moderateScale(12),
     paddingHorizontal: scale(16),
     paddingVertical: verticalScale(13),
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
   dropdownMenu: {
     marginTop: verticalScale(6),
     borderWidth: 1.2,
-    borderColor: "#D2E5D8",
+    borderColor: "#DCFCE7",
     borderRadius: moderateScale(12),
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(12),
     overflow: "hidden",
     marginTop: verticalScale(6),
-    shadowColor: "#0E7A3D",
+    shadowColor: "#10B981",
     shadowOpacity: 0.3,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 5 },
@@ -720,14 +720,14 @@ const styles = StyleSheet.create({
   },
   resendText: {
     fontSize: moderateScale(12),
-    color: "#0E7A3D",
+    color: "#10B981",
     fontWeight: "700",
     textAlign: "center",
     marginTop: verticalScale(6),
   },
   backText: {
     fontSize: moderateScale(12),
-    color: "#0E7A3D",
+    color: "#10B981",
     fontWeight: "700",
     textAlign: "center",
     marginTop: verticalScale(6),

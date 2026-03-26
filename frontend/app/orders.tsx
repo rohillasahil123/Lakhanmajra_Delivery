@@ -277,7 +277,7 @@ export default function OrdersScreen() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0E7A3D" />
+        <ActivityIndicator size="large" color="#10B981" />
       </View>
     );
   }
@@ -712,7 +712,7 @@ const styles = createResponsiveStyles({
     height: 44,
   },
   heroCard: {
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     borderRadius: 16,
     padding: 14,
     marginTop: 0,
@@ -825,7 +825,7 @@ const styles = createResponsiveStyles({
   },
   compactAmount: {
     fontSize: 15,
-    color: "#0E7A3D",
+    color: "#10B981",
     fontWeight: "800",
   },
   compactDate: {
@@ -869,7 +869,7 @@ const styles = createResponsiveStyles({
     marginBottom: 4,
   },
   trackingDotActive: {
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
   },
   trackingLabel: {
     fontSize: 10,
@@ -916,7 +916,7 @@ const styles = createResponsiveStyles({
     justifyContent: "space-between",
   },
   amountLabel: { fontSize: 12, color: "#6B7280" },
-  amountValue: { fontSize: 18, color: "#0E7A3D", fontWeight: "800" },
+  amountValue: { fontSize: 18, color: "#10B981", fontWeight: "800" },
   paymentMetaRow: {
     marginTop: 6,
     flexDirection: "row",
@@ -1002,7 +1002,7 @@ const styles = createResponsiveStyles({
   },
   productTotal: {
     fontSize: 12,
-    color: "#0E7A3D",
+    color: "#10B981",
     fontWeight: "700",
   },
   orderId: {

@@ -518,7 +518,7 @@ const styles = createResponsiveStyles({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     elevation: 4,
     shadowColor: "#000",
     shadowOpacity: 0.1,
@@ -589,7 +589,7 @@ const styles = createResponsiveStyles({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,
@@ -671,8 +671,8 @@ const styles = createResponsiveStyles({
     backgroundColor: "#FFFFFF",
   },
   paymentOptionActive: {
-    borderColor: "#0E7A3D",
-    backgroundColor: "#ECFDF3",
+    borderColor: "#10B981",
+    backgroundColor: "#F0FDF4",
   },
   paymentOptionDisabled: {
     opacity: 0.55,
@@ -715,9 +715,9 @@ const styles = createResponsiveStyles({
   },
   refreshQrButton: {
     marginTop: 8,
-    backgroundColor: "#EEF7F0",
+    backgroundColor: "#DCFCE7",
     borderWidth: 1,
-    borderColor: "#B8E2C4",
+    borderColor: "#DCFCE7",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -725,7 +725,7 @@ const styles = createResponsiveStyles({
   refreshQrText: {
     fontSize: 12,
     fontWeight: "700",
-    color: "#0E7A3D",
+    color: "#10B981",
   },
   billSection: {
     backgroundColor: "#FFFFFF",
@@ -773,7 +773,7 @@ const styles = createResponsiveStyles({
   deliveryFee: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#0E7A3D",
+    color: "#10B981",
   },
   ruleAlert: {
     backgroundColor: "#FEF3C7",
@@ -823,11 +823,11 @@ const styles = createResponsiveStyles({
     elevation: 8,
   },
   placeOrderButton: {
-    backgroundColor: "#0E7A3D",
+    backgroundColor: "#10B981",
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: "center",
-    shadowColor: "#0E7A3D",
+    shadowColor: "#10B981",
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },

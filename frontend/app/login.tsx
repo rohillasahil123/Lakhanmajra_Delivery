@@ -240,12 +240,12 @@ const styles = createResponsiveStyles({
   brandOrange: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#CC5500",
+    color: "#10B981",
   },
   brandGreen: {
     fontSize: 26,
     fontWeight: "700",
-    color: "#0E7A3D",
+    color: "#10B981",
   },
   subtitle: {
     color: "#1F2937",
@@ -273,23 +273,23 @@ const styles = createResponsiveStyles({
     marginTop: -4,
   },
   forgotText: {
-    color: "#CC5500",
+    color: "#10B981",
     fontSize: 12,
     fontWeight: "500",
   },
   loginButton: {
     marginTop: 8,
-    backgroundColor: "#CC5500",
+    backgroundColor: "#10B981",
     borderRadius: 10,
     paddingVertical: 16,
-    shadowColor: "#CC5500",
+    shadowColor: "#10B981",
     shadowOpacity: 0.3,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
   loginButtonDisabled: {
-    backgroundColor: "#D4A574",
+    backgroundColor: "#A7D8C7",
     shadowOpacity: 0.1,
   },
   loginButtonText: {
@@ -313,7 +313,7 @@ const styles = createResponsiveStyles({
     marginLeft: 4,
   },
   signupText: {
-    color: "#CC5500",
+    color: "#10B981",
     fontWeight: "600",
     fontSize: 13,
   },

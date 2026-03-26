@@ -94,15 +94,15 @@ const getCategoryIcon = (
 };
 
 const COLORS = {
-  primary: "#F8C200",
-  primaryDark: "#E5B000",
+  primary: "#10B981",
+  primaryDark: "#059669",
   accent: "#0D3D1E",
-  bg: "#F7F7F2",
+  bg: "#FAFAF9",
   white: "#FFFFFF",
-  text: "#1A1A1A",
-  muted: "#6B6B6B",
-  light: "#EFEFEA",
-  green: "#22C55E",
+  text: "#1F2937",
+  muted: "#6B7280",
+  light: "#F3F4F6",
+  green: "#10B981",
   red: "#EF4444",
 };
 
@@ -245,7 +245,8 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!latestOrder) { setShowOrderToast(false); return; }
+    // Only show toast if there's an actual order with valid status
+    if (!latestOrder || !latestOrder._id || !latestOrder.status) { setShowOrderToast(false); return; }
     setShowOrderToast(true);
     Animated.timing(toastAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
     const hideTimeout = setTimeout(() => {
@@ -346,34 +347,35 @@ export default function HomeScreen() {
         {/* Search + Icons Row */}
         <View style={styles.headerRow}>
           <TouchableOpacity
+            style={styles.searchBar}
+            onPress={() => router.push("/search")}
+          >
+            <ThemedText style={styles.searchIcon}>🔍</ThemedText>
+            <ThemedText numberOfLines={1} style={styles.searchInput}>
+              {isSmallScreen ? "Search..." : 'Search "eggs", "milk"…'}
+            </ThemedText>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => {
               setUnreadNotificationCount(0);
               router.push("/notifications");
             }}
           >
-            <ThemedText style={styles.iconEmoji}>🔔</ThemedText>
+            <MaterialCommunityIcons name="bell-outline" size={moderateScale(18)} color="#0E7A3D" />
             {unreadNotificationCount > 0 && <View style={styles.dot} />}
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.cartBtn} onPress={() => router.push("/cart")}>
-            <ThemedText style={styles.iconEmoji}>🛒</ThemedText>
-            {cartCount > 0 && (
-              <ThemedText style={styles.cartCount}>{cartCount}</ThemedText>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.searchBar} onPress={() => router.push("/search")}>
-            <ThemedText style={styles.searchIcon}>🔍</ThemedText>
-            <ThemedText numberOfLines={1} style={styles.searchInput}>
-              {isSmallScreen ? "Search..." : 'Search "eggs", "milk"…'}
-            </ThemedText>
+          <TouchableOpacity style={styles.cartBtn} onPress={() => router.push("/cart")}> 
+            <MaterialCommunityIcons name="cart-outline" size={moderateScale(18)} color="#0E7A3D" />
+            <ThemedText style={[styles.cartCount, { fontSize: moderateScale(12), fontWeight: "700" }]}>{cartCount}</ThemedText>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* ───── ORDER TOAST ───── */}
-      {showOrderToast && latestOrder && (
+      {showOrderToast && latestOrder && latestOrder._id && latestOrder.status && (
         <Animated.View
           style={[
             styles.orderToast,
@@ -386,7 +388,7 @@ export default function HomeScreen() {
           ]}
         >
           <ThemedText style={styles.orderToastText}>
-            🚚 Tracking order {latestOrder?._id || "your latest order"} in progress
+            🚚 Your order is {latestOrder?.status || "in progress"}
           </ThemedText>
         </Animated.View>
       )}
@@ -522,7 +524,7 @@ export default function HomeScreen() {
         <View style={styles.deliveryStrip}>
           {[
             { bg: "#FFF8D0", emoji: "⚡", badge: "10 MIN", badgeBg: COLORS.accent, title: "Lightning Fast", desc: "Average delivery" },
-            { bg: "#DCFCE7", emoji: "🌿", badge: "100% FRESH", badgeBg: "#22C55E", title: "Farm Fresh", desc: "Sourced daily" },
+            { bg: "#DCFCE7", emoji: "🌿", badge: "100% FRESH", badgeBg: "#10B981", title: "Farm Fresh", desc: "Sourced daily" },
             { bg: "#DBEAFE", emoji: "🏷️", badge: "BEST PRICE", badgeBg: "#8B5CF6", title: "Zero Fees", desc: "Free delivery" },
           ].map((card) => (
             <View key={card.title} style={styles.deliveryCard}>
@@ -575,9 +577,12 @@ export default function HomeScreen() {
             >
               <MaterialCommunityIcons
                 name={getCategoryIcon(item?.name)}
-                size={moderateScale(28)}
+                size={moderateScale(26)}
                 color="#0E7A3D"
               />
+              <ThemedText style={styles.categoryLabel} numberOfLines={1} ellipsizeMode="tail">
+                {item.name}
+              </ThemedText>
             </Pressable>
           )}
           ListEmptyComponent={<View style={{ height: verticalScale(8) }} />}
@@ -788,18 +793,18 @@ const styles = StyleSheet.create({
     gap: scale(10),
   },
   iconBtn: {
-    width: scale(44),
-    height: scale(44),
-    borderRadius: moderateScale(12),
+    width: scale(38),
+    height: scale(38),
+    borderRadius: moderateScale(10),
     backgroundColor: COLORS.bg,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: COLORS.light,
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
   },
   iconEmoji: {
-    fontSize: moderateScale(20),
+    fontSize: moderateScale(18),
   },
   dot: {
     position: "absolute",
@@ -816,15 +821,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: scale(6),
-    backgroundColor: COLORS.accent,
+    backgroundColor: COLORS.white,
     borderRadius: moderateScale(12),
-    paddingHorizontal: scale(14),
-    height: scale(44),
-    justifyContent: "center",
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(8),
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    height: scale(36),
   },
   cartCount: {
     fontWeight: "700",
-    color: COLORS.white,
+    color: COLORS.accent,
     fontSize: moderateScale(12),
   },
   searchBar: {
@@ -932,6 +939,14 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     fontSize: moderateScale(13),
   },
+  categoryLabel: {
+    marginTop: verticalScale(5),
+    color: COLORS.muted,
+    fontSize: moderateScale(10),
+    fontWeight: "600",
+    textAlign: "center",
+    width: "100%",
+  },
 
   // ── Offers ──
   offerSection: {
@@ -940,12 +955,12 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   offerCard: {
-    height: verticalScale(155),
+    height: verticalScale(130),
+    borderRadius: moderateScale(12),
     overflow: "hidden",
     justifyContent: "flex-end",
     backgroundColor: COLORS.accent,
-  },
-  offerCardImage: {
+  },  offerCardImage: {
     resizeMode: "cover",
   },
   offerOverlay: {
@@ -959,12 +974,12 @@ const styles = StyleSheet.create({
   },
   offerTitle: {
     color: COLORS.white,
-    fontSize: moderateScale(16),
+    fontSize: moderateScale(14),
     fontWeight: "800",
   },
   offerSubtitle: {
     color: "rgba(255,255,255,0.9)",
-    fontSize: moderateScale(10),
+    fontSize: moderateScale(9),
   },
   offerCta: {
     alignSelf: "flex-start",
@@ -1004,21 +1019,21 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     overflow: "hidden",
-    marginBottom: verticalScale(16),
-    paddingHorizontal: scale(14),
-    paddingVertical: verticalScale(14),
-    minHeight: verticalScale(110),
+    marginBottom: verticalScale(12),
+    paddingHorizontal: scale(12),
+    paddingVertical: verticalScale(10),
+    minHeight: verticalScale(98),
   },
   heroLeft: { flex: 1 },
   heroBadge: {
     alignSelf: "flex-start",
-    backgroundColor: "rgba(248,194,0,0.2)",
+    backgroundColor: "rgba(16,185,129,0.17)",
     borderWidth: 1,
-    borderColor: "rgba(248,194,0,0.4)",
-    borderRadius: moderateScale(36),
-    marginBottom: verticalScale(8),
-    paddingHorizontal: scale(7),
-    paddingVertical: verticalScale(4),
+    borderColor: "rgba(16,185,129,0.35)",
+    borderRadius: moderateScale(28),
+    marginBottom: verticalScale(6),
+    paddingHorizontal: scale(8),
+    paddingVertical: verticalScale(3),
   },
   heroBadgeText: {
     fontWeight: "700",
@@ -1028,18 +1043,18 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontWeight: "700",
     color: COLORS.white,
-    marginBottom: verticalScale(5),
-    lineHeight: moderateScale(26),
-    fontSize: moderateScale(22),
+    marginBottom: verticalScale(4),
+    lineHeight: moderateScale(24),
+    fontSize: moderateScale(18),
   },
   heroTitleSpan: {
     color: COLORS.primary,
   },
   heroDesc: {
-    color: "rgba(255,255,255,0.75)",
-    marginBottom: verticalScale(10),
-    lineHeight: moderateScale(17),
-    fontSize: moderateScale(11),
+    color: "rgba(255,255,255,0.85)",
+    marginBottom: verticalScale(8),
+    lineHeight: moderateScale(16),
+    fontSize: moderateScale(10),
   },
   heroCta: {
     alignSelf: "flex-start",
@@ -1056,28 +1071,30 @@ const styles = StyleSheet.create({
   heroRight: {
     justifyContent: "center",
     alignItems: "center",
-    width: scale(70),
-    height: scale(70),
+    width: scale(56),
+    height: scale(56),
   },
   heroEmoji: {
-    fontSize: moderateScale(34),
+    fontSize: moderateScale(30),
   },
 
   // ── Delivery Strip ──
   deliveryStrip: {
-    marginBottom: verticalScale(18),
-    gap: scale(10),
+    marginBottom: verticalScale(14),
     flexDirection: "row",
     flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: verticalScale(8),
   },
   deliveryCard: {
     backgroundColor: COLORS.white,
     borderRadius: moderateScale(12),
     flexDirection: "row",
     alignItems: "center",
-    gap: scale(8),
+    gap: scale(10),
     paddingHorizontal: scale(10),
-    paddingVertical: verticalScale(10),
+    paddingVertical: verticalScale(8),
+    width: "48%",
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 10,
