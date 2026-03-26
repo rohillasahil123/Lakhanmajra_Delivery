@@ -959,7 +959,8 @@ const styles = StyleSheet.create({
   // ── Offers ──
   offerSection: {
     marginBottom: verticalScale(20),
-    marginHorizontal: scale(2),
+    marginHorizontal: scale(14),
+    borderRadius: moderateScale(14),
     overflow: "hidden",
   },
   offerCard: {
@@ -1091,12 +1092,11 @@ const styles = StyleSheet.create({
   // ── Delivery Strip ──
   deliveryStrip: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: verticalScale(12),          // spacing from the big offers card above
-    marginBottom: verticalScale(16),
+    marginTop: verticalScale(16),          // spacing from the big offers card above
+    marginBottom: verticalScale(18),
     paddingHorizontal: scale(16),
-    gap: scale(8),
   },
   deliveryCard: {
     backgroundColor: COLORS.white,
@@ -1106,8 +1106,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: verticalScale(12),
     paddingHorizontal: scale(8),
-    width: scale(104),
-    height: scale(104),
+    width: scale(100),
+    height: scale(100),
+    marginHorizontal: scale(5),
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,
