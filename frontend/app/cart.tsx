@@ -400,11 +400,9 @@ const styles = createResponsiveStyles({
   backButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
     borderRadius: 8,
     backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
   },
   backIcon: {
     fontSize: 24,
