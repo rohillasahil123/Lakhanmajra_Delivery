@@ -86,21 +86,15 @@ app.use(
       // Allow requests without origin (server-to-server, Postman)
       if (!origin) return callback(null, true);
 
-      // Check if origin is in whitelist
-      if (allowedOrigins.includes(origin)) {
+      // In development, allow all origins for easier collaboration
+      if (process.env.NODE_ENV === "development") {
+        logInfo("CORS: allowing dev origin", { origin });
         return callback(null, true);
       }
 
-      // In development, allow any localhost/127.0.0.1 variants
-      if (process.env.NODE_ENV === "development") {
-        if (
-          origin.includes("localhost") ||
-          origin.includes("127.0.0.1") ||
-          origin.includes("10.254.173.80")
-        ) {
-          logInfo("CORS: allowing dev origin", { origin });
-          return callback(null, true);
-        }
+      // Check if origin is in whitelist
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
       }
 
       // Reject unknown origins
