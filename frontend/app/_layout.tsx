@@ -44,6 +44,7 @@ export default function RootLayout() {
       <Stack.Screen name="categories" />
       <Stack.Screen name="products" />
       <Stack.Screen name="checkout" />
+      <Stack.Screen name="special-offers" />
     </Stack>
   );
 }

@@ -22,7 +22,7 @@ import verifyCsrfToken from "./middlewares/csrf.middleware";
 import { loggingMiddleware } from "./middlewares/logging.middleware";
 import { connectRabbitMQ } from "./config/rabbitmq";
 import { initMinio } from "./services/minio.service";
-import { logInfo, logError } from "./utils/logger";
+import { logInfo, logError, logWarn } from "./utils/logger";
 
 const app: Application = express();
 
@@ -83,12 +83,28 @@ logInfo("Allowed CORS origins configured", { origins: allowedOrigins });
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true); // allow server-to-server or Postman
+      // Allow requests without origin (server-to-server, Postman)
+      if (!origin) return callback(null, true);
 
+      // Check if origin is in whitelist
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
 
+      // In development, allow any localhost/127.0.0.1 variants
+      if (process.env.NODE_ENV === "development") {
+        if (
+          origin.includes("localhost") ||
+          origin.includes("127.0.0.1") ||
+          origin.includes("10.254.173.80")
+        ) {
+          logInfo("CORS: allowing dev origin", { origin });
+          return callback(null, true);
+        }
+      }
+
+      // Reject unknown origins
+      logWarn(`CORS blocked request from: ${origin}`, { allowedOrigins });
       return callback(new Error("CORS not allowed for this origin"));
     },
     credentials: true,

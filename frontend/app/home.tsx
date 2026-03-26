@@ -455,7 +455,10 @@ export default function HomeScreen() {
                       <ThemedText style={styles.offerTitle}>{item.title}</ThemedText>
                       <ThemedText style={styles.offerSubtitle}>{item.subtitle}</ThemedText>
                       {item.cta && (
-                        <TouchableOpacity style={styles.offerCta}>
+                        <TouchableOpacity
+                          style={styles.offerCta}
+                          onPress={() => router.push("/special-offers")}
+                        >
                           <ThemedText style={styles.offerCtaText}>{item.cta}</ThemedText>
                         </TouchableOpacity>
                       )}
@@ -468,7 +471,10 @@ export default function HomeScreen() {
                       <ThemedText style={styles.offerTitle}>{item.title}</ThemedText>
                       <ThemedText style={styles.offerSubtitle}>{item.subtitle}</ThemedText>
                       {item.cta && (
-                        <TouchableOpacity style={styles.offerCta}>
+                        <TouchableOpacity
+                          style={styles.offerCta}
+                          onPress={() => router.push("/special-offers")}
+                        >
                           <ThemedText style={styles.offerCtaText}>{item.cta}</ThemedText>
                         </TouchableOpacity>
                       )}
@@ -737,7 +743,10 @@ export default function HomeScreen() {
             <View style={styles.dealInfo}>
               <ThemedText style={styles.dealTitle} numberOfLines={2}>Buy 2 Get 1{"\n"}FREE</ThemedText>
               <ThemedText style={styles.dealDesc} numberOfLines={1}>On dairy products</ThemedText>
-              <TouchableOpacity style={styles.dealBtn}>
+              <TouchableOpacity
+                style={styles.dealBtn}
+                onPress={() => router.push("/special-offers")}
+              >
                 <ThemedText style={styles.dealBtnText}>Shop →</ThemedText>
               </TouchableOpacity>
             </View>

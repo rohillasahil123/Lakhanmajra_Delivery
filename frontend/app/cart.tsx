@@ -133,7 +133,7 @@ export default function CartScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ThemedText style={styles.backIcon}>←</ThemedText>
+          <ThemedText style={styles.backIcon}>‹</ThemedText>
         </TouchableOpacity>
         <ThemedText style={[styles.headerTitle, { fontSize: headerTitleSize }]}>
           My Cart
@@ -396,15 +396,25 @@ const styles = createResponsiveStyles({
     shadowOffset: { width: 0, height: 2 },
   },
   backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  backIcon: {
-    fontSize: 28,
-    color: "#FFFFFF",
+  backIcon: { 
+    fontSize: 20, 
+    color: "#374151", 
     fontWeight: "600",
+    textAlign: "center",
   },
   headerTitle: {
     fontSize: 20,

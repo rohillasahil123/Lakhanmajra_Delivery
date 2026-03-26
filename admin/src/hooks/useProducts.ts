@@ -66,8 +66,17 @@ export const AUTO_REFRESH_EDITING_MS = 30_000;
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
+const createUuid = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  // Fallback for environments where crypto.randomUUID is unavailable (older browsers or some WebViews)
+  return `f-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+};
+
 export const createEmptyVariant = (): ProductVariant => ({
-  clientKey: crypto.randomUUID(),
+  clientKey: createUuid(),
   label: '',
   price: '',
   mrp: '',

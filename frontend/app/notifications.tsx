@@ -203,7 +203,7 @@ export default function NotificationsScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ThemedText style={styles.backText}>Back</ThemedText>
+          <ThemedText style={styles.backIcon}>‹</ThemedText>
         </TouchableOpacity>
 
         <ThemedText style={[styles.title, { fontSize: titleSize }]}>
@@ -255,15 +255,25 @@ const styles = createResponsiveStyles({
     paddingBottom: 10,
   },
   backButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 10,
-    backgroundColor: "#E5E7EB",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  backText: {
-    color: "#111827",
+  backIcon: { 
+    fontSize: 20, 
+    color: "#374151", 
     fontWeight: "600",
-    fontSize: 12,
+    textAlign: "center",
   },
   title: {
     fontSize: 18,

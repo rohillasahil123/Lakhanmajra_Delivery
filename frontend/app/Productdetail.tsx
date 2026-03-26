@@ -116,7 +116,7 @@ export default function ProductDetailScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ThemedText style={styles.backIcon}>←</ThemedText>
+          <ThemedText style={styles.backIcon}>‹</ThemedText>
         </TouchableOpacity>
         <ThemedText
           style={[
@@ -365,10 +365,17 @@ const styles = createResponsiveStyles({
     borderBottomColor: "#E5E7EB",
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   backIcon: {
     fontSize: 28,

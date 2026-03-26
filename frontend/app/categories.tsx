@@ -123,7 +123,7 @@ export default function CategoriesScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ThemedText style={styles.backIcon}>←</ThemedText>
+          <ThemedText style={styles.backIcon}>‹</ThemedText>
         </TouchableOpacity>
         <ThemedText
           style={[
@@ -233,15 +233,20 @@ const styles = createResponsiveStyles({
     shadowOffset: { width: 0, height: 2 },
   },
   backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  backIcon: {
-    fontSize: 28,
-    color: "#FFFFFF",
+  backIcon: { 
+    fontSize: 20, 
+    color: "#FFFFFF", 
     fontWeight: "600",
+    textAlign: "center",
   },
   headerTitle: {
     fontSize: 20,

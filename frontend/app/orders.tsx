@@ -343,12 +343,12 @@ export default function OrdersScreen() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <ThemedText style={styles.backIcon}>←</ThemedText>
+            <ThemedText style={styles.backIcon}>‹</ThemedText>
           </TouchableOpacity>
           <ThemedText
             style={[
               styles.pageHeaderTitle,
-              { fontSize: getResponsiveFont(width, 20) },
+              { fontSize: getResponsiveFont(width, 18) },
             ]}
           >
             {pageTitle}
@@ -677,27 +677,39 @@ const styles = createResponsiveStyles({
     marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
     borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
-  backIcon: { fontSize: 24, color: "#111827", fontWeight: "700" },
+  backIcon: { 
+    fontSize: 20, 
+    color: "#374151", 
+    fontWeight: "600",
+    textAlign: "center",
+  },
   pageHeaderTitle: {
     fontSize: 20,
     fontWeight: "800",
     color: "#111827",
+    textAlign: "center",
+    flex: 1,
   },
   headerSpacer: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
   },
   heroCard: {
     backgroundColor: "#0E7A3D",

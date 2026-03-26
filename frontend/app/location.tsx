@@ -243,7 +243,7 @@ export default function LocationScreen() {
             onPress={() => router.back()}
             style={styles.backButton}
           >
-            <ThemedText style={styles.backIcon}>←</ThemedText>
+            <ThemedText style={styles.backIcon}>‹</ThemedText>
           </TouchableOpacity>
           <ThemedText style={styles.headerText}>
             Select Delivery Location
@@ -371,7 +371,19 @@ const styles = createResponsiveStyles({
     paddingVertical: 16,
     backgroundColor: "#0E7A3D",
   },
-  backButton: { padding: 8 },
+  backButton: {
+    width: 44,
+    height: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 22,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   backIcon: { fontSize: 28, color: "#FFFFFF", fontWeight: "600" },
   headerText: {
     flex: 1,

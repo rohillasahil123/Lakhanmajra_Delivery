@@ -225,7 +225,7 @@ export default function SearchScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <ThemedText style={styles.backIcon}>←</ThemedText>
+          <ThemedText style={styles.backIcon}>‹</ThemedText>
         </TouchableOpacity>
         <View style={styles.searchContainer}>
           <ThemedText style={styles.searchIcon}>🔍</ThemedText>
@@ -348,16 +348,26 @@ const styles = createResponsiveStyles({
     borderBottomColor: "#E5E7EB",
   },
   backButton: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
     marginRight: 8,
   },
-  backIcon: {
-    fontSize: 28,
-    color: "#111827",
+  backIcon: { 
+    fontSize: 20, 
+    color: "#374151", 
     fontWeight: "600",
+    textAlign: "center",
   },
   searchContainer: {
     flex: 1,
