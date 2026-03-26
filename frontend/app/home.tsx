@@ -237,8 +237,11 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Only show toast if there's an actual order with valid status
-    if (!latestOrder || !latestOrder._id || !latestOrder.status) { setShowOrderToast(false); return; }
+    // Only show toast for active order states (skip cancelled old orders at login)
+    if (!latestOrder || !latestOrder._id || !latestOrder.status || latestOrder.status === "cancelled") {
+      setShowOrderToast(false);
+      return;
+    }
     setShowOrderToast(true);
     Animated.timing(toastAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
     const hideTimeout = setTimeout(() => {
@@ -447,11 +450,11 @@ export default function HomeScreen() {
             }}
             getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
             renderItem={({ item }) => (
-              <View style={{ width }}>
+              <View style={{ width: width - scale(28) }}>
                 {getOfferImageSource(item.image) ? (
                   <ImageBackground
                     source={getOfferImageSource(item.image) as ImageSourcePropType}
-                    style={[styles.offerCard, { width }]}
+                    style={[styles.offerCard, { width: width - scale(28), height: verticalScale(170) }]}
                     imageStyle={styles.offerCardImage}
                   >
                     <View style={styles.offerOverlay} />
@@ -469,7 +472,7 @@ export default function HomeScreen() {
                     </View>
                   </ImageBackground>
                 ) : (
-                  <View style={[styles.offerCard, { width, backgroundColor: COLORS.accent }]}>
+                  <View style={[styles.offerCard, { width: width - scale(28), height: verticalScale(170), backgroundColor: COLORS.accent }]}>
                     <View style={styles.offerOverlay} />
                     <View style={styles.offerContent}>
                       <ThemedText style={styles.offerTitle}>{item.title}</ThemedText>
@@ -959,12 +962,12 @@ const styles = StyleSheet.create({
   // ── Offers ──
   offerSection: {
     marginBottom: verticalScale(20),
-    marginHorizontal: scale(14),
+    marginHorizontal: 0,
     borderRadius: moderateScale(14),
     overflow: "hidden",
   },
   offerCard: {
-    height: verticalScale(130),
+    height: verticalScale(170),
     borderRadius: moderateScale(14),
     overflow: "hidden",
     justifyContent: "flex-end",
