@@ -9,11 +9,13 @@ export interface Product {
   name: string;
   description?: string;
   price: number;
+  mrp?: number;
   originalPrice?: number;
   discount?: number;
   image: string;
   images?: string[];
   categoryId: string | Category;
+  subcategoryId?: string | null;
   category?: Category;
   parentCategory?: string | Category;
   stock: number;

@@ -66,12 +66,6 @@ const getParentCategoryId = (category: any): string => {
   return category.parentCategory?._id || "";
 };
 
-const getEntityId = (value: any): string => {
-  if (!value) return "";
-  if (typeof value === "string") return value;
-  return String(value?._id || value?.id || "");
-};
-
 const getCategoryIcon = (
   categoryName: string,
 ): keyof typeof MaterialCommunityIcons.glyphMap => {
@@ -114,7 +108,6 @@ export default function HomeScreen() {
   const selectedLocation = useLocationStore((s) => s.selectedLocation);
   const setSelectedLocation = useLocationStore((s) => s.setSelectedLocation);
   const cartCount = useCart((s) => s.items.length);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [offers, setOffers] = useState<OfferUI[]>([]);
@@ -191,7 +184,6 @@ export default function HomeScreen() {
           finalOffers = localImgs.map((img, i) => ({ id: `local-${i}`, title: "", subtitle: "", image: img }));
         }
         setOffers(finalOffers);
-       setSelectedCategory(mainCategories?.[0]?._id ?? null);
       } catch (error: any) {
         if (!mounted) return;
         const errorMessage = error?.message || 'Failed to load catalog. Please try again.';
@@ -290,9 +282,19 @@ export default function HomeScreen() {
     return null;
   };
 
-  const filteredProducts = selectedCategory
-    ? products.filter((p: any) => getEntityId(p.categoryId) === selectedCategory)
-    : products;
+  // Trending products: sort by discount percentage descending, take top 6
+  const trendingProducts = useMemo(() => {
+    return products
+      .map((p) => {
+        const discount = Number(p?.discount ?? 0);
+        const mrp = Number(p?.mrp ?? 0);
+        const price = Number(p?.price ?? 0);
+        const discountPercent = discount > 0 ? discount : (mrp > price ? ((mrp - price) / mrp) * 100 : 0);
+        return { ...p, discountPercent };
+      })
+      .sort((a, b) => b.discountPercent - a.discountPercent)
+      .slice(0, 6);
+  }, [products]);
 
   const locationLines = useMemo(() => {
     const fallback = ["Select your location", "Tap to choose delivery address"];
@@ -603,19 +605,19 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.productGrid}>
-          {filteredProducts.length === 0 ? (
+          {trendingProducts.length === 0 ? (
             <View style={styles.noResultsWrap}>
               <ThemedText style={styles.noResultsTitle}>No products available</ThemedText>
               <ThemedText style={styles.noResultsSubtext}>Try another category or check again later</ThemedText>
             </View>
           ) : (
-            filteredProducts.map((product) => {
+            trendingProducts.map((product) => {
               const activePrice = Number(product?.price ?? 0);
               const activeMrp = Number(product?.price ?? 0);
               const activeStock = Number(product?.stock ?? 0);
               const activeUnitLabel = String(product?.unit || "piece");
               const isOutOfStock = activeStock <= 0;
-              const discountPercent = 0;
+              const discountPercent = Math.round(product.discountPercent || 0);
               const previewVariants: any[] = [];
               const extraVariantCount = 0;
 
@@ -957,7 +959,7 @@ const styles = StyleSheet.create({
   // ── Offers ──
   offerSection: {
     marginBottom: verticalScale(20),
-    marginHorizontal: -scale(14),
+    marginHorizontal: scale(2),
     overflow: "hidden",
   },
   offerCard: {
@@ -1088,9 +1090,7 @@ const styles = StyleSheet.create({
   deliveryStrip: {
     marginBottom: verticalScale(14),
     flexDirection: "row",
-    flexWrap: "wrap",
     justifyContent: "space-between",
-    gap: verticalScale(8),
     paddingHorizontal: scale(16),
   },
   deliveryCard: {
@@ -1102,8 +1102,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: scale(8),
     paddingVertical: verticalScale(6),
     flex: 1,
-    minWidth: scale(100),
-    maxWidth: scale(140),
     shadowColor: "#000",
     shadowOpacity: 0.06,
     shadowRadius: 8,

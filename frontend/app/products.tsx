@@ -161,11 +161,11 @@ export default function ProductsScreen() {
       if (selectedSubCategoryId === "all") return true;
 
       // Otherwise, only show products that belong to the selected subcategory
-      const pCategoryId = getId(p.categoryId);
+      const pSubCategoryId = getId(p.subcategoryId);
       const selectedId = selectedSubCategoryId;
 
       // Check if product belongs to the selected subcategory
-      return pCategoryId === selectedId;
+      return pSubCategoryId === selectedId;
     })
     .filter((p) =>
       normalizedQuery === ""
