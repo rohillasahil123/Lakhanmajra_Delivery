@@ -10,17 +10,26 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { moderateScale, scale, verticalScale } from "react-native-size-matters";
+import { getEndpoint } from "@/config/api";
+import useCart from "@/stores/cartStore";
+
 
 export default function OTPScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const phone = (params.phone as string) ?? "+91 9876543210";
+  const clearCart = useCart((s) => s.clearCart);
 
   const [digits, setDigits] = useState(["", "", "", ""]);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasAttempted, setHasAttempted] = useState(false);
   const refs = [
     useRef<TextInput>(null),
     useRef<TextInput>(null),
@@ -37,11 +46,65 @@ export default function OTPScreen() {
     return () => clearInterval(t);
   }, []);
 
+  // Auto-verify when all 4 digits are filled
+  useEffect(() => {
+    const allFilled = digits.every((d) => d !== "");
+
+    if (allFilled && !isVerifying && !hasAttempted) {
+      // Auto-verify only once
+      verifyOtpAuto();
+    }
+  }, [digits, isVerifying, hasAttempted]);
+
+  // Auto-verify function
+  async function verifyOtpAuto() {
+    setHasAttempted(true);
+    setError(null);
+    setIsVerifying(true);
+
+    try {
+      const otp = digits.join("");
+
+      // Call backend to verify OTP
+      const endpoint = getEndpoint("/api/auth/verify-otp");
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, otp }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "OTP verification failed");
+      }
+
+      const data = await response.json();
+
+      // On success, auto-login and redirect
+      if (data.user || data.token) {
+        clearCart();
+        // Small delay for smooth transition
+        setTimeout(() => {
+          router.replace("/home");
+        }, 300);
+      }
+    } catch (err: any) {
+      setError(err.message || "Verification failed. Please try again.");
+      setIsVerifying(false);
+      setHasAttempted(false);
+      // Reset digits for retry
+      setDigits(["", "", "", ""]);
+      refs[0].current?.focus();
+    }
+  }
+
   function onChangeText(index: number, val: string) {
     if (val.length > 1) val = val.slice(-1);
     const next = [...digits];
     next[index] = val;
     setDigits(next);
+    setError(null); // Clear error when user types
 
     const nextRef = refs[index + 1];
     if (val && nextRef && nextRef.current) {
@@ -58,10 +121,14 @@ export default function OTPScreen() {
 
   function onVerify() {
     if (digits.some((d) => !d)) {
-      alert("Please enter the full OTP");
+      setError("Please enter the full OTP");
       return;
     }
-    router.replace("/(tabs)");
+    // Trigger verification (in case auto-verify was disabled)
+    if (!isVerifying) {
+      setHasAttempted(false);
+      verifyOtpAuto();
+    }
   }
 
   return (
@@ -104,14 +171,29 @@ export default function OTPScreen() {
                   onKeyPress={({ nativeEvent }) => onKeyPress(i, nativeEvent.key)}
                   keyboardType="number-pad"
                   maxLength={1}
+                  editable={!isVerifying}
                   style={[
                     styles.otpBox,
                     d ? styles.otpBoxFilled : null,
+                    isVerifying && styles.otpBoxDisabled,
                   ]}
                   textAlign="center"
                 />
               ))}
             </View>
+
+            {/* Error Message */}
+            {error && (
+              <ThemedText style={styles.errorText}>{error}</ThemedText>
+            )}
+
+            {/* Verifying Indicator */}
+            {isVerifying && (
+              <View style={styles.verifyingContainer}>
+                <ActivityIndicator size="small" color="#0E7A3D" />
+                <ThemedText style={styles.verifyingText}>Verifying OTP...</ThemedText>
+              </View>
+            )}
 
             <ThemedText style={styles.resend}>
               {secondsLeft > 0
@@ -119,7 +201,11 @@ export default function OTPScreen() {
                 : "Didn't receive OTP? Resend"}
             </ThemedText>
 
-            <Button title="Verify" onPress={onVerify} />
+            <Button 
+              title={isVerifying ? "Verifying..." : "Verify"} 
+              onPress={onVerify}
+              disabled={isVerifying}
+            />
           </ThemedView>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -179,6 +265,28 @@ const styles = StyleSheet.create({
   otpBoxFilled: {
     borderColor: "#0E7A3D",
     backgroundColor: "#F0FAF4",
+  },
+  otpBoxDisabled: {
+    opacity: 0.6,
+  },
+  errorText: {
+    color: "#DC2626",
+    fontSize: moderateScale(13),
+    textAlign: "center",
+    marginTop: verticalScale(8),
+    marginBottom: verticalScale(12),
+  },
+  verifyingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginVertical: verticalScale(12),
+    gap: scale(8),
+  },
+  verifyingText: {
+    fontSize: moderateScale(13),
+    color: "#0E7A3D",
+    fontWeight: "600",
   },
   resend: {
     textAlign: "center",
