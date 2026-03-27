@@ -2,7 +2,7 @@
   "compilerOptions": {
     /* Language & Environment */
     "target": "ES2021",
-    "lib": ["ES2021"],
+    "lib": ["ES2021", "DOM"],
     "module": "CommonJS",
 
     /* Project Structure */

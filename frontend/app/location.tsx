@@ -20,8 +20,17 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import MapView, {
+  MapPressEvent,
+  Marker,
+  MarkerDragEndEvent,
+  PROVIDER_GOOGLE,
+} from "react-native-maps";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  DeliveryZone,
+  getActiveDeliveryZones,
+} from "@/services/deliveryZoneService";
 
 export default function LocationScreen() {
   const router = useRouter();
@@ -59,11 +68,63 @@ export default function LocationScreen() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [isMarkerLocked, setIsMarkerLocked] = useState(true);
+  const [zones, setZones] = useState<DeliveryZone[]>([]);
+  const [zonesLoading, setZonesLoading] = useState(false);
   const mapRef = useRef<MapView | null>(null);
 
   const LOCATION_PROMPT = "Tap on map or detect location";
   const getPinnedFallbackAddress = (lat: number, lng: number) =>
     `Pinned location (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const haversineMeters = (
+    a: { latitude: number; longitude: number },
+    b: { latitude: number; longitude: number },
+  ): number => {
+    const R = 6371000;
+    const dLat = toRadians(b.latitude - a.latitude);
+    const dLng = toRadians(b.longitude - a.longitude);
+    const lat1 = toRadians(a.latitude);
+    const lat2 = toRadians(b.latitude);
+    const sinDLat = Math.sin(dLat / 2);
+    const sinDLng = Math.sin(dLng / 2);
+    const h =
+      sinDLat * sinDLat +
+      Math.cos(lat1) * Math.cos(lat2) * (sinDLng * sinDLng);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  };
+
+  const activeZones = zones.filter((z) => z.active);
+  const isInsideAnyActiveZone = useCallback(
+    (latitude: number, longitude: number): boolean => {
+      if (activeZones.length === 0) {
+        // fallback to Lakhanmajra-only legacy behavior if zones cannot be loaded
+        const dist = haversineMeters(
+          { latitude, longitude },
+          DEFAULT_LOCATION_COORDS,
+        );
+        return dist <= 7000;
+      }
+
+      return activeZones.some((z) => {
+        const dist = haversineMeters(
+          { latitude, longitude },
+          { latitude: z.center.latitude, longitude: z.center.longitude },
+        );
+        return dist <= Number(z.radiusMeters || 0);
+      });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [zones],
+  );
+
+  const getNearestActiveZoneCenter = useCallback(() => {
+    if (activeZones.length === 0) return DEFAULT_LOCATION_COORDS;
+    return {
+      latitude: activeZones[0]!.center.latitude,
+      longitude: activeZones[0]!.center.longitude,
+    };
+  }, [activeZones]);
 
   const animateToLocation = useCallback(
     (latitude: number, longitude: number) => {
@@ -123,6 +184,35 @@ export default function LocationScreen() {
     }
   }, []);
 
+  const loadZones = useCallback(async () => {
+    setZonesLoading(true);
+    try {
+      const data = await getActiveDeliveryZones();
+      setZones(data);
+
+      const first = data.find((z) => z.active) || null;
+      if (first) {
+        const center = {
+          latitude: first.center.latitude,
+          longitude: first.center.longitude,
+        };
+        setSelectedLocation((prev) => ({
+          ...prev,
+          latitude: center.latitude,
+          longitude: center.longitude,
+        }));
+        animateToLocation(center.latitude, center.longitude);
+        setAddress(`${first.name}, ${first.city}, ${first.state}`);
+        setIsMarkerLocked(true);
+      }
+    } catch {
+      // keep default Lakhanmajra fallback
+      setZones([]);
+    } finally {
+      setZonesLoading(false);
+    }
+  }, [animateToLocation]);
+
   // Detect current location
   const detectLocation = useCallback(
     async (silent = false) => {
@@ -144,6 +234,25 @@ export default function LocationScreen() {
         });
 
         const { latitude, longitude } = location.coords;
+        if (!isInsideAnyActiveZone(latitude, longitude)) {
+          if (!silent) {
+            Alert.alert(
+              "Out of Service Area",
+              "We currently deliver only in Lakhan Majra / active villages. Please choose a location inside our delivery area.",
+            );
+          }
+          const center = getNearestActiveZoneCenter();
+          setSelectedLocation({
+            latitude: center.latitude,
+            longitude: center.longitude,
+            latitudeDelta: 0.012,
+            longitudeDelta: 0.012,
+          });
+          animateToLocation(center.latitude, center.longitude);
+          await reverseGeocode(center.latitude, center.longitude);
+          setIsMarkerLocked(true);
+          return;
+        }
 
         setSelectedLocation({
           latitude,
@@ -164,20 +273,27 @@ export default function LocationScreen() {
         setIsDetecting(false);
       }
     },
-    [animateToLocation, reverseGeocode],
+    [animateToLocation, reverseGeocode, isInsideAnyActiveZone, getNearestActiveZoneCenter],
   );
 
   // Handle map tap
-  const handleMapPress = (event: any) => {
+  const handleMapPress = (event: MapPressEvent) => {
     if (isMarkerLocked) {
       Alert.alert(
         "Location Locked",
-        'For now, map marker is locked to Lakhanmajra. Tap "Use Current Location" to unlock.',
+        'For now, delivery is limited to active villages (Lakhan Majra by default). Tap "Use Current Location" to unlock.',
       );
       return;
     }
 
     const { latitude, longitude } = event.nativeEvent.coordinate;
+    if (!isInsideAnyActiveZone(latitude, longitude)) {
+      Alert.alert(
+        "Out of Service Area",
+        "Please pick a location inside our delivery area (Lakhan Majra / active villages).",
+      );
+      return;
+    }
     setSelectedLocation((prev) => ({
       ...prev,
       latitude,
@@ -231,6 +347,10 @@ export default function LocationScreen() {
   }, []);
 
   useEffect(() => {
+    void loadZones();
+  }, [loadZones]);
+
+  useEffect(() => {
     detectLocation(true);
   }, [detectLocation]);
 
@@ -270,11 +390,18 @@ export default function LocationScreen() {
               title="Delivery Here"
               description={address}
               draggable={!isMarkerLocked}
-              onDragEnd={(e) => {
+              onDragEnd={(e: MarkerDragEndEvent) => {
                 if (isMarkerLocked) {
                   return;
                 }
                 const { latitude, longitude } = e.nativeEvent.coordinate;
+                if (!isInsideAnyActiveZone(latitude, longitude)) {
+                  Alert.alert(
+                    "Out of Service Area",
+                    "Please keep the pin inside our delivery area (Lakhan Majra / active villages).",
+                  );
+                  return;
+                }
                 setSelectedLocation((prev) => ({
                   ...prev,
                   latitude,
@@ -290,7 +417,7 @@ export default function LocationScreen() {
           <View style={styles.locationBadge}>
             <View style={styles.locationBadgeContent}>
               <ThemedText style={styles.locationIcon}>📍</ThemedText>
-              {isLoadingAddress ? (
+              {isLoadingAddress || zonesLoading ? (
                 <ActivityIndicator size="small" color="#0E7A3D" />
               ) : (
                 <ThemedText style={styles.locationText} numberOfLines={2}>
@@ -300,7 +427,9 @@ export default function LocationScreen() {
             </View>
             {isMarkerLocked ? (
               <ThemedText style={styles.lockHint}>
-                Locked to Lakhanmajra • Tap Use Current Location to unlock
+                {activeZones.length > 0
+                  ? `Serving: ${activeZones.map((z) => z.name).join(", ")} • Tap Use Current Location to unlock`
+                  : "Serving: Lakhan Majra • Tap Use Current Location to unlock"}
               </ThemedText>
             ) : null}
           </View>

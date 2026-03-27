@@ -22,6 +22,12 @@ import { protect, requireRole } from "../middlewares/auth.middleware";
 import { requirePermission } from "../middlewares/permission.middleware";
 import { adminListOrders, getOrderStats, assignOrderToRider, adminUpdateOrderStatus, adminGetOrderById } from "../controllers/order.controller";
 import { adminChangeUserPassword } from "../services/passwordChange.service";
+import {
+  adminCreateZone,
+  adminDeleteZone,
+  adminListZones,
+  adminUpdateZone,
+} from "../controllers/deliveryZone.controller";
 
 const router = Router();
 
@@ -62,5 +68,11 @@ router.patch('/users/:id/status', protect, requireRole('superadmin'), updateUser
 
 // Audit logs (admin / reports:view)
 router.get('/audit', protect, requirePermission('reports:view'), getAuditLogs);
+
+// Delivery zones (superadmin only)
+router.get('/delivery-zones', protect, requireRole('superadmin'), adminListZones);
+router.post('/delivery-zones', protect, requireRole('superadmin'), adminCreateZone);
+router.patch('/delivery-zones/:id', protect, requireRole('superadmin'), adminUpdateZone);
+router.delete('/delivery-zones/:id', protect, requireRole('superadmin'), adminDeleteZone);
 
 export default router;

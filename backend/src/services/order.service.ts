@@ -9,6 +9,7 @@ import User from '../models/user.model';
 import { recordAudit } from './audit.service';
 import { emitOrderRealtime } from './realtime.service';
 import { AuthRequest } from '../middlewares/auth.middleware';
+import { findMatchingZoneForAddress } from './deliveryZone.service';
 
 const COD_DELIVERY_FEE = 10;
 const ONLINE_DELIVERY_FEE = 8;
@@ -135,6 +136,14 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       ...(Number.isFinite(latitude) ? { latitude } : {}),
       ...(Number.isFinite(longitude) ? { longitude } : {}),
     };
+
+    const zone = await findMatchingZoneForAddress(normalizedShippingAddress);
+    if (!zone) {
+      res.status(400).json({
+        message: 'We currently deliver only in Lakhan Majra. Please select a delivery location within our service area.',
+      });
+      return;
+    }
 
     session = await mongoose.startSession();
     session.startTransaction();

@@ -16,6 +16,7 @@ import cartRoutes from "./routes/cart.routes";
 import orderRoutes from "./routes/order.routes";
 import riderRoutes from "./routes/rider.routes";
 import webhookRoutes from "./routes/webhook.routes";
+import deliveryZoneRoutes from "./routes/deliveryZone.routes";
 
 import { apiLimiter } from "./middlewares/rateLimiter.middleware";
 import verifyCsrfToken from "./middlewares/csrf.middleware";
@@ -192,6 +193,7 @@ app.use("/api/admin", verifyCsrfToken, adminRoutes);
 
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/delivery-zones", deliveryZoneRoutes);
 app.use("/api/rider", riderRoutes);
 
 /**

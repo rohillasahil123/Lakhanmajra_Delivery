@@ -83,6 +83,12 @@ const NAV_ITEMS = [
         key: 'roles',
         icon: <span className="text-4xl">🛡</span>,
       },
+      {
+        to: '/delivery-zones',
+        label: 'Delivery Zones',
+        key: 'delivery-zones',
+        icon: <span className="text-xl">📍</span>,
+      },
     ],
   },
 ];

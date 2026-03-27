@@ -15,6 +15,7 @@ const Categories = lazy(() => import('./pages/Categories'));
 const Offers = lazy(() => import('./pages/Offers'));
 const Roles = lazy(() => import('./pages/Roles'));
 const Notifications = lazy(() => import('./pages/Notifications'));
+const DeliveryZones = lazy(() => import('./pages/DeliveryZones'));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -48,6 +49,7 @@ export default function App() {
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/orders" element={<Orders />} />
                     <Route path="/roles" element={<Roles />} />
+                    <Route path="/delivery-zones" element={<DeliveryZones />} />
                   </Routes>
                 </Suspense>
               </Layout>
