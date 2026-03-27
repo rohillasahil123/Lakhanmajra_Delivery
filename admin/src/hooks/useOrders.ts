@@ -47,6 +47,12 @@ export type Order = {
   userId?: { _id?: string; name?: string; email?: string; phone?: string };
   assignedRiderId?: { _id?: string; name?: string; phone?: string };
   shippingAddress?: ShippingAddress;
+  deliveryZone?: {
+    key?: string;
+    name?: string;
+    city?: string;
+    state?: string;
+  };
   riderLocation?: RiderLocation;
   items?: OrderItem[];
   createdAt?: string;
@@ -62,9 +68,15 @@ export type Rider = { _id: string; name: string; phone?: string };
 export type FilterState = {
   status: string;
   paymentMethod: string;
+  zoneKey: string;
   from: string;
   to: string;
   today: boolean;
+};
+
+export type ZoneOption = {
+  key: string;
+  name: string;
 };
 
 export const PAGE_LIMIT = 20;
@@ -215,6 +227,7 @@ const resolveRiders = (d: unknown): Rider[] => {
 const readFilterParams = (p: URLSearchParams): FilterState => ({
   status: p.get('status') || 'all',
   paymentMethod: p.get('paymentMethod') || 'all',
+  zoneKey: p.get('zoneKey') || 'all',
   from: p.get('from') || '',
   to: p.get('to') || '',
   today: p.get('today') === '1',
@@ -229,6 +242,7 @@ export function useOrders() {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<FilterState>(() => readFilterParams(searchParams));
   const [riders, setRiders] = useState<Rider[]>([]);
+  const [zones, setZones] = useState<ZoneOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<OrderDetail | null>(null);
@@ -251,6 +265,7 @@ export function useOrders() {
       if (search.trim()) q.set('q', sanitizeSearchQuery(search.trim(), 100));
       if (filters.status !== 'all') q.set('status', sanitizeFormInput(filters.status, 50));
       if (filters.paymentMethod !== 'all') q.set('paymentMethod', sanitizeFormInput(filters.paymentMethod, 50));
+      if (filters.zoneKey !== 'all') q.set('zoneKey', sanitizeFormInput(filters.zoneKey, 100));
       if (filters.today) {
         q.set('today', '1');
       } else {
@@ -287,7 +302,18 @@ export function useOrders() {
 
   const loadStats = useCallback(async () => {
     try {
-      const res = await api.get(`/admin/orders/stats`);
+      const q = new URLSearchParams();
+      if (filters.status !== 'all') q.set('status', sanitizeFormInput(filters.status, 50));
+      if (filters.paymentMethod !== 'all')
+        q.set('paymentMethod', sanitizeFormInput(filters.paymentMethod, 50));
+      if (filters.zoneKey !== 'all') q.set('zoneKey', sanitizeFormInput(filters.zoneKey, 100));
+      if (filters.today) {
+        q.set('today', '1');
+      } else {
+        if (filters.from) q.set('from', sanitizeFormInput(filters.from, 20));
+        if (filters.to) q.set('to', sanitizeFormInput(filters.to, 20));
+      }
+      const res = await api.get(`/admin/orders/stats?${q.toString()}`);
       const stats = res.data?.data ?? res.data;
       setFullStats(stats);
     } catch (err) {
@@ -300,13 +326,24 @@ export function useOrders() {
     let cancelled = false;
     (async () => {
       try {
-        const [perms, rRes] = await Promise.all([
+        const [perms, rRes, zonesRes] = await Promise.all([
           getPermissions(),
           api.get(`/admin/users?role=rider&limit=100`),
+          api.get('/admin/delivery-zones').catch(() => api.get('/delivery-zones/active')),
         ]);
         if (cancelled) return;
         setPermissions(perms);
         setRiders(resolveRiders(rRes.data?.data ?? rRes.data));
+        const zoneRows = (zonesRes.data?.data ?? zonesRes.data ?? []) as any[];
+        const zoneOptions: ZoneOption[] = Array.isArray(zoneRows)
+          ? zoneRows
+              .map((z) => ({
+                key: String(z?.key || '').trim().toLowerCase(),
+                name: String(z?.name || '').trim(),
+              }))
+              .filter((z) => z.key && z.name)
+          : [];
+        setZones(zoneOptions);
         setError(null);
         await Promise.all([load(1), loadStats()]);
       } catch (err) {
@@ -416,6 +453,7 @@ export function useOrders() {
     filters.paymentMethod !== 'all'
       ? p.set('paymentMethod', filters.paymentMethod)
       : p.delete('paymentMethod');
+    filters.zoneKey !== 'all' ? p.set('zoneKey', filters.zoneKey) : p.delete('zoneKey');
     if (filters.today) {
       p.set('today', '1');
       p.delete('from');
@@ -429,9 +467,9 @@ export function useOrders() {
   };
 
   const clearFilters = () => {
-    setFilters({ status: 'all', paymentMethod: 'all', from: '', to: '', today: false });
+    setFilters({ status: 'all', paymentMethod: 'all', zoneKey: 'all', from: '', to: '', today: false });
     const p = new URLSearchParams(searchParams);
-    ['status', 'paymentMethod', 'today', 'from', 'to'].forEach((k) => p.delete(k));
+    ['status', 'paymentMethod', 'zoneKey', 'today', 'from', 'to'].forEach((k) => p.delete(k));
     setSearchParams(p);
   };
 
@@ -536,6 +574,7 @@ export function useOrders() {
     applyFilters,
     clearFilters,
     riders,
+    zones,
     stats,
     detail,
     detailLoading,

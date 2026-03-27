@@ -275,6 +275,12 @@ export const createOrder = async (req: AuthRequest, res: Response): Promise<void
       deliveryFee,
       paymentMethod: normalizedPaymentMethod as 'cod' | 'online',
       shippingAddress: normalizedShippingAddress,
+      deliveryZone: {
+        key: String(zone.key || ''),
+        name: String(zone.name || ''),
+        city: String(zone.city || ''),
+        state: String(zone.state || ''),
+      },
       paymentStatus: (advancePaid ? 'paid' : 'pending') as 'paid' | 'pending',
       riderStatus: 'Assigned' as 'Assigned',
       rejectedByRiderIds: [],
@@ -460,7 +466,17 @@ export const adminGetOrderById = async (req: AuthRequest, res: Response): Promis
 /* ================= ADMIN / STAFF: list & manage orders ================= */
 export const adminListOrders = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const { page = '1', limit = '20', status, paymentMethod, q, from, to, today } = req.query as any;
+    const {
+      page = '1',
+      limit = '20',
+      status,
+      paymentMethod,
+      zoneKey,
+      q,
+      from,
+      to,
+      today,
+    } = req.query as any;
     const skip = (Number(page) - 1) * Number(limit);
     const pipeline: any[] = [];
 
@@ -482,6 +498,7 @@ export const adminListOrders = async (req: AuthRequest, res: Response): Promise<
 
     if (status && status !== 'all') matchStage.status = status;
     if (paymentMethod && paymentMethod !== 'all') matchStage.paymentMethod = paymentMethod;
+    if (zoneKey && zoneKey !== 'all') matchStage['deliveryZone.key'] = String(zoneKey).trim().toLowerCase();
 
     if (today === '1' || today === 'true') {
       const start = new Date();
@@ -573,6 +590,7 @@ export const adminListOrders = async (req: AuthRequest, res: Response): Promise<
         shippingAddress: 1,
         riderLocation: 1,
         etaMinutes: 1,
+        deliveryZone: 1,
         createdAt: 1,
         updatedAt: 1,
         userId: {
@@ -601,8 +619,46 @@ export const adminListOrders = async (req: AuthRequest, res: Response): Promise<
 
 export const getOrderStats = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
+    const {
+      status,
+      paymentMethod,
+      zoneKey,
+      from,
+      to,
+      today,
+    } = _req.query as any;
+
+    const matchStage: any = {};
+    if (status && status !== 'all') matchStage.status = status;
+    if (paymentMethod && paymentMethod !== 'all') matchStage.paymentMethod = paymentMethod;
+    if (zoneKey && zoneKey !== 'all') matchStage['deliveryZone.key'] = String(zoneKey).trim().toLowerCase();
+
+    if (today === '1' || today === 'true') {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      matchStage.createdAt = { $gte: start, $lte: end };
+    } else if (from || to) {
+      const dateRange: any = {};
+      if (from) {
+        const start = new Date(String(from));
+        start.setHours(0, 0, 0, 0);
+        dateRange.$gte = start;
+      }
+      if (to) {
+        const end = new Date(String(to));
+        end.setHours(23, 59, 59, 999);
+        dateRange.$lte = end;
+      }
+      if (Object.keys(dateRange).length > 0) {
+        matchStage.createdAt = dateRange;
+      }
+    }
+
     // Get comprehensive stats across all orders
     const statsAgg = await Order.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
       {
         $facet: {
           total: [{ $count: 'count' }],

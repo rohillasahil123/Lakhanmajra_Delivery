@@ -93,6 +93,7 @@ export default function Orders() {
     applyFilters,
     clearFilters,
     riders,
+    zones,
     stats,
     detail,
     detailLoading,
@@ -113,6 +114,7 @@ export default function Orders() {
   const hasActiveFilters =
     filters.status !== 'all' ||
     filters.paymentMethod !== 'all' ||
+    filters.zoneKey !== 'all' ||
     filters.today ||
     !!filters.from ||
     !!filters.to;
@@ -274,6 +276,22 @@ export default function Orders() {
               </button>
             ))}
           </div>
+
+          {/* Divider */}
+          <div className="w-px h-4 bg-slate-200" />
+
+          <select
+            className="border border-slate-200 px-2 py-1 rounded-lg text-xs bg-white text-slate-600"
+            value={filters.zoneKey}
+            onChange={(e) => setFilter('zoneKey', e.target.value)}
+          >
+            <option value="all">All Villages</option>
+            {zones.map((z) => (
+              <option key={z.key} value={z.key}>
+                {z.name}
+              </option>
+            ))}
+          </select>
 
           {/* Divider */}
           <div className="w-px h-4 bg-slate-200" />

@@ -71,6 +71,12 @@ export interface IOrder extends Document {
   };
   etaMinutes?: number | null;
   shippingAddress: IShippingAddress;
+  deliveryZone?: {
+    key: string;
+    name: string;
+    city: string;
+    state: string;
+  };
   paymentStatus: 'pending' | 'paid' | 'failed';
   createdAt: Date;
   updatedAt: Date;

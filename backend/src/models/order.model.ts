@@ -44,6 +44,12 @@ const orderSchema = new Schema<IOrder>({
     latitude: { type: Number, required: false },
     longitude: { type: Number, required: false }
   },
+  deliveryZone: {
+    key: { type: String, required: false, index: true },
+    name: { type: String, required: false },
+    city: { type: String, required: false },
+    state: { type: String, required: false },
+  },
   paymentStatus: {
     type: String,
     enum: ['pending', 'paid', 'failed'],
