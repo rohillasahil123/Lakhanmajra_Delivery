@@ -10,7 +10,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -24,7 +23,7 @@ export default function OTPScreen() {
   const params = useLocalSearchParams();
   const insets = useSafeAreaInsets();
   const phone = (params.phone as string) ?? "+91 9876543210";
-  const clearCart = useCart((s) => s.clearCart);
+  const clearCart = useCart((s) => s.clear);
 
   const [digits, setDigits] = useState(["", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -83,7 +82,7 @@ export default function OTPScreen() {
 
       // On success, auto-login and redirect
       if (data.user || data.token) {
-        clearCart();
+        await clearCart();
         // Small delay for smooth transition
         setTimeout(() => {
           router.replace("/home");
@@ -95,7 +94,7 @@ export default function OTPScreen() {
       setHasAttempted(false);
       // Reset digits for retry
       setDigits(["", "", "", ""]);
-      refs[0].current?.focus();
+      refs[0]?.current?.focus();
     }
   }
 
@@ -115,7 +114,7 @@ export default function OTPScreen() {
   // Backspace press pe pichle box mein jao
   function onKeyPress(index: number, key: string) {
     if (key === "Backspace" && !digits[index] && index > 0) {
-      refs[index - 1].current?.focus();
+      refs[index - 1]?.current?.focus();
     }
   }
 
