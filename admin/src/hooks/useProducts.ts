@@ -21,6 +21,7 @@ export type ProductVariant = {
   unit?: string;
   unitType?: string;
   isDefault?: boolean;
+  image?: string;
 };
 
 export type Product = {
@@ -84,6 +85,7 @@ export const createEmptyVariant = (): ProductVariant => ({
   stock: '',
   unit: '',
   isDefault: false,
+  image: '',
 });
 
 export const toNumber = (v: string): number | null => {
@@ -442,6 +444,7 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
     tags: string;
     variants: ProductVariant[];
     files: File[];
+    variantFiles: { [variantIndex: number]: File | null };
   }) => {
     /**
      * SECURITY: Sanitize all product input fields
@@ -480,6 +483,12 @@ export function useProducts(autoRefreshMs: number = AUTO_REFRESH_MS) {
       if (sanitizedDescription) fd.append('description', sanitizedDescription);
       if (sanitizedTags) fd.append('tags', sanitizedTags);
       payload.files.forEach((f) => fd.append('images', f));
+      // Append variant images using the same field name (multer.fields expects `variantImages`)
+      Object.values(payload.variantFiles).forEach((file) => {
+        if (file) {
+          fd.append('variantImages', file);
+        }
+      });
       await api.post('/products', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       await load(1);
     } catch (err) {

@@ -62,6 +62,7 @@ const normalizeVariants = (
         unit: String(variant?.unit || fallbackUnit || "piece").trim().toLowerCase(),
         unitType: String(variant?.unitType || label || fallbackUnitType || "").trim(),
         isDefault: Boolean(variant?.isDefault),
+        image: String(variant?.image || "").trim(),
       };
     })
     .filter(Boolean) as any[];
@@ -159,11 +160,22 @@ const syncRootFieldsFromVariants = (payload: any): any => {
 
 // ─── Helper: upload all files from req.files to MinIO ────────────────────────
 const uploadProductImages = async (req: Request): Promise<string[]> => {
-  const files = req.files as Express.Multer.File[] | undefined;
-  if (!files || files.length === 0) return [];
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  if (!files || !files.images || files.images.length === 0) return [];
 
   const urls = await Promise.all(
-    files.map((file) => uploadToMinio(file.buffer, file.originalname, file.mimetype))
+    files.images.map((file) => uploadToMinio(file.buffer, file.originalname, file.mimetype))
+  );
+  return urls;
+};
+
+// ─── Helper: upload variant images ───────────────────────────────────────────
+const uploadVariantImages = async (req: Request): Promise<string[]> => {
+  const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+  if (!files || !files.variantImages || files.variantImages.length === 0) return [];
+
+  const urls = await Promise.all(
+    files.variantImages.map((file) => uploadToMinio(file.buffer, file.originalname, file.mimetype))
   );
   return urls;
 };
@@ -213,6 +225,7 @@ export const createProduct = async (req: Request, res: Response) => {
 
     // Upload images to MinIO
     const uploadedUrls = await uploadProductImages(req);
+    const variantImageUrls = await uploadVariantImages(req);
     
     // Ensure images is always an array
     let existingImages: string[] = [];
@@ -220,6 +233,14 @@ export const createProduct = async (req: Request, res: Response) => {
       existingImages = value.images.filter((img: any) => typeof img === 'string' && img.trim());
     }
     const allImages = [...existingImages, ...uploadedUrls];
+
+    // Assign variant images in order (if more variants than files, unmatched variants remain as-is)
+    if (value.variants && Array.isArray(value.variants)) {
+      value.variants = value.variants.map((variant: any, index: number) => ({
+        ...variant,
+        image: variantImageUrls[index] || variant.image || '',
+      }));
+    }
 
     // Import ObjectId and convert categoryId/subcategoryId strings to ObjectIds
     const { Types } = require("mongoose");

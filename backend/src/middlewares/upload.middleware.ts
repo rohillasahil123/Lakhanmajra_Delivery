@@ -20,7 +20,7 @@ export const upload = multer({
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB max per file
-    files: 5,                   // max 5 images per product
+    files: 10,                  // max 5 product images + 5 variant images
   },
 });
 

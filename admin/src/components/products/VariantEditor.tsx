@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   ProductVariant,
   createEmptyVariant,
@@ -7,9 +8,30 @@ import {
 interface Props {
   variants: ProductVariant[];
   onChange: (variants: ProductVariant[]) => void;
+  onFilesChange?: (files: { [variantIndex: number]: File | null }) => void;
 }
 
-export default function VariantEditor({ variants, onChange }: Readonly<Props>) {
+export default function VariantEditor({ variants, onChange, onFilesChange }: Readonly<Props>) {
+  const [variantFiles, setVariantFiles] = useState<{ [key: number]: File | null }>({});
+  const [variantPreviews, setVariantPreviews] = useState<{ [key: number]: string }>({});
+
+  const handleFileChange = (index: number, file: File | null) => {
+    const newFiles = { ...variantFiles, [index]: file };
+    setVariantFiles(newFiles);
+    onFilesChange?.(newFiles);
+
+    if (file) {
+      const preview = URL.createObjectURL(file);
+      setVariantPreviews(prev => ({ ...prev, [index]: preview }));
+    } else {
+      setVariantPreviews(prev => {
+        const newPrev = { ...prev };
+        delete newPrev[index];
+        return newPrev;
+      });
+    }
+  };
+
   const addVariant = () => {
     const next = [...variants, createEmptyVariant()];
     if (next.length === 1 && next[0]) {
@@ -129,6 +151,23 @@ export default function VariantEditor({ variants, onChange }: Readonly<Props>) {
                   ✕
                 </button>
                 </div>
+              </div>
+
+              {/* Variant Image */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                  onChange={(e) => handleFileChange(i, e.target.files?.[0] || null)}
+                  className="text-xs border rounded px-2 py-1 flex-1"
+                />
+                {variantPreviews[i] && (
+                  <img
+                    src={variantPreviews[i]}
+                    alt={`Variant ${i + 1} preview`}
+                    className="w-8 h-8 object-cover rounded border border-slate-200"
+                  />
+                )}
               </div>
             </div>
           ))}

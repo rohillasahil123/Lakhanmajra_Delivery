@@ -17,6 +17,8 @@ export default defineConfig({
     port: 5173,
     open: true,
     cors: true,
+
+    
   },
   build: {
     target: 'ES2021',

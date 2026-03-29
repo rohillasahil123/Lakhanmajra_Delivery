@@ -10,6 +10,7 @@ export interface IProductVariant {
   unit?: string;
   unitType?: string;
   isDefault?: boolean;
+  image?: string;
 }
 
 export interface IProduct extends Document {
@@ -73,6 +74,11 @@ const productVariantSchema = new Schema<IProductVariant>(
     isDefault: {
       type: Boolean,
       default: false,
+    },
+    image: {
+      type: String,
+      default: "",
+      trim: true,
     },
   },
   { _id: true }

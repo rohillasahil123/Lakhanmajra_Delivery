@@ -27,6 +27,7 @@ interface Props {
     tags: string;
     variants: ProductVariant[];
     files: File[];
+    variantFiles: { [variantIndex: number]: File | null };
   }) => Promise<void>;
 }
 
@@ -69,6 +70,7 @@ export default function CreateProductModal({
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
+  const [variantFiles, setVariantFiles] = useState<{ [variantIndex: number]: File | null }>({});
   const [error, setError] = useState('');
 
   // sync if defaultCategoryId changes
@@ -112,6 +114,7 @@ export default function CreateProductModal({
     setVariants([]);
     setFiles([]);
     setPreviews([]);
+    setVariantFiles({});
     setError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -133,6 +136,7 @@ export default function CreateProductModal({
         tags,
         variants,
         files,
+        variantFiles,
       });
       reset();
       onClose();
@@ -332,7 +336,7 @@ export default function CreateProductModal({
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          <VariantEditor variants={variants} onChange={setVariants} />
+          <VariantEditor variants={variants} onChange={setVariants} onFilesChange={setVariantFiles} />
 
           {/* Images */}
           <div>

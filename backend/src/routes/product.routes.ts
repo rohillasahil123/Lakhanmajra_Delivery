@@ -22,12 +22,15 @@ router.get("/:productId", getProductById);
 
 // ─── Admin Routes (permission-based) ─────────────────────────────────────────
 
-// Create product — accepts up to 5 images as multipart/form-data
+// Create product — accepts up to 5 images + up to 5 variant images as multipart/form-data
 router.post(
   "/",
   protect,
   requirePermission("products:create"),
-  upload.array("images", 5),   // field name: "images", max 5 files
+  upload.fields([
+    { name: "images", maxCount: 5 },
+    { name: "variantImages", maxCount: 5 },
+  ]),
   handleUploadError,
   createProduct
 );
@@ -45,7 +48,10 @@ router.patch(
   "/:id",
   protect,
   requirePermission("products:update"),
-  upload.array("images", 5),
+  upload.fields([
+    { name: "images", maxCount: 5 },
+    { name: "variantImages", maxCount: 5 },
+  ]),
   handleUploadError,
   updateProduct
 );

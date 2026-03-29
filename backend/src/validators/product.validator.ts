@@ -21,6 +21,7 @@ const variantSchema = Joi.object({
   unit: unitField.optional(),
   unitType: Joi.string().allow('').max(50).optional(),
   isDefault: Joi.boolean().optional(),
+  image: Joi.string().allow('').optional(),
 });
 
 export const createProductSchema = Joi.object({
